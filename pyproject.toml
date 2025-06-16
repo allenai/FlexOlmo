@@ -67,7 +67,7 @@ train = [
 ]
 eval = [
     "oe-eval@git+https://github.com/allenai/oe-eval-internal@fc26899fe4a1dafbc5073e275085b876dce2744b",
-    "vllm==0.7.0",
+    "vllm==0.9.1",
     "s3fs",
     "smart-open"
 ]
