@@ -63,7 +63,7 @@ train = [
     "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@ecb14e03f9e5f7374b81cc9f924fd13a4b2482f2",
     "huggingface-hub>=0.27.1",
     "torchao==0.9.0",
-    "torchvision==0.21.0",
+    "torchvision==0.22.1",
     "protobuf==5.29.4"
 ]
 eval = [
