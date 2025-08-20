@@ -1,12 +1,12 @@
 # This will read stream data from the public endpoints by default, but that might be a lot slower
 # than reading data locally.
-export DATA_ROOT="http://flexolmo-data.org"
-export CHECKPOINTS=  # /path/to/checkpoints
+# export DATA_ROOT="http://flexolmo-data.org"
+export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/ # /path/to/checkpoints
 
-PUBLIC_EXPERT=${CHECKPOINTS}/olmoe-2x7b-public-public
-EXPERT_1=${CHECKPOINTS}/olmoe-2x7B-news_top2_grit_learnbias/step11921
-EXPERT_2=${CHECKPOINTS}/olmoe-2x7B-math_top2_grit_learnbias/step11921
-EXPERT_3=${CHECKPOINTS}/olmoe-2x7B-code_top2_grit_learnbias/step11921
+PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350/model_and_optim
+EXPERT_1=$/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350/model_and_optim
+EXPERT_2=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen
+EXPERT_3=${CHECKPOINTS}/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen
 # Add other experts
 
 python src/scripts/upcycle/merge_experts_to_flexolmo.py \
@@ -14,6 +14,7 @@ python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -t ${CHECKPOINTS}/FlexOlmo-4x7B
 
 # Optional router training on proxy data (provided by data owners)
+"""
 torchrun --nproc-per-node=8 src/scripts/train/OLMoE-4x7B.py FlexOlmo-4x7B-RT \
     --trainer.callbacks.profiler.enabled=true \
     --dataset.mix_base_dir=${DATA_ROOT} \
@@ -26,3 +27,4 @@ torchrun --nproc-per-node=8 src/scripts/train/OLMoE-4x7B.py FlexOlmo-4x7B-RT \
     --train_module.scheduler.warmup_steps=100 \
     --train_module.optim.lr=2e-3 \
     --trainer.save_folder=${CHECKPOINTS}/FlexOlmo-4x7B-RT
+"""
