@@ -10,8 +10,8 @@ EXPERT_3=${CHECKPOINTS}/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen
 # Add other experts
 
 python src/scripts/upcycle/merge_experts_to_flexolmo.py \
-    -m ${PUBLIC_EXPERT} -m ${EXPERT_1}-unsharded ${EXPERT_2}-unsharded ${EXPERT_2}-unsharded [OTHER EXPERTS]  \
-    -t ${CHECKPOINTS}/FlexOlmo-4x7B
+    -m ${PUBLIC_EXPERT} -m ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
+    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-math-cod
 
 # Optional router training on proxy data (provided by data owners)
 """
