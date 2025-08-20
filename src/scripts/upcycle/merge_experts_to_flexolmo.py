@@ -4,7 +4,7 @@ import logging
 
 import torch
 from olmo_core.data.tokenizer import TokenizerConfig
-from olmo_core.distributed.checkpoint import save_state_dict
+from olmo_core.distributed.checkpoint import save_state_dict, load_keys, get_checkpoint_metadata
 from olmo_core.nn.moe import MoEConfig
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.train.config import TrainerConfig
@@ -73,6 +73,29 @@ def load_state_dict(path: str):
     return state_dict
 
 
+def load_state_dict_distributed(path: str):
+    """
+    Load a state dictionary from a distributed checkpoint using OLMo-core's distributed checkpoint loading.
+    Returns the same type as the original load_state_dict function.
+    """
+    try:
+        # Try to load as distributed checkpoint using OLMo-core's approach
+        from olmo_core.distributed.checkpoint import load_state_dict as olmo_load_state_dict
+        
+        # Create an empty state dict to load into
+        state_dict = {"model": {}}
+        
+        # Use OLMo-core's load_state_dict function
+        olmo_load_state_dict(path, state_dict)
+        
+        # Return just the model part, matching your original function's return type
+        return state_dict["model"]
+    except Exception:
+        # Fall back to regular torch.load
+        state_dict = torch.load(path + "/model.pt", map_location="cpu")
+        return state_dict
+
+
 def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
@@ -137,7 +160,7 @@ if __name__ == "__main__":
         if expert == 0:
             merged_config_dict = config
 
-        expert_state_dict = load_state_dict(path)
+        expert_state_dict = load_state_dict_distributed(path)
         # bp()
         log.info(f"Expert model config {load_model_config(config)}")
         log.info("Expert {expert} model loaded")
