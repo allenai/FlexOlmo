@@ -86,7 +86,7 @@ def load_state_dict_distributed(path: str):
         state_dict = {"model": {}}
         
         # Use OLMo-core's load_state_dict function
-        olmo_load_state_dict(path, state_dict)
+        olmo_load_state_dict(path + "/model_and_optim", state_dict)
         
         # Return just the model part, matching your original function's return type
         return state_dict["model"]
