@@ -1,7 +1,7 @@
 # This will read stream data from the public endpoints by default, but that might be a lot slower
 # than reading data locally.
 # export DATA_ROOT="http://flexolmo-data.org"
-export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/ # /path/to/checkpoints
+export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints
 
 PUBLIC_EXPERT=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921
 EXPERT_1=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
