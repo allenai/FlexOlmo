@@ -5,8 +5,8 @@ export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/ # /pa
 
 PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
 EXPERT_1=$/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
-EXPERT_2=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen
-EXPERT_3=${CHECKPOINTS}/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen
+EXPERT_2=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921
+EXPERT_3=${CHECKPOINTS}/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen/step11921
 # Add other experts
 
 python src/scripts/upcycle/merge_experts_to_flexolmo.py \
