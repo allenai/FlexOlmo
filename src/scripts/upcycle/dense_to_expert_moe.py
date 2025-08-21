@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import torch
 from olmo_core.data.tokenizer import TokenizerConfig
-from olmo_core.distributed.checkpoint import save_state_dict
+from olmo_core.distributed.checkpoint import save_state_dict, load_keys, get_checkpoint_metadata
 from olmo_core.nn.moe import MoEConfig
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.train.config import TrainerConfig
@@ -62,6 +62,28 @@ def load_trainer_config(config: dict) -> TrainerConfig:
 def load_state_dict(path: str):
     state_dict = torch.load(path + "/model.pt", map_location="cpu")
     return state_dict
+
+
+def load_state_dict_distributed(path: str):
+    """
+    Load a state dictionary from a distributed checkpoint using OLMo-core's distributed checkpoint loading.
+    Returns the same type as the original load_state_dict function.
+    """
+    try:
+        # Try OLMo-core distributed checkpoint path first
+        ckpt_dir = path + "/model_and_optim"
+        metadata = get_checkpoint_metadata(ckpt_dir)
+        model_keys = [
+            key[len("model.") :]
+            for key in metadata.state_dict_metadata.keys()
+            if key.startswith("model.")
+        ]
+        loaded_values = list(load_keys(ckpt_dir, [f"model.{k}" for k in model_keys]))
+        return {k: v for k, v in zip(model_keys, loaded_values)}
+    except Exception:
+        # Fall back to regular torch.load
+        state_dict = torch.load(path + "/model.pt", map_location="cpu")
+        return state_dict
 
 
 def cosine_similarity(a, b):
@@ -159,7 +181,7 @@ if __name__ == "__main__":
 
         log.info(f"Dense model config {load_model_config(config)}")
 
-        dense_state_dict = load_state_dict(path)
+        dense_state_dict = load_state_dict_distributed(path)
         log.info("Expert {expert} dense model loaded")
 
         # copy over the keys in the dense state_dict to final_state_dict
@@ -170,6 +192,14 @@ if __name__ == "__main__":
                     if pattern in key:
                         dense_key = key.replace(pattern, moe_to_dense_mapping[pattern])
                         break
+                if dense_key is None:
+                    log.warning(f"No dense key mapping for '{key}', skipping")
+                    continue
+                if dense_key not in dense_state_dict:
+                    sample_keys = list(dense_state_dict.keys())[:25]
+                    raise KeyError(
+                        f"Missing '{dense_key}' in dense checkpoint at {path}. Sample keys: {sample_keys}"
+                    )
                 log.info(f"Copying key {dense_key} to {key} in MoE model")
                 if "expert" in key or "router" in key:
                     dim = dense_state_dict[dense_key].shape[1]
