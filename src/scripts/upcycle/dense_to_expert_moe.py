@@ -240,7 +240,7 @@ if __name__ == "__main__":
                     log.warning(f"{key} equivalent not found in dense model")
 
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
-    save_state_dict(target_path, {"model": moe_state_dict})
+    save_state_dict(target_path, {"model": moe_state_dict}, save_overwrite=True)
     torch.save(moe_state_dict, target_path + "-unsharded/model.pt")
 
     log.info(f"Model saved to {target_path}")
