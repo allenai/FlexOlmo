@@ -120,9 +120,9 @@ if __name__ == "__main__":
     target_path = args.target
 
     moe_to_expert_mapping = {
-        "feed_forward_moe.experts.mlp.w1": "feed_forward.w1",
-        "feed_forward_moe.experts.mlp.w2": "feed_forward.w2",
-        "feed_forward_moe.experts.mlp.w3": "feed_forward.w3",
+        "feed_forward_moe.experts.mlp.w1": "feed_forward.w1.weight",
+        "feed_forward_moe.experts.mlp.w2": "feed_forward.w2.weight",
+        "feed_forward_moe.experts.mlp.w3": "feed_forward.w3.weight",
         # "feed_forward_moe.router.weight": "feed_forward.w1",
         "attention.q_norm.weight": "attention.q_norm.weight",
         "attention.k_norm.weight": "attention.k_norm.weight",
