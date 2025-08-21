@@ -79,17 +79,16 @@ def load_state_dict_distributed(path: str):
     Returns the same type as the original load_state_dict function.
     """
     try:
-        # Try to load as distributed checkpoint using OLMo-core's approach
-        from olmo_core.distributed.checkpoint import load_state_dict as olmo_load_state_dict
-        
-        # Create an empty state dict to load into
-        state_dict = {"model": {}}
-        
-        # Use OLMo-core's load_state_dict function
-        olmo_load_state_dict(path + "/model_and_optim", state_dict)
-        
-        # Return just the model part, matching your original function's return type
-        return state_dict["model"]
+        # Try OLMo-core distributed checkpoint path first
+        ckpt_dir = path + "/model_and_optim"
+        metadata = get_checkpoint_metadata(ckpt_dir)
+        model_keys = [
+            key[len("model.") :]
+            for key in metadata.state_dict_metadata.keys()
+            if key.startswith("model.")
+        ]
+        loaded_values = list(load_keys(ckpt_dir, [f"model.{k}" for k in model_keys]))
+        return {k: v for k, v in zip(model_keys, loaded_values)}
     except Exception:
         # Fall back to regular torch.load
         state_dict = torch.load(path + "/model.pt", map_location="cpu")
@@ -163,7 +162,7 @@ if __name__ == "__main__":
         expert_state_dict = load_state_dict_distributed(path)
         # bp()
         log.info(f"Expert model config {load_model_config(config)}")
-        log.info("Expert {expert} model loaded")
+        log.info(f"Expert {expert} model loaded")
 
         # copy over the keys in the dense state_dict to final_state_dict
         for key in list(moe_state_dict.keys()):
@@ -173,6 +172,14 @@ if __name__ == "__main__":
                     if pattern in key:
                         dense_key = key.replace(pattern, moe_to_expert_mapping[pattern])
                         break
+                if dense_key is None:
+                    log.warning(f"No dense key mapping for '{key}', skipping")
+                    continue
+                if dense_key not in expert_state_dict:
+                    sample_keys = list(expert_state_dict.keys())[:25]
+                    raise KeyError(
+                        f"Missing '{dense_key}' in expert checkpoint at {path}. Sample keys: {sample_keys}"
+                    )
                 log.info(f"Copying key {dense_key} to {key} in MoE model")
                 if "expert" in key:
                     # bp()
