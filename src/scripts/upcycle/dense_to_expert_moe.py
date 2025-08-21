@@ -241,7 +241,12 @@ if __name__ == "__main__":
 
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
     save_state_dict(target_path, {"model": moe_state_dict}, save_overwrite=True)
-    torch.save(moe_state_dict, target_path + "-unsharded/model.pt")
+    
+    # Create the unsharded directory before saving
+    import os
+    unsharded_path = target_path + "-unsharded"
+    os.makedirs(unsharded_path, exist_ok=True)
+    torch.save(moe_state_dict, unsharded_path + "/model.pt")
 
     log.info(f"Model saved to {target_path}")
     log.info("Done")
