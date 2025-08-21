@@ -9,7 +9,7 @@ EXPERT_2=${CHECKPOINTS}/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen/s
 EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
 # Add other experts
 
-python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${PUBLIC_EXPERT} ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
     -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-math-code
 
