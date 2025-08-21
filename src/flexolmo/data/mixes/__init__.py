@@ -46,6 +46,9 @@ class CustomDataMix(DataMixBase):
     # test mixes
     test_mix = "test_mix"
     anneal_test_mix = "anneal_test_mix"
+    
+    # router training mix
+    router_training_mix = "router_training_mix"
 
     def build(self, base_dir: str, tokenizer: str) -> Tuple[List[str], List[str]]:
         """
