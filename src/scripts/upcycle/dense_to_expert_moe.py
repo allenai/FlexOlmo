@@ -174,15 +174,21 @@ if __name__ == "__main__":
     log.info("Model loaded on cpu")
     moe_state_dict = model.state_dict()
 
+    # Load config from first expert only (expert == 0)
+    first_config = None
     for expert, path in enumerate(dense_paths):
         log.info(f"Loading dense model from {path} as expert {expert}")
-        with open(path + "/config.json") as f:
-            config = json.load(f)
-
-        log.info(f"Dense model config {load_model_config(config)}")
+        
+        # Only load config for first expert, reuse for others
+        if expert == 0:
+            with open(path + "/config.json") as f:
+                first_config = json.load(f)
+            log.info(f"Dense model config {load_model_config(first_config)}")
+        else:
+            log.info(f"Using config from first expert for expert {expert}")
 
         dense_state_dict = load_state_dict_distributed(path)
-        log.info("Expert {expert} dense model loaded")
+        log.info(f"Expert {expert} dense model loaded")
 
         # copy over the keys in the dense state_dict to final_state_dict
         for key in list(moe_state_dict.keys()):
