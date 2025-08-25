@@ -5,15 +5,15 @@
 
 # Configuration
 MODEL_PATH="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT/step9537-hf"
-BASE_OUTPUT_DIR= # insert S3 bucket path here
+BASE_OUTPUT_DIR= "s3://ai2-sewonm/eval_results"
 BATCH_SIZE=4
-CLUSTER="ai2/oe-training"
+CLUSTER="ai2/jupiter-cirrascale-2"
 LIMIT=1000
 model_type="hf"
 
-# Define all available tasks from run_eval.sh (matching the original script's active tasks)
+# Define all available tasks from run_eval.sh (ALL tasks from all groups)
 TASKS=(
-    # core9 tasks
+    # MC9 tasks
     arc_easy:mc::olmes
     arc_challenge:mc::olmes
     boolq:mc::olmes
@@ -24,14 +24,38 @@ TASKS=(
     socialiqa:mc::olmes
     winogrande:mc::olmes
 
-    # MMLU and other math
-    mmlu:mc::olmes
-    mmlu_pro:mc::none
-    gsm8k::olmes
-    agi_eval_english:1shot::olmes
-    
-    # Generation
+    # Gen5 tasks
+    coqa::olmes
+    squad::olmes
+    naturalqs::olmes
+    triviaqa::olmes
     drop::olmes
+
+    # MMLU tasks
+    mmlu:mc::olmes
+    mmlu_pro_mc::none
+
+    # AGI eval
+    agi_eval_english:1shot::olmes
+
+    # BBH
+    bbh:cot-v1::olmes
+
+    # Math2 tasks
+    gsm8k::olmes
+    minerva_math_algebra::olmes
+    minerva_math_counting_and_probability::olmes
+    minerva_math_geometry::olmes
+    minerva_math_intermediate_algebra::olmes
+    minerva_math_number_theory::olmes
+    minerva_math_prealgebra::olmes
+    minerva_math_precalculus::olmes
+
+    # Code4 tasks
+    codex_humaneval:temp0.8
+    codex_humanevalplus:temp0.8
+    mbpp::none
+    mbppplus::none
 )
 
 # Function to get checkpoint name (matching the original script)
@@ -94,11 +118,11 @@ for TASK in "${TASKS[@]}"; do
         --gpus $gpus \
         --cluster $CLUSTER \
         --beaker-workspace ai2/flex2 \
-        --beaker-budget ai2/oe-training \
+        --beaker-budget ai2/oe-base \
         --beaker-priority urgent \
         --gantry-secret-aws-access-key-id SANJAYA_AWS_ACCESS_KEY_ID \
         --gantry-secret-aws-secret-access SANJAYA_AWS_SECRET_ACCESS_KEY \
-        --gantry-args 'weka=oe-training-default:/data/input,preemptible=False,allow_dirty=true,hf_token=true'
+        --gantry-args 'weka=oe-training-default:/oe-training-default,preemptible=False,allow_dirty=true,hf_token=true'
     
     echo "Launched evaluation for $TASK"
     echo "----------------------------------------"
