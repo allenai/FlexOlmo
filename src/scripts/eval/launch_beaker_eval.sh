@@ -24,7 +24,6 @@ TASKS=(
     socialiqa:mc::olmes
     winogrande:mc::olmes
     
-
     # Gen5 tasks
     # coqa::olmes
     # squad::olmes
@@ -116,27 +115,23 @@ for TASK in "${TASKS[@]}"; do
     echo "  Batch size: $batch_size"
     echo "  Job name: $job_name"
     
-    gantry run \
-        --name $job_name \
-        --weka oe-training-default:/weka/oe-training-default \
-        --install "bash src/scripts/eval/setup_eval_env.sh;" \
-        --budget ai2/oe-base \
-        --workspace ai2/flex2 \
-        --cluster $CLUSTER \
-        --priority urgent \
+    PYTHONPATH=. python src/scripts/eval/launch_eval.py \
+        --model $MODEL_PATH \
+        --model-args "model_path=$MODEL_PATH,model_type=hf" \
+        --task $TASK \
+        --limit $LIMIT \
+        --remote-output-dir $OUTPUT_DIR \
+        --use-gantry \
+        --batch-size $batch_size \
         --gpus $gpus \
-        --env-secret HF_TOKEN=SANJAYA_HF_TOKEN \
-        --env-secret AWS_ACCESS_KEY_ID=SANJAYA_AWS_ACCESS_KEY_ID \
-        --env-secret AWS_SECRET_ACCESS_KEY=SANJAYA_AWS_SECRET_ACCESS_KEY \
-        -- \
-        bash -c "PYTHONPATH=. python src/scripts/eval/launch_eval.py \
-            --model $MODEL_PATH \
-            --model-type hf \
-            --task $TASK \
-            --limit $LIMIT \
-            --remote-output-dir $OUTPUT_DIR \
-            --batch-size $batch_size \
-            --gpus $gpus"
+        --cluster $CLUSTER \
+        --beaker-workspace ai2/flex2 \
+        --beaker-budget ai2/oe-base \
+        --beaker-priority urgent \
+        --gantry-secret-aws-access-key-id SANJAYA_AWS_ACCESS_KEY_ID \
+        --gantry-secret-aws-secret-access SANJAYA_AWS_SECRET_ACCESS_KEY \
+        --gantry-secret-hf-read-only SANJAYA_HF_TOKEN \
+        --gantry-args 'weka=oe-training-default:/oe-training-default,preemptible=False,allow_dirty=true,hf_token=true'
     
     echo "Launched evaluation for $TASK"
     echo "----------------------------------------"
