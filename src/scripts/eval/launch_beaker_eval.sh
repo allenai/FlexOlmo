@@ -89,12 +89,7 @@ for TASK in "${TASKS[@]}"; do
     
     OUTPUT_DIR="${BASE_OUTPUT_DIR}/$model"
     
-    # GPU allocation (matching original script)
-    if [[ $TASK == "news_gen" || $TASK == "poem_gen" ]]; then
-        gpus=4
-    else
-        gpus=1
-    fi
+    gpus=4
     
     # Batch size adjustment (matching original script)
     if [[ $TASK == *"cot"* || $TASK == "minerva_math_"* || $TASK == "mbpp"* || $TASK == "bigcodebench"* || $TASK == "ruler"* || $TASK == "sciriff"* ]]; then
