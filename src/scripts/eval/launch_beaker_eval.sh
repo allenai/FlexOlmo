@@ -102,13 +102,20 @@ for TASK in "${TASKS[@]}"; do
         batch_size=4
     fi
     
+    # Create a shorter, valid job name
+    # Remove invalid characters and truncate long names
+    safe_model_name=$(echo $model | sed 's/[^a-zA-Z0-9_-]//g' | cut -c1-20)
+    safe_task_name=$(echo $TASK | sed 's/[^a-zA-Z0-9_-]//g' | cut -c1-15)
+    job_name="eval-${safe_model_name}-${safe_task_name}"
+    
     echo "  Model name: $model"
     echo "  Output dir: $OUTPUT_DIR"
     echo "  GPUs: $gpus"
     echo "  Batch size: $batch_size"
+    echo "  Job name: $job_name"
     
     gantry run \
-        --name eval-${model}-${TASK//::/-} \
+        --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
         --install "bash src/scripts/eval/setup_eval_env.sh;" \
         --budget ai2/oe-base \
