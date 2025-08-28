@@ -9,7 +9,7 @@ BASE_OUTPUT_DIR="s3://ai2-sewonm/sanjaya/eval_results"
 BATCH_SIZE=4
 CLUSTER="ai2/jupiter-cirrascale-2"
 LIMIT=1000
-model_type="local"
+model_type=hf
 
 # Define all available tasks from run_eval.sh (ALL tasks from all groups)
 TASKS=(
@@ -112,7 +112,7 @@ for TASK in "${TASKS[@]}"; do
     
     gantry run \
         --name $job_name \
-        --weka oe-training-default:/weka/oe-training-default \
+        --weka oe-adapt-default:/weka/oe-adapt-default \
         --install "bash src/scripts/eval/setup_eval_env.sh;" \
         --budget ai2/oe-base \
         --workspace ai2/flex2 \
