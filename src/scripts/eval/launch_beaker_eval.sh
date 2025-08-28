@@ -9,7 +9,7 @@ BASE_OUTPUT_DIR="s3://ai2-sewonm/sanjaya/eval_results"
 BATCH_SIZE=4
 CLUSTER="ai2/jupiter-cirrascale-2"
 LIMIT=1000
-model_type="hf"
+model_type="local"
 
 # Define all available tasks from run_eval.sh (ALL tasks from all groups)
 TASKS=(
