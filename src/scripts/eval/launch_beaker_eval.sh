@@ -4,7 +4,7 @@
 # Usage: bash src/scripts/eval/launch_beaker_eval.sh
 
 # Configuration
-MODEL_PATH="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921-hf"
+MODEL_PATH="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen/step11921-hf"
 BASE_OUTPUT_DIR="s3://ai2-sewonm/sanjaya/eval_results"
 BATCH_SIZE=4
 CLUSTER="ai2/jupiter-cirrascale-2"
