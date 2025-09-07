@@ -124,6 +124,9 @@ def main():
                 elif raw_task_name.startswith("agi_eval_") and ":mc" in raw_task_name:
                     # All AGI eval tasks -> agi_eval_english:1shot
                     task_name = "agi_eval_english:1shot"
+                elif raw_task_name.startswith("bbh_"):
+                    # All BBH subtasks -> bbh:cot-v1::olmes
+                    task_name = "bbh:cot-v1::olmes"
                 elif raw_task_name == "minerva_math_algebra":
                     task_name = "minerva_math_algebra"
                 elif raw_task_name == "minerva_math_counting_and_probability":
@@ -228,7 +231,7 @@ def main():
 
     print(f"Wrote CSV with {len(model_to_task_scores)} models and {len(task_columns)} tasks to {args.output_csv}")
     
-    # Expected tasks from launch_beaker_eval.sh (excluding mmlu_pro_mc, socialiqa, piqa, bbh)
+    # Expected tasks from launch_beaker_eval.sh (excluding mmlu_pro_mc, socialiqa, piqa)
     expected_tasks = {
         'arc_easy:mc', 'arc_challenge:mc', 'boolq:mc', 'csqa:mc', 'hellaswag:mc', 
         'openbookqa:mc', 'winogrande:mc', 'coqa', 'squad', 'naturalqs', 'triviaqa', 
@@ -236,7 +239,7 @@ def main():
         'minerva_math_counting_and_probability', 'minerva_math_geometry', 
         'minerva_math_intermediate_algebra', 'minerva_math_number_theory', 
         'minerva_math_prealgebra', 'minerva_math_precalculus', 'codex_humaneval:temp0.8', 
-        'codex_humanevalplus:temp0.8', 'mbpp', 'mbppplus'
+        'codex_humanevalplus:temp0.8', 'mbpp', 'mbppplus', 'bbh:cot-v1::olmes'
     }
     
     print(f"\nExpected tasks: {len(expected_tasks)}")
