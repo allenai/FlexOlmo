@@ -49,6 +49,7 @@ class CustomDataMix(DataMixBase):
     
     # router training mix
     router_training_mix = "router_training_mix"
+    router_training_mix_midtraining = "router_training_mix_midtraining"
 
     def build(self, base_dir: str, tokenizer: str) -> Tuple[List[str], List[str]]:
         """
