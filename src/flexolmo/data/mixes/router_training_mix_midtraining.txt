@@ -248,7 +248,8 @@ dclm,preprocessed/dclm/v0_rep32_ft7percentile_fw2/documents/allenai/dolma2-token
 dclm,preprocessed/dclm/v0_rep32_ft7percentile_fw2/documents/allenai/dolma2-tokenizer/0010/part-29-00000.npy
 dclm,preprocessed/dclm/v0_rep32_ft7percentile_fw2/documents/allenai/dolma2-tokenizer/0018/part-24-00000.npy
 dclm,preprocessed/dclm/v0_rep32_ft7percentile_fw2/documents/allenai/dolma2-tokenizer/0023/part-20-00000.npy
-dclm,preprocessed/dclm/v0_rep32_ft7percentile_fw2/documents/allenai/dolma2-tokenizer/0016/part-18-00000.npymj_finemath4plus,preprocessed/hf_finemath_jsonl/finemath-4plus/dolma2-tokenizer/part-00-00000.npy
+dclm,preprocessed/dclm/v0_rep32_ft7percentile_fw2/documents/allenai/dolma2-tokenizer/0016/part-18-00000.npy
+mj_finemath4plus,preprocessed/hf_finemath_jsonl/finemath-4plus/dolma2-tokenizer/part-00-00000.npy
 mj_finemath4plus,preprocessed/hf_finemath_jsonl/finemath-4plus/dolma2-tokenizer/part-01-00000.npy
 mj_finemath4plus,preprocessed/hf_finemath_jsonl/finemath-4plus/dolma2-tokenizer/part-02-00000.npy
 mj_finemath4plus,preprocessed/hf_finemath_jsonl/finemath-4plus/dolma2-tokenizer/part-03-00000.npy
