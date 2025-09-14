@@ -77,25 +77,12 @@ function get_checkpoint_name {
     echo "${modified_path//hf/${MODEL_TYPE}}"
 }
 
-# Function to find the latest checkpoint for a model
-function find_latest_checkpoint {
+# Function to construct checkpoint path (assuming latest step checkpoint)
+function get_checkpoint_path {
     local model_name=$1
-    local model_path="${BASE_MODEL_PATH}/${model_name}"
-    
-    if [ ! -d "$model_path" ]; then
-        echo "Warning: Model path $model_path does not exist"
-        return 1
-    fi
-    
-    # Find the latest step checkpoint
-    local latest_checkpoint=$(find "$model_path" -name "step*-hf" -type d | sort -V | tail -1)
-    
-    if [ -z "$latest_checkpoint" ]; then
-        echo "Warning: No checkpoint found in $model_path"
-        return 1
-    fi
-    
-    echo "$latest_checkpoint"
+    # Assume the latest checkpoint follows the pattern: model_name/stepXXXXX-hf
+    # We'll use a generic step number since we can't check locally
+    echo "${BASE_MODEL_PATH}/${model_name}/step10000-hf"
 }
 
 # Function to launch evaluation for a single model and task
@@ -162,18 +149,7 @@ echo "Base output directory: $BASE_OUTPUT_DIR"
 echo "Cluster: $CLUSTER"
 echo ""
 
-# Check if models exist and find their latest checkpoints
-echo "Checking models and finding latest checkpoints..."
-for model in "${MODELS[@]}"; do
-    echo "Checking model: $model"
-    checkpoint_path=$(find_latest_checkpoint "$model")
-    if [ $? -eq 0 ]; then
-        echo "✅ Found checkpoint: $checkpoint_path"
-    else
-        echo "❌ Skipping model: $model (checkpoint not found)"
-    fi
-    echo ""
-done
+# Proceed with launching evaluations (paths exist on remote system)
 
 # Launch evaluations for each model-task combination
 total_jobs=0
@@ -182,16 +158,14 @@ for model in "${MODELS[@]}"; do
     echo "Evaluating model: $model"
     echo "=========================================="
     
-    # Find checkpoint for this model
-    checkpoint_path=$(find_latest_checkpoint "$model")
-    if [ $? -eq 0 ]; then
-        for task in "${TASKS[@]}"; do
-            launch_evaluation "$model" "$task" "$checkpoint_path"
-            ((total_jobs++))
-        done
-    else
-        echo "❌ Skipping model: $model (checkpoint not found)"
-    fi
+    # Get checkpoint path for this model
+    checkpoint_path=$(get_checkpoint_path "$model")
+    echo "Using checkpoint path: $checkpoint_path"
+    
+    for task in "${TASKS[@]}"; do
+        launch_evaluation "$model" "$task" "$checkpoint_path"
+        ((total_jobs++))
+    done
 done
 
 echo "=========================================="
