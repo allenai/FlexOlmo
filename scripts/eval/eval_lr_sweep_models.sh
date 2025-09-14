@@ -163,12 +163,11 @@ echo "Cluster: $CLUSTER"
 echo ""
 
 # Check if models exist and find their latest checkpoints
-declare -A MODEL_PATHS
+echo "Checking models and finding latest checkpoints..."
 for model in "${MODELS[@]}"; do
     echo "Checking model: $model"
     checkpoint_path=$(find_latest_checkpoint "$model")
     if [ $? -eq 0 ]; then
-        MODEL_PATHS["$model"]="$checkpoint_path"
         echo "✅ Found checkpoint: $checkpoint_path"
     else
         echo "❌ Skipping model: $model (checkpoint not found)"
@@ -179,15 +178,19 @@ done
 # Launch evaluations for each model-task combination
 total_jobs=0
 for model in "${MODELS[@]}"; do
-    if [[ -n "${MODEL_PATHS[$model]}" ]]; then
-        echo "=========================================="
-        echo "Evaluating model: $model"
-        echo "=========================================="
-        
+    echo "=========================================="
+    echo "Evaluating model: $model"
+    echo "=========================================="
+    
+    # Find checkpoint for this model
+    checkpoint_path=$(find_latest_checkpoint "$model")
+    if [ $? -eq 0 ]; then
         for task in "${TASKS[@]}"; do
-            launch_evaluation "$model" "$task" "${MODEL_PATHS[$model]}"
+            launch_evaluation "$model" "$task" "$checkpoint_path"
             ((total_jobs++))
         done
+    else
+        echo "❌ Skipping model: $model (checkpoint not found)"
     fi
 done
 
