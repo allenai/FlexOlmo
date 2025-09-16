@@ -6,8 +6,8 @@
 # Configuration
 MODELS=(
     "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-2/step9537-hf"
-    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-3/step11921-hf"
-    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-4/step14285-hf"
+    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-3/step9537-hf"
+    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-4/step9537-hf"
 )
 BASE_OUTPUT_DIR="s3://ai2-sewonm/sanjaya/eval_results"
 BATCH_SIZE=4
