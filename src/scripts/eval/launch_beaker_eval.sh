@@ -4,7 +4,11 @@
 # Usage: bash src/scripts/eval/launch_beaker_eval.sh
 
 # Configuration
-MODEL_PATH="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-midtraining/step9537-hf"
+MODELS=(
+    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-2/step9537-hf"
+    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-3/step11921-hf"
+    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/FlexOlmo-4x7B-RT-midtraining-lr2e-4/step14285-hf"
+)
 BASE_OUTPUT_DIR="s3://ai2-sewonm/sanjaya/eval_results"
 BATCH_SIZE=4
 CLUSTER="ai2/jupiter-cirrascale-2"
@@ -68,15 +72,15 @@ function get_checkpoint_name {
     echo "${modified_path//hf/${model_type}}"
 }
 
-echo "Launching beaker evaluations for ${#TASKS[@]} tasks..."
-echo "Model path: $MODEL_PATH"
+echo "Launching beaker evaluations for ${#MODELS[@]} models and ${#TASKS[@]} tasks..."
+echo "Models: ${MODELS[@]}"
 echo "Base output directory: $BASE_OUTPUT_DIR"
 echo "Cluster: $CLUSTER"
 echo ""
 
-# Launch evaluation for each task
-for TASK in "${TASKS[@]}"; do
-    echo "Launching evaluation for task: $TASK"
+# Launch evaluation for each model and task combination
+for MODEL_PATH in "${MODELS[@]}"; do
+    echo "Processing model: $MODEL_PATH"
     
     # For setting the output_dir (matching original script logic)
     if [[ $MODEL_PATH == "/"* ]]; then
@@ -88,6 +92,9 @@ for TASK in "${TASKS[@]}"; do
     fi
     
     OUTPUT_DIR="${BASE_OUTPUT_DIR}/$model"
+    
+    for TASK in "${TASKS[@]}"; do
+        echo "Launching evaluation for model: $model, task: $TASK"
     
     gpus=4
     
@@ -132,9 +139,14 @@ for TASK in "${TASKS[@]}"; do
             --batch-size $batch_size \
             --gpus $gpus"
     
-    echo "Launched evaluation for $TASK"
-    echo "----------------------------------------"
+        echo "Launched evaluation for model: $model, task: $TASK"
+        echo "----------------------------------------"
+    done
+    
+    echo "Completed all tasks for model: $model"
+    echo "========================================"
 done
 
 echo "All beaker evaluations have been launched!"
+echo "Total jobs: $((${#MODELS[@]} * ${#TASKS[@]}))"
 echo "Check the beaker dashboard for job status."
