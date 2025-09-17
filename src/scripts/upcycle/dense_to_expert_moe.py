@@ -31,15 +31,25 @@ def build_model_config(num_experts: int = 2) -> TransformerConfig:
 
 
 def load_model_config(config: dict) -> TransformerConfig:
+    # Handle both cases:
+    # 1. Config is already a model config (e.g., expert 1/3)
+    # 2. Config is a full training config with nested model config (e.g., expert 0)
+    
+    if "model" in config:
+        # Case 2: Full training config with nested model config
+        model_config_dict = config["model"].copy()
+    else:
+        # Case 1: Config is already the model config
+        model_config_dict = config.copy()
 
     # our annealed checkpoints were trained on v1, and v2 doesn't have these keys in the config
-    dp_config = config["model"].pop("dp_config", None)  # noqa: F841
-    compile_k = config["model"].pop("compile", None)  # noqa: F841
-    float8_config = config["model"].pop("float8_config", None)  # noqa: F841
+    dp_config = model_config_dict.pop("dp_config", None)  # noqa: F841
+    compile_k = model_config_dict.pop("compile", None)  # noqa: F841
+    float8_config = model_config_dict.pop("float8_config", None)  # noqa: F841
 
-    config["model"]["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
+    model_config_dict["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
 
-    model_config = TransformerConfig.from_dict(config["model"])
+    model_config = TransformerConfig.from_dict(model_config_dict)
     return model_config
 
 
