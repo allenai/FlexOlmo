@@ -3,9 +3,9 @@
 # export DATA_ROOT="http://flexolmo-data.org"
 export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints
 
-PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/sanjaya/olmo2-7B-sft/math_expert/step594
+PUBLIC_EXPERT=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921
 EXPERT_1=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
-EXPERT_2=/weka/oe-training-default/ai2-llm/checkpoints/sanjaya/olmo2-7B-sft/code_expert/step150
+EXPERT_2=${CHECKPOINTS}/OLMo2-7B-from-posttrained-code-pretrainednonFFN-frozen/step11921
 EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
 # Add other experts
 
