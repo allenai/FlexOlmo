@@ -35,22 +35,56 @@ def load_model_config(config: dict) -> TransformerConfig:
     # 1. Config is already a model config (e.g., expert 1/3)
     # 2. Config is a full training config with nested model config (e.g., expert 0)
     
+    log.info(f"Config keys: {list(config.keys())}")
+    
     if "model" in config:
         # Case 2: Full training config with nested model config
         model_config_dict = config["model"].copy()
+        log.info(f"Using nested model config. Model config keys: {list(model_config_dict.keys())}")
     else:
         # Case 1: Config is already the model config
         model_config_dict = config.copy()
+        log.info(f"Using direct model config. Config keys: {list(model_config_dict.keys())}")
 
     # our annealed checkpoints were trained on v1, and v2 doesn't have these keys in the config
     dp_config = model_config_dict.pop("dp_config", None)  # noqa: F841
     compile_k = model_config_dict.pop("compile", None)  # noqa: F841
     float8_config = model_config_dict.pop("float8_config", None)  # noqa: F841
 
-    model_config_dict["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
+    # Fix vocab_size mismatch - use the tokenizer's vocab_size if available
+    if "dataset" in config and "tokenizer" in config["dataset"]:
+        tokenizer_vocab_size = config["dataset"]["tokenizer"].get("vocab_size")
+        if tokenizer_vocab_size and model_config_dict.get("vocab_size") != tokenizer_vocab_size:
+            log.warning(f"Fixing vocab_size mismatch: model={model_config_dict.get('vocab_size')}, tokenizer={tokenizer_vocab_size}")
+            model_config_dict["vocab_size"] = tokenizer_vocab_size
 
-    model_config = TransformerConfig.from_dict(model_config_dict)
-    return model_config
+    log.info(f"Model config dict after cleanup: {list(model_config_dict.keys())}")
+    log.info(f"Block config: {model_config_dict.get('block', 'NOT FOUND')}")
+    
+    if "block" not in model_config_dict:
+        raise ValueError(f"No 'block' key found in model config. Available keys: {list(model_config_dict.keys())}")
+    
+    # Ensure the block config has the correct _CLASS_ field
+    if "_CLASS_" not in model_config_dict["block"]:
+        model_config_dict["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
+    
+    # Clean up any invalid fields that might cause issues
+    invalid_fields = ["init_std"]  # This field might not be supported in current version
+    for field in invalid_fields:
+        if field in model_config_dict:
+            log.warning(f"Removing unsupported field: {field}")
+            model_config_dict.pop(field, None)
+
+    try:
+        model_config = TransformerConfig.from_dict(model_config_dict)
+        return model_config
+    except Exception as e:
+        log.error(f"Failed to create TransformerConfig from dict: {e}")
+        log.error(f"Model config dict: {model_config_dict}")
+        # Try to identify the specific problematic field
+        if "vocab_size" in str(e):
+            log.error("Vocab size mismatch detected. Check tokenizer vs model vocab_size.")
+        raise
 
 
 def load_trainer_config(config: dict) -> TrainerConfig:
