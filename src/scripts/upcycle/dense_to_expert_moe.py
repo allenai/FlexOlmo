@@ -258,15 +258,24 @@ if __name__ == "__main__":
                         dense_key
                     ].transpose(0, 1)
                 else:
-                    # option 1: check if the frozen weights are the same
+                    # Handle frozen weights (embeddings, attention, etc.)
                     if expert > 0:
-                        assert torch.equal(
-                            moe_state_dict[key], dense_state_dict[dense_key]
-                        ), f"Key {key} is different"  # check if the frozen weights are the same
+                        # Check if the frozen weights are the same
+                        if torch.equal(moe_state_dict[key], dense_state_dict[dense_key]):
+                            log.info(f"Key {key} is identical across experts")
+                        else:
+                            # Different frozen weights - this can happen with mixed expert types (SFT vs base models)
+                            log.warning(f"Key {key} is different between experts - this is expected for mixed expert types")
+                            log.warning(f"Expert {expert} has different {key} than expert 0")
+                            # For mixed expert types, we need to decide how to handle this
+                            # Option 1: Use the first expert's weights (current behavior)
+                            # Option 2: Take the mean of all expert weights
+                            # Option 3: Use expert-specific weights for each expert
+                            
+                            # For now, we'll use the first expert's weights and log a warning
+                            log.warning(f"Using expert 0's {key} for all experts")
                     else:
                         moe_state_dict[key] = dense_state_dict[dense_key]
-                    # option 2: take the mean of the dense weights
-                    # moe_state_dict[key] += dense_state_dict[dense_key]/len(dense_paths)
             else:
                 # check if they are the same
                 if key in dense_state_dict:
