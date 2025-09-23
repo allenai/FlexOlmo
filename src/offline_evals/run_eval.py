@@ -201,6 +201,19 @@ _parser.add_argument(
     help="Number of GPUs to use",
 )
 
+# Routing tracking arguments
+_parser.add_argument(
+    "--enable-routing-tracking",
+    action="store_true",
+    help="Enable routing tracking for MoE models",
+)
+_parser.add_argument(
+    "--routing-output-dir",
+    type=str,
+    default="routing_output",
+    help="Directory to save routing analysis results",
+)
+
 ## Add internal Ai2 run_eval arguments:
 if HAS_AI2_INTERNAL:
     add_internal_run_eval_args(_parser)
@@ -335,6 +348,10 @@ def process_eval_args(args_dict: dict) -> dict:
     compute_config["save_raw_requests"] = args_dict.pop("save_raw_requests")
     compute_config["recompute_metrics"] = args_dict.pop("recompute_metrics")
     compute_config["wandb_run_path"] = args_dict.pop("wandb_run_path")
+
+    # Routing tracking config
+    compute_config["enable_routing_tracking"] = args_dict.pop("enable_routing_tracking", False)
+    compute_config["routing_output_dir"] = args_dict.pop("routing_output_dir", "routing_output")
 
     if HAS_AI2_INTERNAL:
         process_internal_compute_config(args_dict, compute_config)
@@ -559,6 +576,8 @@ def run_eval(args_dict: dict):
     output_dir = compute_config["output_dir"]
     cached_output_dir = compute_config["cached_output_dir"]
     recompute_metrics = compute_config["recompute_metrics"]
+    enable_routing_tracking = compute_config.get("enable_routing_tracking", False)
+    routing_output_dir = compute_config.get("routing_output_dir", "routing_output")
     have_all_predictions = False
     if compute_config["recompute_metrics"]:
         # Check if we have all predictions, then we can skip loading model
@@ -633,6 +652,8 @@ def run_eval(args_dict: dict):
         # logger.info(f"Loaded model config: {eval_model.model.config}")
 
     logger.info(f"Model loaded. Model hash: {model_hash['hash']}")
+    if enable_routing_tracking:
+        logger.info("Routing tracking is enabled")
 
     metrics_output_file = None
     remote_output_dir = compute_config["remote_output_dir"]
