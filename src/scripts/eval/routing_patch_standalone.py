@@ -136,47 +136,55 @@ class RoutingHook:
             
             # Convert weights to numpy array for processing
             # expert_weights is a list of arrays, each with shape (batch_size, seq_len, num_experts)
-            weights_array = np.stack(expert_weights, axis=-1)  # Shape: (batch_size, seq_len, num_experts, num_layers)
+            # Stack along the layer dimension: (batch_size, seq_len, num_experts, num_layers)
+            weights_array = np.stack(expert_weights, axis=-1)
             
-            # Extract specific layers (same as original)
-            if weights_array.shape[3] > 0:
-                weights_layer0 = weights_array[:, :, :, 0]  # Shape: (batch_size, seq_len, num_experts)
-            if weights_array.shape[3] > 7:
-                weights_layer7 = weights_array[:, :, :, 7]
-            if weights_array.shape[3] > 15:
-                weights_layer15 = weights_array[:, :, :, 15]
+            # Debug: Print shapes to understand the data structure
+            logger.info(f"Weights array shape: {weights_array.shape}")
+            logger.info(f"Number of layers: {len(expert_weights)}")
+            
+            # Extract specific layers - check if we have enough layers
+            weights_layer0 = None
+            weights_layer7 = None  
+            weights_layer15 = None
+            
+            if len(expert_weights) > 0:
+                weights_layer0 = expert_weights[0]  # Direct access to layer 0
+            if len(expert_weights) > 7:
+                weights_layer7 = expert_weights[7]  # Direct access to layer 7
+            if len(expert_weights) > 15:
+                weights_layer15 = expert_weights[15]  # Direct access to layer 15
             
             # Process token-to-expert mappings using weights
             for id, token in enumerate(input_tokens):
-                if weights_array.shape[3] > 0 and id < weights_layer0.shape[1]:
+                if weights_layer0 is not None and id < weights_layer0.shape[1]:
                     # Get weights for this token across all experts
                     token_weights = weights_layer0[0, id, :]  # Shape: (num_experts,)
                     for expert_id, weight in enumerate(token_weights):
                         eid2token_layer0[expert_id][token] += weight
                         
-                if weights_array.shape[3] > 7 and id < weights_layer7.shape[1]:
+                if weights_layer7 is not None and id < weights_layer7.shape[1]:
                     token_weights = weights_layer7[0, id, :]
                     for expert_id, weight in enumerate(token_weights):
                         eid2token_layer7[expert_id][token] += weight
                         
-                if weights_array.shape[3] > 15 and id < weights_layer15.shape[1]:
+                if weights_layer15 is not None and id < weights_layer15.shape[1]:
                     token_weights = weights_layer15[0, id, :]
                     for expert_id, weight in enumerate(token_weights):
                         eid2token_layer15[expert_id][token] += weight
             
             # Process layer counters using weights (sum of weights per expert)
-            for layer in range(weights_array.shape[3]):
-                layer_weights = weights_array[:, :, :, layer]  # Shape: (batch_size, seq_len, num_experts)
+            for layer_idx, layer_weights in enumerate(expert_weights):
                 # Sum weights across all tokens for each expert
                 expert_weight_sums = np.sum(layer_weights, axis=(0, 1))  # Shape: (num_experts,)
                 for expert_id, weight_sum in enumerate(expert_weight_sums):
-                    layer_counters[layer][expert_id] += weight_sum
+                    layer_counters[layer_idx][expert_id] += weight_sum
             
             # Process cross-layer counters using weights
-            for layer_i in range(weights_array.shape[3] - 1):
-                for layer_j in range(weights_array.shape[3]):
-                    weights_i = weights_array[:, :, :, layer_i]
-                    weights_j = weights_array[:, :, :, layer_j]
+            for layer_i in range(len(expert_weights) - 1):
+                for layer_j in range(len(expert_weights)):
+                    weights_i = expert_weights[layer_i]
+                    weights_j = expert_weights[layer_j]
                     
                     # For each expert pair, compute the sum of their weight products
                     for expert_i in range(weights_i.shape[2]):
