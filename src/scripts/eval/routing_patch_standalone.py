@@ -93,6 +93,29 @@ class RoutingHook:
             
         logger.info(f"Saved routing analysis for {self.task_name}: {len(self.routing_data)} forward passes, {self.total_tokens} tokens")
         
+        # For S3 paths, also save to the main evaluation output directory
+        # so they get uploaded automatically with the other results
+        if self.output_dir.startswith('s3://'):
+            # Get the main evaluation output directory from environment
+            eval_output_dir = os.environ.get('EVAL_OUTPUT_DIR', '/tmp/eval_output')
+            routing_dir = f"{eval_output_dir}/routing_analysis/{self.model_name}"
+            
+            Path(f"{routing_dir}/expert_counts").mkdir(parents=True, exist_ok=True)
+            Path(f"{routing_dir}/expert_counts_crosslayer").mkdir(parents=True, exist_ok=True)
+            Path(f"{routing_dir}/eid2token").mkdir(parents=True, exist_ok=True)
+            
+            # Copy files to evaluation output directory
+            import shutil
+            eval_expert_counts = f"{routing_dir}/expert_counts/{self.task_name}.pkl"
+            eval_crosslayer = f"{routing_dir}/expert_counts_crosslayer/{self.task_name}.pkl"
+            eval_token = f"{routing_dir}/eid2token/{self.task_name}.pkl"
+            
+            shutil.copy2(expert_counts_file, eval_expert_counts)
+            shutil.copy2(crosslayer_file, eval_crosslayer)
+            shutil.copy2(token_file, eval_token)
+            
+            logger.info(f"Saved routing files to evaluation output directory: {routing_dir}")
+        
     def _process_routing_data(self):
         """Process routing data to match the exact format of run_routing_analysis.py."""
         # Initialize data structures exactly like the original script
@@ -155,6 +178,7 @@ class RoutingHook:
         eid2token_mappings = [eid2token_layer0, eid2token_layer7, eid2token_layer15]
         
         return layer_counters, crosslayer_counters, eid2token_mappings
+    
 
 
 def add_routing_hook_to_model(model, model_name: str, task_name: str, output_dir: str = "routing_output"):
@@ -406,16 +430,17 @@ def setup_routing_for_task(task_name: str):
 
 def save_routing_results_for_task(model):
     """Save routing results for the current task."""
+    global _routing_hook_instance
+    
     if not is_routing_tracking_enabled():
         return
         
-    # Try to save routing results
-    if hasattr(model, 'save_routing_results'):
-        model.save_routing_results()
-    elif hasattr(model, 'model') and hasattr(model.model, 'save_routing_results'):
-        model.model.save_routing_results()
+    # Save routing results using the global hook instance
+    if _routing_hook_instance is not None:
+        _routing_hook_instance.save_results()
+        logger.info(f"Saved routing results for task: {_routing_hook_instance.task_name}")
     else:
-        logger.warning("Could not find routing results to save")
+        logger.warning("No routing hook instance found to save results")
 
 
 # Auto-apply the patch when this module is imported

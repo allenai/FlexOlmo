@@ -654,6 +654,8 @@ def run_eval(args_dict: dict):
     logger.info(f"Model loaded. Model hash: {model_hash['hash']}")
     if enable_routing_tracking:
         logger.info("Routing tracking is enabled")
+        # Set environment variable so routing files get saved to the evaluation output directory
+        os.environ['EVAL_OUTPUT_DIR'] = output_dir
 
     metrics_output_file = None
     remote_output_dir = compute_config["remote_output_dir"]
