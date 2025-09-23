@@ -315,9 +315,9 @@ def patch_hflm_verbose():
                                     num_experts = getattr(model, 'num_experts', 64) if model else 64
                                     num_experts_per_tok = getattr(model, 'num_experts_per_tok', 8) if model else 8
                                     
-                                    _routing_hook_instance.track_batch(
-                                        input_ids=input_ids,
+                                    _routing_hook_instance.capture_routing(
                                         router_logits=router_logits,
+                                        input_ids=input_ids,
                                         model_num_experts=num_experts,
                                         model_num_experts_per_tok=num_experts_per_tok,
                                     )
@@ -374,9 +374,9 @@ def patch_hflm_verbose():
                                 num_experts = getattr(self.model, 'num_experts', 64)
                                 num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
                                 
-                                _routing_hook_instance.track_batch(
-                                    input_ids=input_ids,
+                                _routing_hook_instance.capture_routing(
                                     router_logits=router_logits,
+                                    input_ids=input_ids,
                                     model_num_experts=num_experts,
                                     model_num_experts_per_tok=num_experts_per_tok,
                                 )
