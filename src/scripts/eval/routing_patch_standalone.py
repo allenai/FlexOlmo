@@ -238,7 +238,15 @@ def ensure_routing_hook_initialized():
     """Ensure the routing hook instance is initialized if routing tracking is enabled."""
     global _routing_hook_instance
     
-    if is_routing_tracking_enabled() and _routing_hook_instance is None:
+    try:
+        if is_routing_tracking_enabled() and _routing_hook_instance is None:
+            model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
+            task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+            output_dir = get_routing_output_dir()
+            _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
+            logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
+    except NameError:
+        # If _routing_hook_instance is not defined in global scope, initialize it
         model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
         task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
         output_dir = get_routing_output_dir()
@@ -270,7 +278,14 @@ def patch_hflm_verbose():
                         
                         # If routing tracking is enabled, capture router logits
                         if is_routing_tracking_enabled():
-                            ensure_routing_hook_initialized()
+                            # Initialize routing hook if needed
+                            if '_routing_hook_instance' not in globals() or _routing_hook_instance is None:
+                                model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
+                                task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+                                output_dir = get_routing_output_dir()
+                                _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
+                                logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
+                            
                             if _routing_hook_instance:
                                 # Try to extract input_ids and router_logits from various sources
                                 input_ids = None
@@ -327,7 +342,14 @@ def patch_hflm_verbose():
                         
                         # If routing tracking is enabled, capture router logits
                         if is_routing_tracking_enabled():
-                            ensure_routing_hook_initialized()
+                            # Initialize routing hook if needed
+                            if '_routing_hook_instance' not in globals() or _routing_hook_instance is None:
+                                model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
+                                task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+                                output_dir = get_routing_output_dir()
+                                _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
+                                logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
+                            
                             if _routing_hook_instance:
                                 input_ids = kwargs.get("input_ids") or args[0] if args else None
                                 if input_ids is not None and hasattr(output, 'router_logits') and output.router_logits is not None:
