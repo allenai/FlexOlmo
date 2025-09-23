@@ -264,6 +264,7 @@ def patch_hflm_verbose():
                 
                 def create_patched_method(original_method, method_name):
                     def patched_method(self, *args, **kwargs):
+                        global _routing_hook_instance
                         # Call original method
                         output = original_method(self, *args, **kwargs)
                         
@@ -321,6 +322,7 @@ def patch_hflm_verbose():
                     original_model_forward = self.model.forward
                     
                     def patched_model_forward(*args, **kwargs):
+                        global _routing_hook_instance
                         output = original_model_forward(*args, **kwargs)
                         
                         # If routing tracking is enabled, capture router logits
