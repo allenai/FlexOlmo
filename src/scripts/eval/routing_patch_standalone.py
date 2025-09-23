@@ -273,11 +273,11 @@ def patch_hflm_verbose():
                 def create_patched_method(original_method, method_name):
                     def patched_method(self, *args, **kwargs):
                         global _routing_hook_instance
-                        # Call original method
-                        output = original_method(self, *args, **kwargs)
                         
-                        # If routing tracking is enabled, capture router logits
+                        # If routing tracking is enabled, force output_router_logits=True
                         if is_routing_tracking_enabled():
+                            kwargs['output_router_logits'] = True
+                            
                             # Initialize routing hook if needed
                             if '_routing_hook_instance' not in globals() or _routing_hook_instance is None:
                                 model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
@@ -285,8 +285,12 @@ def patch_hflm_verbose():
                                 output_dir = get_routing_output_dir()
                                 _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
                                 logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
-                            
-                            if _routing_hook_instance:
+                        
+                        # Call original method
+                        output = original_method(self, *args, **kwargs)
+                        
+                        # If routing tracking is enabled, capture router logits
+                        if is_routing_tracking_enabled() and _routing_hook_instance:
                                 # Try to extract input_ids and router_logits from various sources
                                 input_ids = None
                                 router_logits = None
@@ -297,9 +301,11 @@ def patch_hflm_verbose():
                                 elif args and len(args) > 0:
                                     input_ids = args[0]
                                 
-                                # Check if output has router_logits
+                                # Check for router_logits in the output
                                 if hasattr(output, 'router_logits') and output.router_logits is not None:
                                     router_logits = output.router_logits
+                                elif isinstance(output, dict) and 'router_logits' in output:
+                                    router_logits = output['router_logits']
                                 elif hasattr(output, 'logits') and hasattr(output.logits, 'router_logits'):
                                     router_logits = output.logits.router_logits
                                 
@@ -338,10 +344,11 @@ def patch_hflm_verbose():
                     
                     def patched_model_forward(*args, **kwargs):
                         global _routing_hook_instance
-                        output = original_model_forward(*args, **kwargs)
                         
-                        # If routing tracking is enabled, capture router logits
+                        # If routing tracking is enabled, force output_router_logits=True
                         if is_routing_tracking_enabled():
+                            kwargs['output_router_logits'] = True
+                            
                             # Initialize routing hook if needed
                             if '_routing_hook_instance' not in globals() or _routing_hook_instance is None:
                                 model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
@@ -349,20 +356,31 @@ def patch_hflm_verbose():
                                 output_dir = get_routing_output_dir()
                                 _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
                                 logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
+                        
+                        output = original_model_forward(*args, **kwargs)
+                        
+                        # If routing tracking is enabled, capture router logits
+                        if is_routing_tracking_enabled() and _routing_hook_instance:
+                            input_ids = kwargs.get("input_ids") or args[0] if args else None
                             
-                            if _routing_hook_instance:
-                                input_ids = kwargs.get("input_ids") or args[0] if args else None
-                                if input_ids is not None and hasattr(output, 'router_logits') and output.router_logits is not None:
-                                    num_experts = getattr(self.model, 'num_experts', 64)
-                                    num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
-                                    
-                                    _routing_hook_instance.track_batch(
-                                        input_ids=input_ids,
-                                        router_logits=output.router_logits,
-                                        model_num_experts=num_experts,
-                                        model_num_experts_per_tok=num_experts_per_tok,
-                                    )
-                                    logger.info("Captured router logits from underlying model's forward method")
+                            # Check for router_logits in the output
+                            router_logits = None
+                            if hasattr(output, 'router_logits') and output.router_logits is not None:
+                                router_logits = output.router_logits
+                            elif isinstance(output, dict) and 'router_logits' in output:
+                                router_logits = output['router_logits']
+                            
+                            if input_ids is not None and router_logits is not None:
+                                num_experts = getattr(self.model, 'num_experts', 64)
+                                num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
+                                
+                                _routing_hook_instance.track_batch(
+                                    input_ids=input_ids,
+                                    router_logits=router_logits,
+                                    model_num_experts=num_experts,
+                                    model_num_experts_per_tok=num_experts_per_tok,
+                                )
+                                logger.info("Captured router logits from underlying model's forward method")
                         
                         return output
                     
