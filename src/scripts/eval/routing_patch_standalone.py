@@ -251,37 +251,109 @@ def patch_hflm_verbose():
     try:
         from oe_eval.models.eleuther_huggingface import HFLM_Verbose
         
-        # Patch the forward method to capture router logits
-        _original_hflm_verbose_forward = HFLM_Verbose.forward
-
-        def _patched_hflm_verbose_forward(self, *args, **kwargs):
-            # Call original forward method
-            output = _original_hflm_verbose_forward(self, *args, **kwargs)
-
-            # If routing tracking is enabled, capture router logits
-            if is_routing_tracking_enabled():
-                ensure_routing_hook_initialized()
-                if _routing_hook_instance:
-                    input_ids = kwargs.get("input_ids") or args[0] if args else None
-                    if input_ids is not None and hasattr(output, 'router_logits') and output.router_logits is not None:
-                        # Get model attributes safely
-                        model = getattr(self, 'model', None)
-                        num_experts = getattr(model, 'num_experts', 64) if model else 64
-                        num_experts_per_tok = getattr(model, 'num_experts_per_tok', 8) if model else 8
+        # Check what methods are available on HFLM_Verbose
+        logger.info(f"HFLM_Verbose methods: {[m for m in dir(HFLM_Verbose) if not m.startswith('_')]}")
+        
+        # Try to patch different methods that might be used for generation
+        methods_to_patch = ['generate', 'forward', '__call__']
+        
+        for method_name in methods_to_patch:
+            if hasattr(HFLM_Verbose, method_name):
+                logger.info(f"Found method {method_name} on HFLM_Verbose, patching it...")
+                original_method = getattr(HFLM_Verbose, method_name)
+                
+                def create_patched_method(original_method, method_name):
+                    def patched_method(self, *args, **kwargs):
+                        # Call original method
+                        output = original_method(self, *args, **kwargs)
                         
-                        _routing_hook_instance.track_batch(
-                            input_ids=input_ids,
-                            router_logits=output.router_logits,
-                            model_num_experts=num_experts,
-                            model_num_experts_per_tok=num_experts_per_tok,
-                        )
-            return output
-
-        HFLM_Verbose.forward = _patched_hflm_verbose_forward
-        logger.info("Successfully patched HFLM_Verbose to capture router logits.")
+                        # If routing tracking is enabled, capture router logits
+                        if is_routing_tracking_enabled():
+                            ensure_routing_hook_initialized()
+                            if _routing_hook_instance:
+                                # Try to extract input_ids and router_logits from various sources
+                                input_ids = None
+                                router_logits = None
+                                
+                                # Check kwargs for input_ids
+                                if 'input_ids' in kwargs:
+                                    input_ids = kwargs['input_ids']
+                                elif args and len(args) > 0:
+                                    input_ids = args[0]
+                                
+                                # Check if output has router_logits
+                                if hasattr(output, 'router_logits') and output.router_logits is not None:
+                                    router_logits = output.router_logits
+                                elif hasattr(output, 'logits') and hasattr(output.logits, 'router_logits'):
+                                    router_logits = output.logits.router_logits
+                                
+                                if input_ids is not None and router_logits is not None:
+                                    # Get model attributes safely
+                                    model = getattr(self, 'model', None)
+                                    num_experts = getattr(model, 'num_experts', 64) if model else 64
+                                    num_experts_per_tok = getattr(model, 'num_experts_per_tok', 8) if model else 8
+                                    
+                                    _routing_hook_instance.track_batch(
+                                        input_ids=input_ids,
+                                        router_logits=router_logits,
+                                        model_num_experts=num_experts,
+                                        model_num_experts_per_tok=num_experts_per_tok,
+                                    )
+                                    logger.info(f"Captured router logits from {method_name} method")
+                        
+                        return output
+                    return patched_method
+                
+                setattr(HFLM_Verbose, method_name, create_patched_method(original_method, method_name))
+                logger.info(f"Successfully patched {method_name} method")
+        
+        # Also try to patch the underlying model's forward method when HFLM_Verbose is instantiated
+        original_init = HFLM_Verbose.__init__
+        
+        def patched_init(self, *args, **kwargs):
+            # Call original init
+            original_init(self, *args, **kwargs)
+            
+            # Try to patch the underlying model's forward method
+            if hasattr(self, 'model') and self.model is not None:
+                logger.info("Attempting to patch underlying model's forward method...")
+                if hasattr(self.model, 'forward'):
+                    original_model_forward = self.model.forward
+                    
+                    def patched_model_forward(*args, **kwargs):
+                        output = original_model_forward(*args, **kwargs)
+                        
+                        # If routing tracking is enabled, capture router logits
+                        if is_routing_tracking_enabled():
+                            ensure_routing_hook_initialized()
+                            if _routing_hook_instance:
+                                input_ids = kwargs.get("input_ids") or args[0] if args else None
+                                if input_ids is not None and hasattr(output, 'router_logits') and output.router_logits is not None:
+                                    num_experts = getattr(self.model, 'num_experts', 64)
+                                    num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
+                                    
+                                    _routing_hook_instance.track_batch(
+                                        input_ids=input_ids,
+                                        router_logits=output.router_logits,
+                                        model_num_experts=num_experts,
+                                        model_num_experts_per_tok=num_experts_per_tok,
+                                    )
+                                    logger.info("Captured router logits from underlying model's forward method")
+                        
+                        return output
+                    
+                    self.model.forward = patched_model_forward
+                    logger.info("Successfully patched underlying model's forward method")
+        
+        HFLM_Verbose.__init__ = patched_init
+        logger.info("Successfully patched HFLM_Verbose.__init__ to patch underlying model")
+        
+        logger.info("Successfully patched HFLM_Verbose for routing tracking")
         
     except ImportError:
         logger.warning("Could not import HFLM_Verbose, routing patch not applied")
+    except Exception as e:
+        logger.warning(f"Error patching HFLM_Verbose: {e}")
 
 
 def setup_routing_for_task(task_name: str):
