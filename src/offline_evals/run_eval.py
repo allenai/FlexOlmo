@@ -48,8 +48,9 @@ from oe_eval.utils import (
 
 # Import routing tracking patch if enabled
 try:
-    import flexolmo.eval.routing_patch as routing_patch
-    from flexolmo.eval.routing_hook import is_routing_tracking_enabled, setup_routing_for_task, save_routing_results_for_task
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts', 'eval'))
+    from routing_patch_standalone import is_routing_tracking_enabled, setup_routing_for_task, save_routing_results_for_task
     ROUTING_AVAILABLE = True
 except ImportError:
     ROUTING_AVAILABLE = False

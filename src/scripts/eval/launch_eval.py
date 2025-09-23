@@ -450,16 +450,14 @@ def launch_eval(args_dict: dict):
 
     # Add routing tracking setup if enabled
     if args_dict.get("enable_routing_tracking"):
-        # Import our routing patch to enable routing tracking
-        import sys
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-        import flexolmo.eval.routing_patch as routing_patch
-        from flexolmo.eval.routing_hook import setup_routing_tracking
-        
-        # Setup routing tracking
+        # Set environment variables for routing tracking
         model_path = model_config.get("model_path") or model_config.get("model")
         routing_output_dir = args_dict.get("routing_output_dir", "routing_output")
-        setup_routing_tracking(str(model_path), routing_output_dir)
+        
+        # Set environment variables that the routing patch will detect
+        os.environ["FLEXOLMO_ROUTING_TRACKING"] = "true"
+        os.environ["FLEXOLMO_ROUTING_OUTPUT_DIR"] = routing_output_dir
+        os.environ["FLEXOLMO_MODEL_NAME"] = os.path.basename(str(model_path)) if model_path else "unknown_model"
         
         logger.info("Routing tracking enabled - will capture router logits during evaluation")
     
