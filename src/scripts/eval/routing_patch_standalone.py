@@ -156,40 +156,42 @@ class RoutingHook:
                 weights_layer15 = expert_weights[15]  # Direct access to layer 15
             
             # Process token-to-expert mappings using weights
+            # weights_layer shape is (seq_len, num_experts) - no batch dimension
             for id, token in enumerate(input_tokens):
-                if weights_layer0 is not None and id < weights_layer0.shape[1]:
+                if weights_layer0 is not None and id < weights_layer0.shape[0]:
                     # Get weights for this token across all experts
-                    token_weights = weights_layer0[0, id, :]  # Shape: (num_experts,)
+                    token_weights = weights_layer0[id, :]  # Shape: (num_experts,)
                     for expert_id, weight in enumerate(token_weights):
                         eid2token_layer0[expert_id][token] += weight
                         
-                if weights_layer7 is not None and id < weights_layer7.shape[1]:
-                    token_weights = weights_layer7[0, id, :]
+                if weights_layer7 is not None and id < weights_layer7.shape[0]:
+                    token_weights = weights_layer7[id, :]
                     for expert_id, weight in enumerate(token_weights):
                         eid2token_layer7[expert_id][token] += weight
                         
-                if weights_layer15 is not None and id < weights_layer15.shape[1]:
-                    token_weights = weights_layer15[0, id, :]
+                if weights_layer15 is not None and id < weights_layer15.shape[0]:
+                    token_weights = weights_layer15[id, :]
                     for expert_id, weight in enumerate(token_weights):
                         eid2token_layer15[expert_id][token] += weight
             
             # Process layer counters using weights (sum of weights per expert)
             for layer_idx, layer_weights in enumerate(expert_weights):
                 # Sum weights across all tokens for each expert
-                expert_weight_sums = np.sum(layer_weights, axis=(0, 1))  # Shape: (num_experts,)
+                # layer_weights shape is (seq_len, num_experts)
+                expert_weight_sums = np.sum(layer_weights, axis=0)  # Sum across seq_len, shape: (num_experts,)
                 for expert_id, weight_sum in enumerate(expert_weight_sums):
                     layer_counters[layer_idx][expert_id] += weight_sum
             
             # Process cross-layer counters using weights
             for layer_i in range(len(expert_weights) - 1):
                 for layer_j in range(len(expert_weights)):
-                    weights_i = expert_weights[layer_i]
-                    weights_j = expert_weights[layer_j]
+                    weights_i = expert_weights[layer_i]  # Shape: (seq_len, num_experts)
+                    weights_j = expert_weights[layer_j]  # Shape: (seq_len, num_experts)
                     
                     # For each expert pair, compute the sum of their weight products
-                    for expert_i in range(weights_i.shape[2]):
-                        for expert_j in range(weights_j.shape[2]):
-                            weight_product = np.sum(weights_i[:, :, expert_i] * weights_j[:, :, expert_j])
+                    for expert_i in range(weights_i.shape[1]):  # num_experts
+                        for expert_j in range(weights_j.shape[1]):  # num_experts
+                            weight_product = np.sum(weights_i[:, expert_i] * weights_j[:, expert_j])
                             crosslayer_counters[(layer_i, layer_j)][(expert_i, expert_j)] += weight_product
         
         # Return in the exact same format as original script
