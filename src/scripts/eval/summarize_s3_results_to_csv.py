@@ -58,7 +58,7 @@ def main():
     parser.add_argument(
         "--output-csv",
         type=str,
-        default="eval_summary.csv",
+        default="eval_summary_s3.csv",
         help="Path to write the CSV summary",
     )
     parser.add_argument(
