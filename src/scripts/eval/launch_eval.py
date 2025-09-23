@@ -172,6 +172,19 @@ _parser.add_argument(
     help="Number of workers.",
 )
 
+# Routing tracking arguments
+_parser.add_argument(
+    "--enable-routing-tracking",
+    action="store_true",
+    help="Enable routing tracking for MoE models",
+)
+_parser.add_argument(
+    "--routing-output-dir",
+    type=str,
+    default="routing_output",
+    help="Directory to save routing analysis results",
+)
+
 # Add the missing gantry/beaker arguments from the original script
 _parser.add_argument(
     "--use-gantry",
@@ -418,6 +431,8 @@ def launch_eval(args_dict: dict):
         "gsheet",
         "hf_save_dir",
         "wandb_run_path",
+        "enable_routing_tracking",
+        "routing_output_dir",
     ]:
         if args_dict[key]:
             run_eval_args[key] = args_dict[key]
@@ -433,6 +448,22 @@ def launch_eval(args_dict: dict):
     if HAS_AI2_INTERNAL:
         run_eval_args.update(internal_args.get("internal_run_eval_args", {}))
 
+    # Add routing tracking setup if enabled
+    if args_dict.get("enable_routing_tracking"):
+        # Import our routing patch to enable routing tracking
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+        import flexolmo.eval.routing_patch as routing_patch
+        from flexolmo.eval.routing_hook import setup_routing_tracking
+        
+        # Setup routing tracking
+        model_path = model_config.get("model_path") or model_config.get("model")
+        routing_output_dir = args_dict.get("routing_output_dir", "routing_output")
+        setup_routing_tracking(str(model_path), routing_output_dir)
+        
+        logger.info("Routing tracking enabled - will capture router logits during evaluation")
+    
+    # Use standard evaluation script (routing patch will be automatically applied)
     run_eval_command = make_cli_command("python -m offline_evals.run_eval", run_eval_args)
 
     # Handle gantry arguments from command line

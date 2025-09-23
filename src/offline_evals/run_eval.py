@@ -46,6 +46,14 @@ from oe_eval.utils import (
     task_file_name,
 )
 
+# Import routing tracking patch if enabled
+try:
+    import flexolmo.eval.routing_patch as routing_patch
+    from flexolmo.eval.routing_hook import is_routing_tracking_enabled, setup_routing_for_task, save_routing_results_for_task
+    ROUTING_AVAILABLE = True
+except ImportError:
+    ROUTING_AVAILABLE = False
+
 # Import utility functions for internal evals
 try:
     from oe_eval_internal.utilities.run_eval_utils import (
@@ -645,6 +653,10 @@ def run_eval(args_dict: dict):
     for task_idx, task in enumerate(task_objects):
         start_time = time.time()
         task_name = task.task_name
+        
+        # Setup routing tracking for this task if enabled
+        if ROUTING_AVAILABLE and is_routing_tracking_enabled():
+            setup_routing_for_task(task_name)
         predictions_file = None
         cached_predictions = None
         # Move task files from cache directory if need be
@@ -901,6 +913,10 @@ def run_eval(args_dict: dict):
             logger.info(f"Data written to gsheet: {gsheet_res}")
 
         logger.info(f"\n\n** Task metrics: **\n{metrics}")
+        
+        # Save routing results for this task if routing tracking is enabled
+        if ROUTING_AVAILABLE and is_routing_tracking_enabled() and eval_model is not None:
+            save_routing_results_for_task(eval_model)
 
     # Finish all tasks, close mp
     for queue in request_queues:
