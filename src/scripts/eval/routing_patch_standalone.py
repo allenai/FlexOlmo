@@ -210,9 +210,16 @@ def add_routing_hook_to_model(model, model_name: str, task_name: str, output_dir
 
 def setup_routing_tracking(model_path: str, output_dir: str = "routing_output"):
     """Setup routing tracking for a model path."""
+    global _routing_hook_instance
+    
     # Set environment variable to enable routing tracking
     os.environ["FLEXOLMO_ROUTING_TRACKING"] = "true"
     os.environ["FLEXOLMO_ROUTING_OUTPUT_DIR"] = output_dir
+    
+    # Initialize the routing hook instance
+    model_name = os.path.basename(str(model_path)) if model_path else "unknown_model"
+    task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+    _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
     
     logger.info(f"Routing tracking enabled for model: {model_path}")
 
@@ -227,39 +234,51 @@ def is_routing_tracking_enabled() -> bool:
     return os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true"
 
 
+def ensure_routing_hook_initialized():
+    """Ensure the routing hook instance is initialized if routing tracking is enabled."""
+    global _routing_hook_instance
+    
+    if is_routing_tracking_enabled() and _routing_hook_instance is None:
+        model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
+        task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+        output_dir = get_routing_output_dir()
+        _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
+        logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
+
+
 def patch_hflm_verbose():
     """Patch the HFLM_Verbose class to add routing tracking."""
     try:
         from oe_eval.models.eleuther_huggingface import HFLM_Verbose
         
-        # Save original __init__ method
-        original_init = HFLM_Verbose.__init__
-        
-        def routing_aware_init(self, *args, **kwargs):
-            # Call original init
-            original_init(self, *args, **kwargs)
-            
-            # Add routing tracking if enabled
+        # Patch the forward method to capture router logits
+        _original_hflm_verbose_forward = HFLM_Verbose.forward
+
+        def _patched_hflm_verbose_forward(self, *args, **kwargs):
+            # Call original forward method
+            output = _original_hflm_verbose_forward(self, *args, **kwargs)
+
+            # If routing tracking is enabled, capture router logits
             if is_routing_tracking_enabled():
-                model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
-                task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
-                output_dir = get_routing_output_dir()
-                
-                logger.info(f"Adding routing tracking to HFLM_Verbose: {model_name}")
-                
-                # Patch the underlying model
-                if hasattr(self, 'model'):
-                    self.model = add_routing_hook_to_model(
-                        self.model, 
-                        model_name, 
-                        task_name, 
-                        output_dir
-                    )
-                    
-        # Replace the __init__ method
-        HFLM_Verbose.__init__ = routing_aware_init
-        
-        logger.info("Successfully patched HFLM_Verbose for routing tracking")
+                ensure_routing_hook_initialized()
+                if _routing_hook_instance:
+                    input_ids = kwargs.get("input_ids") or args[0] if args else None
+                    if input_ids is not None and hasattr(output, 'router_logits') and output.router_logits is not None:
+                        # Get model attributes safely
+                        model = getattr(self, 'model', None)
+                        num_experts = getattr(model, 'num_experts', 64) if model else 64
+                        num_experts_per_tok = getattr(model, 'num_experts_per_tok', 8) if model else 8
+                        
+                        _routing_hook_instance.track_batch(
+                            input_ids=input_ids,
+                            router_logits=output.router_logits,
+                            model_num_experts=num_experts,
+                            model_num_experts_per_tok=num_experts_per_tok,
+                        )
+            return output
+
+        HFLM_Verbose.forward = _patched_hflm_verbose_forward
+        logger.info("Successfully patched HFLM_Verbose to capture router logits.")
         
     except ImportError:
         logger.warning("Could not import HFLM_Verbose, routing patch not applied")
