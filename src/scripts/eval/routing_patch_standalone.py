@@ -45,19 +45,24 @@ class RoutingHook:
         router_logits_np = [logits.detach().cpu().numpy() for logits in router_logits]
         input_ids_np = input_ids.detach().cpu().numpy()
         
-        # Determine expert selections (top-k)
-        expert_selections = []
+        # Calculate router weights (softmax of logits) instead of just selections
+        expert_weights = []
         for layer_logits in router_logits_np:
-            # Get top-k experts for each token
-            top_k_indices = np.argsort(-layer_logits, axis=-1)[:, :model_num_experts_per_tok]
-            expert_selections.append(top_k_indices)
+            # Apply softmax to get weights (probabilities)
+            weights = np.exp(layer_logits - np.max(layer_logits, axis=-1, keepdims=True))
+            weights = weights / np.sum(weights, axis=-1, keepdims=True)
+            expert_weights.append(weights)
         
-        # Store the routing data
+        # Also keep the original logits for reference
+        router_logits_flat = [logits.flatten() for logits in router_logits_np]
+        
+        # Store the routing data with weights
         routing_entry = {
             "task_name": self.task_name,
             "input_shape": input_ids_np.shape,
             "num_layers": len(router_logits),
-            "expert_selections": expert_selections,
+            "expert_weights": expert_weights,  # New: actual router weights
+            "router_logits": router_logits_flat,  # Keep logits for reference
             "input_tokens": input_ids_np.flatten().tolist(),
         }
         
@@ -117,8 +122,8 @@ class RoutingHook:
             logger.info(f"Saved routing files to evaluation output directory: {routing_dir}")
         
     def _process_routing_data(self):
-        """Process routing data to match the exact format of run_routing_analysis.py."""
-        # Initialize data structures exactly like the original script
+        """Process routing data using weights instead of binary selections."""
+        # Initialize data structures for weighted analysis
         layer_counters = defaultdict(Counter)
         crosslayer_counters = defaultdict(Counter)
         eid2token_layer0 = defaultdict(Counter)
@@ -126,53 +131,58 @@ class RoutingHook:
         eid2token_layer15 = defaultdict(Counter)
         
         for entry in self.routing_data:
-            expert_selections = entry["expert_selections"]
+            expert_weights = entry["expert_weights"]  # Use weights instead of selections
             input_tokens = entry["input_tokens"]
             
-            # Convert to numpy array for processing (same as original)
-            exp_ids = np.stack(expert_selections, axis=-1)  # Shape: (batch_size, seq_len, num_layers)
+            # Convert weights to numpy array for processing
+            # expert_weights is a list of arrays, each with shape (batch_size, seq_len, num_experts)
+            weights_array = np.stack(expert_weights, axis=-1)  # Shape: (batch_size, seq_len, num_experts, num_layers)
             
             # Extract specific layers (same as original)
-            if exp_ids.shape[2] > 0:
-                exp_ids_layer0 = exp_ids[:, :, 0]
-            if exp_ids.shape[2] > 7:
-                exp_ids_layer7 = exp_ids[:, :, 7]
-            if exp_ids.shape[2] > 15:
-                exp_ids_layer15 = exp_ids[:, :, 15]
+            if weights_array.shape[3] > 0:
+                weights_layer0 = weights_array[:, :, :, 0]  # Shape: (batch_size, seq_len, num_experts)
+            if weights_array.shape[3] > 7:
+                weights_layer7 = weights_array[:, :, :, 7]
+            if weights_array.shape[3] > 15:
+                weights_layer15 = weights_array[:, :, :, 15]
             
-            # Process token-to-expert mappings (same logic as original)
+            # Process token-to-expert mappings using weights
             for id, token in enumerate(input_tokens):
-                if exp_ids.shape[2] > 0 and id < exp_ids_layer0.shape[0]:
-                    experts = exp_ids_layer0[id, :]
-                    experts_list = experts.flatten().astype(int).tolist()
-                    for expert_id in experts_list:
-                        eid2token_layer0[expert_id][token] += 1
+                if weights_array.shape[3] > 0 and id < weights_layer0.shape[1]:
+                    # Get weights for this token across all experts
+                    token_weights = weights_layer0[0, id, :]  # Shape: (num_experts,)
+                    for expert_id, weight in enumerate(token_weights):
+                        eid2token_layer0[expert_id][token] += weight
                         
-                if exp_ids.shape[2] > 7 and id < exp_ids_layer7.shape[0]:
-                    experts = exp_ids_layer7[id, :]
-                    experts_list = experts.flatten().astype(int).tolist()
-                    for expert_id in experts_list:
-                        eid2token_layer7[expert_id][token] += 1
+                if weights_array.shape[3] > 7 and id < weights_layer7.shape[1]:
+                    token_weights = weights_layer7[0, id, :]
+                    for expert_id, weight in enumerate(token_weights):
+                        eid2token_layer7[expert_id][token] += weight
                         
-                if exp_ids.shape[2] > 15 and id < exp_ids_layer15.shape[0]:
-                    experts = exp_ids_layer15[id, :]
-                    experts_list = experts.flatten().astype(int).tolist()
-                    for expert_id in experts_list:
-                        eid2token_layer15[expert_id][token] += 1
+                if weights_array.shape[3] > 15 and id < weights_layer15.shape[1]:
+                    token_weights = weights_layer15[0, id, :]
+                    for expert_id, weight in enumerate(token_weights):
+                        eid2token_layer15[expert_id][token] += weight
             
-            # Process layer counters (same logic as original)
-            for layer in range(exp_ids.shape[2]):
-                layer_experts = exp_ids[:, :, layer].flatten().astype(int).tolist()
-                exp_counts = Counter(layer_experts)
-                layer_counters[layer].update(exp_counts)
+            # Process layer counters using weights (sum of weights per expert)
+            for layer in range(weights_array.shape[3]):
+                layer_weights = weights_array[:, :, :, layer]  # Shape: (batch_size, seq_len, num_experts)
+                # Sum weights across all tokens for each expert
+                expert_weight_sums = np.sum(layer_weights, axis=(0, 1))  # Shape: (num_experts,)
+                for expert_id, weight_sum in enumerate(expert_weight_sums):
+                    layer_counters[layer][expert_id] += weight_sum
             
-            # Process cross-layer counters (same logic as original)
-            for layer_i in range(exp_ids.shape[2] - 1):
-                for layer_j in range(exp_ids.shape[2]):
-                    layer_i_experts = exp_ids[:, :, layer_i].flatten().astype(int).tolist()
-                    layer_j_experts = exp_ids[:, :, layer_j].flatten().astype(int).tolist()
-                    exps_counts = Counter(zip(layer_i_experts, layer_j_experts))
-                    crosslayer_counters[(layer_i, layer_j)].update(exps_counts)
+            # Process cross-layer counters using weights
+            for layer_i in range(weights_array.shape[3] - 1):
+                for layer_j in range(weights_array.shape[3]):
+                    weights_i = weights_array[:, :, :, layer_i]
+                    weights_j = weights_array[:, :, :, layer_j]
+                    
+                    # For each expert pair, compute the sum of their weight products
+                    for expert_i in range(weights_i.shape[2]):
+                        for expert_j in range(weights_j.shape[2]):
+                            weight_product = np.sum(weights_i[:, :, expert_i] * weights_j[:, :, expert_j])
+                            crosslayer_counters[(layer_i, layer_j)][(expert_i, expert_j)] += weight_product
         
         # Return in the exact same format as original script
         eid2token_mappings = [eid2token_layer0, eid2token_layer7, eid2token_layer15]
