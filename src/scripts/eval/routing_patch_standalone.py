@@ -49,6 +49,11 @@ class RoutingHook:
         expert_weights = []
         for layer_logits in router_logits_np:
             # Apply softmax to get weights (probabilities)
+            # Handle both 2D (seq_len, num_experts) and 3D (batch_size, seq_len, num_experts) shapes
+            if layer_logits.ndim == 3:
+                # 3D case: (batch_size, seq_len, num_experts) -> (seq_len, num_experts)
+                layer_logits = layer_logits[0]  # Take first batch item
+            
             weights = np.exp(layer_logits - np.max(layer_logits, axis=-1, keepdims=True))
             weights = weights / np.sum(weights, axis=-1, keepdims=True)
             expert_weights.append(weights)
@@ -84,13 +89,26 @@ class RoutingHook:
         layer_counters, crosslayer_counters, eid2token_mappings = self._process_routing_data()
         
         # Save in the exact same format as run_routing_analysis.py
+        # Use the first available layers for backward compatibility
+        available_layers = sorted(layer_counters.keys())
+        if len(available_layers) >= 3:
+            selected_layers = [available_layers[0], available_layers[len(available_layers)//2], available_layers[-1]]
+        else:
+            selected_layers = available_layers[:3]  # Take up to 3 layers
+        
         expert_counts_file = f"{self.output_dir}/{self.model_name}/expert_counts/{self.task_name}.pkl"
         with open(expert_counts_file, "wb") as f:
-            pkl.dump([layer_counters[0], layer_counters[7], layer_counters[15]], f)
+            pkl.dump([layer_counters.get(i, Counter()) for i in selected_layers], f)
             
         crosslayer_file = f"{self.output_dir}/{self.model_name}/expert_counts_crosslayer/{self.task_name}.pkl"
         with open(crosslayer_file, "wb") as f:
-            pkl.dump([crosslayer_counters[(0, 7)], crosslayer_counters[(7, 15)]], f)
+            if len(selected_layers) >= 2:
+                crosslayer_data = [crosslayer_counters.get((selected_layers[0], selected_layers[1]), Counter())]
+                if len(selected_layers) >= 3:
+                    crosslayer_data.append(crosslayer_counters.get((selected_layers[1], selected_layers[2]), Counter()))
+            else:
+                crosslayer_data = [Counter()]
+            pkl.dump(crosslayer_data, f)
             
         token_file = f"{self.output_dir}/{self.model_name}/eid2token/{self.task_name}.pkl"
         with open(token_file, "wb") as f:
@@ -143,36 +161,37 @@ class RoutingHook:
             logger.info(f"Weights array shape: {weights_array.shape}")
             logger.info(f"Number of layers: {len(expert_weights)}")
             
-            # Extract specific layers - check if we have enough layers
-            weights_layer0 = None
-            weights_layer7 = None  
-            weights_layer15 = None
+            # Extract specific layers - dynamically choose layers based on model depth
+            num_layers = len(expert_weights)
             
-            if len(expert_weights) > 0:
-                weights_layer0 = expert_weights[0]  # Direct access to layer 0
-            if len(expert_weights) > 7:
-                weights_layer7 = expert_weights[7]  # Direct access to layer 7
-            if len(expert_weights) > 15:
-                weights_layer15 = expert_weights[15]  # Direct access to layer 15
+            # Choose representative layers: first, middle, and last
+            layer_indices = [0]  # Always include first layer
+            if num_layers > 1:
+                layer_indices.append(num_layers // 2)  # Middle layer
+            if num_layers > 2:
+                layer_indices.append(num_layers - 1)  # Last layer
+            
+            # Extract weights for selected layers
+            selected_layers = {}
+            for i, layer_idx in enumerate(layer_indices):
+                if layer_idx < num_layers:
+                    selected_layers[i] = expert_weights[layer_idx]
             
             # Process token-to-expert mappings using weights
             # weights_layer shape is (seq_len, num_experts) - no batch dimension
             for id, token in enumerate(input_tokens):
-                if weights_layer0 is not None and id < weights_layer0.shape[0]:
-                    # Get weights for this token across all experts
-                    token_weights = weights_layer0[id, :]  # Shape: (num_experts,)
-                    for expert_id, weight in enumerate(token_weights):
-                        eid2token_layer0[expert_id][token] += weight
-                        
-                if weights_layer7 is not None and id < weights_layer7.shape[0]:
-                    token_weights = weights_layer7[id, :]
-                    for expert_id, weight in enumerate(token_weights):
-                        eid2token_layer7[expert_id][token] += weight
-                        
-                if weights_layer15 is not None and id < weights_layer15.shape[0]:
-                    token_weights = weights_layer15[id, :]
-                    for expert_id, weight in enumerate(token_weights):
-                        eid2token_layer15[expert_id][token] += weight
+                for layer_key, layer_weights in selected_layers.items():
+                    if id < layer_weights.shape[0]:
+                        # Get weights for this token across all experts
+                        token_weights = layer_weights[id, :]  # Shape: (num_experts,)
+                        for expert_id, weight in enumerate(token_weights):
+                            # Use layer_key as the layer identifier
+                            if layer_key == 0:
+                                eid2token_layer0[expert_id][token] += weight
+                            elif layer_key == 1:
+                                eid2token_layer7[expert_id][token] += weight
+                            elif layer_key == 2:
+                                eid2token_layer15[expert_id][token] += weight
             
             # Process layer counters using weights (sum of weights per expert)
             for layer_idx, layer_weights in enumerate(expert_weights):
@@ -183,16 +202,18 @@ class RoutingHook:
                     layer_counters[layer_idx][expert_id] += weight_sum
             
             # Process cross-layer counters using weights
-            for layer_i in range(len(expert_weights) - 1):
-                for layer_j in range(len(expert_weights)):
-                    weights_i = expert_weights[layer_i]  # Shape: (seq_len, num_experts)
-                    weights_j = expert_weights[layer_j]  # Shape: (seq_len, num_experts)
-                    
-                    # For each expert pair, compute the sum of their weight products
-                    for expert_i in range(weights_i.shape[1]):  # num_experts
-                        for expert_j in range(weights_j.shape[1]):  # num_experts
-                            weight_product = np.sum(weights_i[:, expert_i] * weights_j[:, expert_j])
-                            crosslayer_counters[(layer_i, layer_j)][(expert_i, expert_j)] += weight_product
+            # Only analyze cross-layer patterns for selected representative layers
+            for i, layer_i in enumerate(layer_indices):
+                for j, layer_j in enumerate(layer_indices):
+                    if layer_i < num_layers and layer_j < num_layers:
+                        weights_i = expert_weights[layer_i]  # Shape: (seq_len, num_experts)
+                        weights_j = expert_weights[layer_j]  # Shape: (seq_len, num_experts)
+                        
+                        # For each expert pair, compute the sum of their weight products
+                        for expert_i in range(weights_i.shape[1]):  # num_experts
+                            for expert_j in range(weights_j.shape[1]):  # num_experts
+                                weight_product = np.sum(weights_i[:, expert_i] * weights_j[:, expert_j])
+                                crosslayer_counters[(layer_i, layer_j)][(expert_i, expert_j)] += weight_product
         
         # Return in the exact same format as original script
         eid2token_mappings = [eid2token_layer0, eid2token_layer7, eid2token_layer15]
@@ -301,7 +322,7 @@ def ensure_routing_hook_initialized():
 def patch_hflm_verbose():
     """Patch the HFLM_Verbose class to add routing tracking."""
     try:
-        from oe_eval.models.eleuther_huggingface import HFLM_Verbose
+        from oe_eval.models.eleuther_huggingface import HFLM_Verbose  # type: ignore
         
         # Check what methods are available on HFLM_Verbose
         logger.info(f"HFLM_Verbose methods: {[m for m in dir(HFLM_Verbose) if not m.startswith('_')]}")
@@ -318,8 +339,16 @@ def patch_hflm_verbose():
                     def patched_method(self, *args, **kwargs):
                         global _routing_hook_instance
                         
-                        # If routing tracking is enabled, force output_router_logits=True
-                        if is_routing_tracking_enabled():
+                        # Detect if this is a generation step (cached decoding)
+                        is_cached_generation = (
+                            'past_key_values' in kwargs or
+                            kwargs.get('use_cache', False) or
+                            'position_ids' in kwargs or
+                            (args and len(args) > 0 and hasattr(args[0], 'shape') and args[0].shape[1] == 1)
+                        )
+                        
+                        # Only force output_router_logits during prefill, not cached generation
+                        if is_routing_tracking_enabled() and not is_cached_generation:
                             kwargs['output_router_logits'] = True
                             
                             # Initialize routing hook if needed
@@ -333,8 +362,9 @@ def patch_hflm_verbose():
                         # Call original method
                         output = original_method(self, *args, **kwargs)
                         
-                        # If routing tracking is enabled, capture router logits
-                        if is_routing_tracking_enabled() and _routing_hook_instance:
+                        # If routing tracking is enabled, capture router logits only during prefill
+                        if (is_routing_tracking_enabled() and _routing_hook_instance and 
+                            not is_cached_generation):
                                 # Try to extract input_ids and router_logits from various sources
                                 input_ids = None
                                 router_logits = None
@@ -350,7 +380,7 @@ def patch_hflm_verbose():
                                     router_logits = output.router_logits
                                 elif isinstance(output, dict) and 'router_logits' in output:
                                     router_logits = output['router_logits']
-                                elif hasattr(output, 'logits') and hasattr(output.logits, 'router_logits'):
+                                elif hasattr(output, 'logits') and not isinstance(output, dict) and hasattr(output.logits, 'router_logits'):
                                     router_logits = output.logits.router_logits
                                 
                                 if input_ids is not None and router_logits is not None:
@@ -365,7 +395,7 @@ def patch_hflm_verbose():
                                         model_num_experts=num_experts,
                                         model_num_experts_per_tok=num_experts_per_tok,
                                     )
-                                    logger.info(f"Captured router logits from {method_name} method")
+                                    logger.info(f"Captured router logits from {method_name} method (prefill)")
                         
                         return output
                     return patched_method
@@ -389,8 +419,30 @@ def patch_hflm_verbose():
                     def patched_model_forward(*args, **kwargs):
                         global _routing_hook_instance
                         
-                        # If routing tracking is enabled, force output_router_logits=True
-                        if is_routing_tracking_enabled():
+                        # Detect if this is a generation step (cached decoding)
+                        # Key indicators of generation/cached decoding:
+                        is_cached_generation = (
+                            'past_key_values' in kwargs or
+                            kwargs.get('use_cache', False) or
+                            'position_ids' in kwargs or
+                            (args and len(args) > 0 and hasattr(args[0], 'shape') and args[0].shape[1] == 1)  # seq_len == 1
+                        )
+                        
+                        # Detect if this is initial generation setup (but not cached)
+                        is_generation_setup = (
+                            'generation_config' in kwargs or
+                            'max_new_tokens' in kwargs or
+                            'do_sample' in kwargs
+                        )
+                        
+                        # Only capture routing during prefill (first forward pass), not during cached generation
+                        should_capture_routing = (
+                            is_routing_tracking_enabled() and 
+                            not is_cached_generation and
+                            'output_router_logits' not in kwargs
+                        )
+                        
+                        if should_capture_routing:
                             kwargs['output_router_logits'] = True
                             
                             # Initialize routing hook if needed
@@ -401,10 +453,25 @@ def patch_hflm_verbose():
                                 _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
                                 logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
                         
-                        output = original_model_forward(*args, **kwargs)
+                        try:
+                            output = original_model_forward(*args, **kwargs)
+                        except RuntimeError as e:
+                            if "size of tensor" in str(e) and "must match" in str(e):
+                                # If we get a tensor size mismatch, retry without forcing output_router_logits
+                                logger.warning(f"Tensor size mismatch detected, retrying without output_router_logits: {e}")
+                                if 'output_router_logits' in kwargs:
+                                    del kwargs['output_router_logits']
+                                try:
+                                    output = original_model_forward(*args, **kwargs)
+                                except Exception as retry_e:
+                                    logger.error(f"Retry also failed: {retry_e}")
+                                    raise
+                            else:
+                                raise
                         
-                        # If routing tracking is enabled, capture router logits
-                        if is_routing_tracking_enabled() and _routing_hook_instance:
+                        # If routing tracking is enabled, capture router logits only during prefill
+                        if (is_routing_tracking_enabled() and _routing_hook_instance and 
+                            should_capture_routing and not is_cached_generation):
                             input_ids = kwargs.get("input_ids") or args[0] if args else None
                             
                             # Check for router_logits in the output
@@ -415,16 +482,20 @@ def patch_hflm_verbose():
                                 router_logits = output['router_logits']
                             
                             if input_ids is not None and router_logits is not None:
-                                num_experts = getattr(self.model, 'num_experts', 64)
-                                num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
-                                
-                                _routing_hook_instance.capture_routing(
-                                    router_logits=router_logits,
-                                    input_ids=input_ids,
-                                    model_num_experts=num_experts,
-                                    model_num_experts_per_tok=num_experts_per_tok,
-                                )
-                                logger.info("Captured router logits from underlying model's forward method")
+                                try:
+                                    num_experts = getattr(self.model, 'num_experts', 64)
+                                    num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
+                                    
+                                    _routing_hook_instance.capture_routing(
+                                        router_logits=router_logits,
+                                        input_ids=input_ids,
+                                        model_num_experts=num_experts,
+                                        model_num_experts_per_tok=num_experts_per_tok,
+                                    )
+                                    logger.info("Captured router logits from prefill step")
+                                except Exception as e:
+                                    logger.warning(f"Failed to capture routing data: {e}")
+                                    # Continue without routing capture to avoid breaking the evaluation
                         
                         return output
                     
