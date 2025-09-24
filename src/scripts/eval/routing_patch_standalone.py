@@ -35,7 +35,7 @@ class RoutingHook:
         # Create output directory
         Path(f"{self.output_dir}/{self.model_name}").mkdir(parents=True, exist_ok=True)
         
-    def capture_routing(self, router_logits: List[torch.Tensor], input_ids: torch.Tensor, 
+    def capture_routing(self, router_logits: List[torch.Tensor], input_ids: Optional[torch.Tensor], 
                        model_num_experts: int, model_num_experts_per_tok: int):
         """Capture routing information from a single forward pass."""
         if not router_logits:
@@ -43,7 +43,23 @@ class RoutingHook:
             
         # Convert to numpy for analysis
         router_logits_np = [logits.detach().cpu().numpy() for logits in router_logits]
-        input_ids_np = input_ids.detach().cpu().numpy()
+        # Infer sequence length from first layer's logits
+        first = router_logits_np[0]
+        if first.ndim == 3:
+            # (batch, seq, experts)
+            seq_len_inferred = first.shape[1]
+        elif first.ndim == 2:
+            # (seq, experts)
+            seq_len_inferred = first.shape[0]
+        else:
+            seq_len_inferred = 0
+
+        input_ids_np = None
+        if input_ids is not None:
+            try:
+                input_ids_np = input_ids.detach().cpu().numpy()
+            except Exception:
+                input_ids_np = None
         
         # Calculate router weights (softmax of logits) instead of just selections
         expert_weights = []
@@ -64,21 +80,22 @@ class RoutingHook:
         # Store the routing data with weights
         routing_entry = {
             "task_name": self.task_name,
-            "input_shape": input_ids_np.shape,
+            "input_shape": (input_ids_np.shape if input_ids_np is not None else (seq_len_inferred,)),
             "num_layers": len(router_logits),
             "expert_weights": expert_weights,  # New: actual router weights
             "router_logits": router_logits_flat,  # Keep logits for reference
-            "input_tokens": input_ids_np.flatten().tolist(),
+            "input_tokens": (
+                (input_ids_np.flatten().tolist()) if input_ids_np is not None else list(range(seq_len_inferred))
+            ),
         }
         
         self.routing_data.append(routing_entry)
-        self.total_tokens += input_ids_np.size
+        self.total_tokens += (input_ids_np.size if input_ids_np is not None else seq_len_inferred)
         
-    def save_results(self):
-        """Save captured routing data to files in the same format as run_routing_analysis.py."""
+    def save_results(self) -> bool:
+        """Save captured routing data. Returns True if something was saved."""
         if not self.routing_data:
-            logger.warning("No routing data captured")
-            return
+            return False
             
         # Create the same directory structure as the original script
         Path(f"{self.output_dir}/{self.model_name}/expert_counts").mkdir(parents=True, exist_ok=True)
@@ -115,6 +132,7 @@ class RoutingHook:
             pkl.dump(eid2token_mappings, f)
             
         logger.info(f"Saved routing analysis for {self.task_name}: {len(self.routing_data)} forward passes, {self.total_tokens} tokens")
+        return True
         
         # For S3 paths, also save to the main evaluation output directory
         # so they get uploaded automatically with the other results
@@ -539,10 +557,9 @@ def save_routing_results_for_task(model):
         
     # Save routing results using the global hook instance
     if _routing_hook_instance is not None:
-        _routing_hook_instance.save_results()
-        logger.info(f"Saved routing results for task: {_routing_hook_instance.task_name}")
-    else:
-        logger.warning("No routing hook instance found to save results")
+        saved = _routing_hook_instance.save_results()
+        if saved:
+            logger.info(f"Saved routing results for task: {_routing_hook_instance.task_name}")
 
 
 # Auto-apply the patch when this module is imported

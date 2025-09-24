@@ -486,7 +486,23 @@ def load_model_mp(model_load_config, gpu_ids, request_queue, response_queue, is_
                 break
 
             task_config, instances, request_id = request
+            # Ensure CURRENT_TASK is set in worker for routing tracking
+            try:
+                if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
+                    os.environ['CURRENT_TASK'] = task_config.get('task_name', 'unknown_task')
+            except Exception:
+                pass
+
             result = evaluate(model, instances, task_config)
+
+            # Flush routing results from the worker process after each evaluated task
+            try:
+                if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
+                    from routing_patch_standalone import save_routing_results_for_task
+                    save_routing_results_for_task(model)
+            except Exception:
+                pass
+
             response_queue.put((result, request_id))
     except Exception as e:
         logger.error(f"Failed to evaluate on GPU {gpu_ids}: {e}")
