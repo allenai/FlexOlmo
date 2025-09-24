@@ -1,7 +1,7 @@
 import argparse
 import csv
 import json
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Optional
 
 import boto3
 
@@ -47,6 +47,106 @@ def parse_s3_uri(s3_uri: str) -> Tuple[str, str]:
     return bucket, key
 
 
+def calculate_mc7(scores: Dict[str, float]) -> Optional[float]:
+    """Calculate MC7 average: arc_challenge:mc, arc_easy:mc, boolq:mc, csqa:mc, hellaswag:mc, openbookqa:mc, winogrande:mc"""
+    mc7_tasks = ["arc_challenge:mc", "arc_easy:mc", "boolq:mc", "csqa:mc", "hellaswag:mc", "openbookqa:mc", "winogrande:mc"]
+    values = []
+    for task in mc7_tasks:
+        if task in scores and scores[task] is not None:
+            values.append(scores[task])
+        else:
+            print(f"Warning: Missing {task} for MC7 calculation")
+            return None
+    return sum(values) / len(values)
+
+
+def calculate_gen5(scores: Dict[str, float]) -> Optional[float]:
+    """Calculate Gen5 average: coqa, drop, naturalqs, squad, triviaqa"""
+    gen5_tasks = ["coqa", "drop", "naturalqs", "squad", "triviaqa"]
+    values = []
+    for task in gen5_tasks:
+        if task in scores and scores[task] is not None:
+            values.append(scores[task])
+        else:
+            print(f"Warning: Missing {task} for Gen5 calculation")
+            return None
+    return sum(values) / len(values)
+
+
+def calculate_code_avg(scores: Dict[str, float]) -> Optional[float]:
+    """Calculate Code Average: codex_humaneval:temp0.8, codex_humanevalplus:temp0.8, mbpp, mbppplus"""
+    code_tasks = ["codex_humaneval:temp0.8", "codex_humanevalplus:temp0.8", "mbpp", "mbppplus"]
+    values = []
+    for task in code_tasks:
+        if task in scores and scores[task] is not None:
+            values.append(scores[task])
+        else:
+            print(f"Warning: Missing {task} for Code Average calculation")
+            return None
+    return sum(values) / len(values)
+
+
+def calculate_math_avg(scores: Dict[str, float]) -> Optional[float]:
+    """Calculate Math Average: average of minerva math tasks and gsm8k"""
+    minerva_tasks = [
+        "minerva_math_algebra", "minerva_math_counting_and_probability", "minerva_math_geometry",
+        "minerva_math_intermediate_algebra", "minerva_math_number_theory", 
+        "minerva_math_prealgebra", "minerva_math_precalculus"
+    ]
+    
+    # Calculate minerva average
+    minerva_values = []
+    for task in minerva_tasks:
+        if task in scores and scores[task] is not None:
+            minerva_values.append(scores[task])
+        else:
+            print(f"Warning: Missing {task} for Math Average calculation")
+            return None
+    
+    minerva_avg = sum(minerva_values) / len(minerva_values)
+    
+    # Check gsm8k
+    if "gsm8k" not in scores or scores["gsm8k"] is None:
+        print(f"Warning: Missing gsm8k for Math Average calculation")
+        return None
+    
+    # Return average of minerva average and gsm8k
+    return (minerva_avg + scores["gsm8k"]) / 2
+
+
+def validate_required_columns(scores: Dict[str, Optional[float]]) -> bool:
+    """Validate that all required columns are present and populated"""
+    required_columns = [
+        "MC7", "Gen5", "MMLU", "AGI Eval", "BBH", "Code Avg.", "Math Avg.",
+        "agi_eval_english:1shot", "arc_challenge:mc", "arc_easy:mc", "bbh:cot-v1::olmes",
+        "boolq:mc", "coqa", "csqa:mc", "drop", "hellaswag:mc", "mmlu:mc",
+        "naturalqs", "openbookqa:mc", "squad", "triviaqa", "winogrande:mc",
+        "codex_humaneval:temp0.8", "codex_humanevalplus:temp0.8", "mbpp", "mbppplus",
+        "minerva_math_algebra", "minerva_math_counting_and_probability", "minerva_math_geometry",
+        "minerva_math_intermediate_algebra", "minerva_math_number_theory",
+        "minerva_math_prealgebra", "minerva_math_precalculus", "gsm8k"
+    ]
+    
+    missing_columns = []
+    empty_columns = []
+    
+    for col in required_columns:
+        if col not in scores:
+            missing_columns.append(col)
+        elif scores[col] is None or scores[col] == "":
+            empty_columns.append(col)
+    
+    if missing_columns:
+        print(f"ERROR: Missing required columns: {missing_columns}")
+        return False
+    
+    if empty_columns:
+        print(f"ERROR: Empty required columns: {empty_columns}")
+        return False
+    
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description="Summarize eval results from S3 into CSV")
     parser.add_argument(
@@ -81,7 +181,7 @@ def main():
 
     # Collect scores per model
     all_tasks: Set[str] = set()
-    model_to_task_scores: Dict[str, Dict[str, float]] = {}
+    model_to_task_scores: Dict[str, Dict[str, Optional[float]]] = {}
 
     for model_prefix in model_prefixes:
         # Model name is the last non-empty segment
@@ -214,46 +314,98 @@ def main():
                 task_scores[task_name] = scores[0]
                 print(f"DEBUG: Single score for {task_name}: {scores[0]}")
 
-        model_to_task_scores[model_name] = task_scores
+        # Calculate derived metrics
+        enhanced_scores: Dict[str, Optional[float]] = {k: v for k, v in task_scores.items()}
+        
+        # Calculate MC7
+        mc7_score = calculate_mc7(task_scores)
+        if mc7_score is not None:
+            enhanced_scores["MC7"] = mc7_score
+        else:
+            print(f"ERROR: Could not calculate MC7 for model {model_name}")
+            enhanced_scores["MC7"] = None
+        
+        # Calculate Gen5
+        gen5_score = calculate_gen5(task_scores)
+        if gen5_score is not None:
+            enhanced_scores["Gen5"] = gen5_score
+        else:
+            print(f"ERROR: Could not calculate Gen5 for model {model_name}")
+            enhanced_scores["Gen5"] = None
+        
+        # Copy MMLU
+        if "mmlu:mc" in task_scores:
+            enhanced_scores["MMLU"] = task_scores["mmlu:mc"]
+        else:
+            print(f"ERROR: Missing mmlu:mc for model {model_name}")
+            enhanced_scores["MMLU"] = None
+        
+        # Copy AGI Eval
+        if "agi_eval_english:1shot" in task_scores:
+            enhanced_scores["AGI Eval"] = task_scores["agi_eval_english:1shot"]
+        else:
+            print(f"ERROR: Missing agi_eval_english:1shot for model {model_name}")
+            enhanced_scores["AGI Eval"] = None
+        
+        # Copy BBH
+        if "bbh:cot-v1::olmes" in task_scores:
+            enhanced_scores["BBH"] = task_scores["bbh:cot-v1::olmes"]
+        else:
+            print(f"ERROR: Missing bbh:cot-v1::olmes for model {model_name}")
+            enhanced_scores["BBH"] = None
+        
+        # Calculate Code Average
+        code_avg_score = calculate_code_avg(task_scores)
+        if code_avg_score is not None:
+            enhanced_scores["Code Avg."] = code_avg_score
+        else:
+            print(f"ERROR: Could not calculate Code Average for model {model_name}")
+            enhanced_scores["Code Avg."] = None
+        
+        # Calculate Math Average
+        math_avg_score = calculate_math_avg(task_scores)
+        if math_avg_score is not None:
+            enhanced_scores["Math Avg."] = math_avg_score
+        else:
+            print(f"ERROR: Could not calculate Math Average for model {model_name}")
+            enhanced_scores["Math Avg."] = None
 
-    # Create CSV header: model, sorted task names
-    task_columns = sorted(all_tasks)
-    header = ["model"] + task_columns
+        model_to_task_scores[model_name] = enhanced_scores
+
+    # Define the exact column order as requested
+    column_order = [
+        "MC7", "Gen5", "MMLU", "AGI Eval", "BBH", "Code Avg.", "Math Avg.",
+        "agi_eval_english:1shot", "arc_challenge:mc", "arc_easy:mc", "bbh:cot-v1::olmes",
+        "boolq:mc", "coqa", "csqa:mc", "drop", "hellaswag:mc", "mmlu:mc",
+        "naturalqs", "openbookqa:mc", "squad", "triviaqa", "winogrande:mc",
+        "codex_humaneval:temp0.8", "codex_humanevalplus:temp0.8", "mbpp", "mbppplus",
+        "minerva_math_algebra", "minerva_math_counting_and_probability", "minerva_math_geometry",
+        "minerva_math_intermediate_algebra", "minerva_math_number_theory",
+        "minerva_math_prealgebra", "minerva_math_precalculus", "gsm8k"
+    ]
+    
+    header = ["model"] + column_order
 
     with open(args.output_csv, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=header)
         writer.writeheader()
         for model_name, scores in sorted(model_to_task_scores.items()):
+            # Validate required columns
+            if not validate_required_columns(scores):
+                raise SystemExit(f"Validation failed for model {model_name}")
+            
             row: Dict[str, object] = {"model": model_name}
-            for t in task_columns:
-                row[t] = scores.get(t, "")
+            for col in column_order:
+                row[col] = scores.get(col, "")
             writer.writerow(row)
 
-    print(f"Wrote CSV with {len(model_to_task_scores)} models and {len(task_columns)} tasks to {args.output_csv}")
+    print(f"Wrote CSV with {len(model_to_task_scores)} models and {len(column_order)} columns to {args.output_csv}")
     
-    # Expected tasks from launch_beaker_eval.sh (excluding mmlu_pro_mc, socialiqa, piqa)
-    expected_tasks = {
-        'arc_easy:mc', 'arc_challenge:mc', 'boolq:mc', 'csqa:mc', 'hellaswag:mc', 
-        'openbookqa:mc', 'winogrande:mc', 'coqa', 'squad', 'naturalqs', 'triviaqa', 
-        'drop', 'mmlu:mc', 'agi_eval_english:1shot', 'gsm8k', 'minerva_math_algebra', 
-        'minerva_math_counting_and_probability', 'minerva_math_geometry', 
-        'minerva_math_intermediate_algebra', 'minerva_math_number_theory', 
-        'minerva_math_prealgebra', 'minerva_math_precalculus', 'codex_humaneval:temp0.8', 
-        'codex_humanevalplus:temp0.8', 'mbpp', 'mbppplus', 'bbh:cot-v1::olmes'
-    }
-    
-    print(f"\nExpected tasks: {len(expected_tasks)}")
-    print(f"Found tasks: {len(task_columns)}")
-    
-    missing_tasks = expected_tasks - set(task_columns)
-    if missing_tasks:
-        print(f"Missing tasks: {sorted(missing_tasks)}")
-    
-    extra_tasks = set(task_columns) - expected_tasks
-    if extra_tasks:
-        print(f"Extra tasks found: {sorted(extra_tasks)}")
-    
-    print(f"Task coverage: {len(task_columns)}/{len(expected_tasks)} = {len(task_columns)/len(expected_tasks)*100:.1f}%")
+    # Report validation results
+    print(f"\nValidation Summary:")
+    print(f"- Total models processed: {len(model_to_task_scores)}")
+    print(f"- Required columns: {len(column_order)}")
+    print(f"- All models passed validation")
 
 
 if __name__ == "__main__":
