@@ -303,21 +303,16 @@ def ensure_routing_hook_initialized():
     """Ensure the routing hook instance is initialized if routing tracking is enabled."""
     global _routing_hook_instance
     
-    try:
-        if is_routing_tracking_enabled() and _routing_hook_instance is None:
-            model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
-            task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
-            output_dir = get_routing_output_dir()
-            _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
-            logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
-    except NameError:
-        # If _routing_hook_instance is not defined in global scope, initialize it
+    if is_routing_tracking_enabled() and _routing_hook_instance is None:
         model_name = os.environ.get("FLEXOLMO_MODEL_NAME", "unknown_model")
         task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
         output_dir = get_routing_output_dir()
         _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
         logger.info(f"Initialized routing hook for model: {model_name}, task: {task_name}")
 
+
+# Global routing hook instance
+_routing_hook_instance = None
 
 def patch_hflm_verbose():
     """Patch the HFLM_Verbose class to add routing tracking."""
@@ -363,39 +358,41 @@ def patch_hflm_verbose():
                         output = original_method(self, *args, **kwargs)
                         
                         # If routing tracking is enabled, capture router logits only during prefill
-                        if (is_routing_tracking_enabled() and _routing_hook_instance and 
-                            not is_cached_generation):
-                                # Try to extract input_ids and router_logits from various sources
-                                input_ids = None
-                                router_logits = None
+                        if (is_routing_tracking_enabled() and not is_cached_generation):
+                            # Ensure routing hook is initialized
+                            ensure_routing_hook_initialized()
+                            
+                            # Try to extract input_ids and router_logits from various sources
+                            input_ids = None
+                            router_logits = None
+                            
+                            # Check kwargs for input_ids
+                            if 'input_ids' in kwargs:
+                                input_ids = kwargs['input_ids']
+                            elif args and len(args) > 0:
+                                input_ids = args[0]
+                            
+                            # Check for router_logits in the output
+                            if hasattr(output, 'router_logits') and output.router_logits is not None:
+                                router_logits = output.router_logits
+                            elif isinstance(output, dict) and 'router_logits' in output:
+                                router_logits = output['router_logits']
+                            elif hasattr(output, 'logits') and not isinstance(output, dict) and hasattr(output.logits, 'router_logits'):
+                                router_logits = output.logits.router_logits
+                            
+                            if input_ids is not None and router_logits is not None and _routing_hook_instance:
+                                # Get model attributes safely
+                                model = getattr(self, 'model', None)
+                                num_experts = getattr(model, 'num_experts', 64) if model else 64
+                                num_experts_per_tok = getattr(model, 'num_experts_per_tok', 8) if model else 8
                                 
-                                # Check kwargs for input_ids
-                                if 'input_ids' in kwargs:
-                                    input_ids = kwargs['input_ids']
-                                elif args and len(args) > 0:
-                                    input_ids = args[0]
-                                
-                                # Check for router_logits in the output
-                                if hasattr(output, 'router_logits') and output.router_logits is not None:
-                                    router_logits = output.router_logits
-                                elif isinstance(output, dict) and 'router_logits' in output:
-                                    router_logits = output['router_logits']
-                                elif hasattr(output, 'logits') and not isinstance(output, dict) and hasattr(output.logits, 'router_logits'):
-                                    router_logits = output.logits.router_logits
-                                
-                                if input_ids is not None and router_logits is not None:
-                                    # Get model attributes safely
-                                    model = getattr(self, 'model', None)
-                                    num_experts = getattr(model, 'num_experts', 64) if model else 64
-                                    num_experts_per_tok = getattr(model, 'num_experts_per_tok', 8) if model else 8
-                                    
-                                    _routing_hook_instance.capture_routing(
-                                        router_logits=router_logits,
-                                        input_ids=input_ids,
-                                        model_num_experts=num_experts,
-                                        model_num_experts_per_tok=num_experts_per_tok,
-                                    )
-                                    logger.info(f"Captured router logits from {method_name} method (prefill)")
+                                _routing_hook_instance.capture_routing(
+                                    router_logits=router_logits,
+                                    input_ids=input_ids,
+                                    model_num_experts=num_experts,
+                                    model_num_experts_per_tok=num_experts_per_tok,
+                                )
+                                logger.info(f"Captured router logits from {method_name} method (prefill)")
                         
                         return output
                     return patched_method
@@ -470,8 +467,9 @@ def patch_hflm_verbose():
                                 raise
                         
                         # If routing tracking is enabled, capture router logits only during prefill
-                        if (is_routing_tracking_enabled() and _routing_hook_instance and 
-                            should_capture_routing and not is_cached_generation):
+                        if (is_routing_tracking_enabled() and should_capture_routing and not is_cached_generation):
+                            # Ensure routing hook is initialized
+                            ensure_routing_hook_initialized()
                             input_ids = kwargs.get("input_ids") or args[0] if args else None
                             
                             # Check for router_logits in the output
@@ -481,7 +479,7 @@ def patch_hflm_verbose():
                             elif isinstance(output, dict) and 'router_logits' in output:
                                 router_logits = output['router_logits']
                             
-                            if input_ids is not None and router_logits is not None:
+                            if input_ids is not None and router_logits is not None and _routing_hook_instance:
                                 try:
                                     num_experts = getattr(self.model, 'num_experts', 64)
                                     num_experts_per_tok = getattr(self.model, 'num_experts_per_tok', 8)
