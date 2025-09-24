@@ -654,8 +654,11 @@ def run_eval(args_dict: dict):
     logger.info(f"Model loaded. Model hash: {model_hash['hash']}")
     if enable_routing_tracking:
         logger.info("Routing tracking is enabled")
-        # Set environment variable so routing files get saved to the evaluation output directory
+        # Set environment variables for routing tracking
         os.environ['EVAL_OUTPUT_DIR'] = output_dir
+        os.environ['FLEXOLMO_ROUTING_OUTPUT_DIR'] = routing_output_dir
+        model_name = model_config.get("model", "unknown_model").split("/")[-1]
+        os.environ['FLEXOLMO_MODEL_NAME'] = model_name
 
     metrics_output_file = None
     remote_output_dir = compute_config["remote_output_dir"]
@@ -681,6 +684,10 @@ def run_eval(args_dict: dict):
         # Setup routing tracking for this task if enabled
         if ROUTING_AVAILABLE and is_routing_tracking_enabled():
             setup_routing_for_task(task_name)
+            # Also set up the routing hook instance with proper model name and output directory
+            from routing_patch_standalone import setup_routing_tracking
+            model_name = model_config.get("model", "unknown_model").split("/")[-1]
+            setup_routing_tracking(model_name, routing_output_dir)
         predictions_file = None
         cached_predictions = None
         # Move task files from cache directory if need be

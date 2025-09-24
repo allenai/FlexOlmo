@@ -281,12 +281,18 @@ def setup_routing_tracking(model_path: str, output_dir: str = "routing_output"):
     os.environ["FLEXOLMO_ROUTING_TRACKING"] = "true"
     os.environ["FLEXOLMO_ROUTING_OUTPUT_DIR"] = output_dir
     
-    # Initialize the routing hook instance
-    model_name = os.path.basename(str(model_path)) if model_path else "unknown_model"
-    task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
-    _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
-    
-    logger.info(f"Routing tracking enabled for model: {model_path}")
+    # Initialize the routing hook instance if not already initialized
+    if _routing_hook_instance is None:
+        model_name = os.path.basename(str(model_path)) if model_path else "unknown_model"
+        task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+        _routing_hook_instance = RoutingHook(model_name, task_name, output_dir)
+        logger.info(f"Routing tracking enabled for model: {model_path}")
+    else:
+        # Update the task name if it's different
+        task_name = os.environ.get('CURRENT_TASK', 'unknown_task')
+        if _routing_hook_instance.task_name != task_name:
+            _routing_hook_instance.task_name = task_name
+            logger.info(f"Updated routing tracking task to: {task_name}")
 
 
 def get_routing_output_dir() -> str:
