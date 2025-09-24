@@ -340,17 +340,13 @@ def patch_hflm_verbose():
                 def create_patched_method(original_method, method_name):
                     def patched_method(self, *args, **kwargs):
                         global _routing_hook_instance
-                        
-                        # Detect if this is a generation step (cached decoding)
-                        is_cached_generation = (
-                            'past_key_values' in kwargs or
-                            kwargs.get('use_cache', False) or
-                            'position_ids' in kwargs or
-                            (args and len(args) > 0 and hasattr(args[0], 'shape') and args[0].shape[1] == 1)
-                        )
-                        
-                        # Only force output_router_logits during prefill, not cached generation
-                        if is_routing_tracking_enabled() and not is_cached_generation:
+                        # Determine prefill vs decode
+                        input_ids_arg = kwargs.get('input_ids') if 'input_ids' in kwargs else (args[0] if args else None)
+                        seq_len = getattr(input_ids_arg, 'shape', [None, 0])[1] if input_ids_arg is not None else 0
+                        is_prefill = ('past_key_values' not in kwargs) and (seq_len is not None and seq_len > 1)
+
+                        # Only force output_router_logits during prefill
+                        if is_routing_tracking_enabled() and is_prefill and 'output_router_logits' not in kwargs:
                             kwargs['output_router_logits'] = True
                             
                             # Initialize routing hook if needed
@@ -365,7 +361,7 @@ def patch_hflm_verbose():
                         output = original_method(self, *args, **kwargs)
                         
                         # If routing tracking is enabled, capture router logits only during prefill
-                        if (is_routing_tracking_enabled() and not is_cached_generation):
+                        if (is_routing_tracking_enabled() and is_prefill):
                             # Ensure routing hook is initialized
                             ensure_routing_hook_initialized()
                             
@@ -425,26 +421,15 @@ def patch_hflm_verbose():
                         
                         logger.info(f"PATCHED FORWARD CALLED - routing enabled: {is_routing_tracking_enabled()}")
                         
-                        # Detect if this is a generation step (cached decoding)
-                        # Key indicators of generation/cached decoding:
-                        is_cached_generation = (
-                            'past_key_values' in kwargs or
-                            kwargs.get('use_cache', False) or
-                            'position_ids' in kwargs or
-                            (args and len(args) > 0 and hasattr(args[0], 'shape') and args[0].shape[1] == 1)  # seq_len == 1
-                        )
-                        
-                        # Detect if this is initial generation setup (but not cached)
-                        is_generation_setup = (
-                            'generation_config' in kwargs or
-                            'max_new_tokens' in kwargs or
-                            'do_sample' in kwargs
-                        )
-                        
-                        # Only capture routing during prefill (first forward pass), not during cached generation
+                        # Determine prefill vs decode
+                        input_ids_arg = kwargs.get('input_ids') if 'input_ids' in kwargs else (args[0] if args else None)
+                        seq_len = getattr(input_ids_arg, 'shape', [None, 0])[1] if input_ids_arg is not None else 0
+                        is_prefill = ('past_key_values' not in kwargs) and (seq_len is not None and seq_len > 1)
+
+                        # Only capture routing during prefill (first forward pass)
                         should_capture_routing = (
                             is_routing_tracking_enabled() and 
-                            not is_cached_generation and
+                            is_prefill and
                             'output_router_logits' not in kwargs
                         )
                         
@@ -476,7 +461,7 @@ def patch_hflm_verbose():
                                 raise
                         
                         # If routing tracking is enabled, capture router logits only during prefill
-                        if (is_routing_tracking_enabled() and should_capture_routing and not is_cached_generation):
+                        if (is_routing_tracking_enabled() and should_capture_routing and is_prefill):
                             logger.info("ATTEMPTING ROUTING CAPTURE")
                             # Ensure routing hook is initialized
                             ensure_routing_hook_initialized()
