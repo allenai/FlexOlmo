@@ -341,11 +341,17 @@ def patch_hflm_verbose():
                     def patched_method(self, *args, **kwargs):
                         global _routing_hook_instance
                         # Determine prefill vs decode
-                        # Treat any call without past_key_values as prefill
-                        is_prefill = ('past_key_values' not in kwargs)
+                        # Treat prefill as when past_key_values is absent or None/empty
+                        pkv = kwargs.get('past_key_values', None)
+                        is_prefill = (
+                            'past_key_values' not in kwargs or
+                            pkv is None or
+                            (hasattr(pkv, '__len__') and len(pkv) == 0)
+                        )
 
                         # Only force output_router_logits during prefill
-                        if is_routing_tracking_enabled() and is_prefill and 'output_router_logits' not in kwargs:
+                        if is_routing_tracking_enabled() and is_prefill:
+                            # Force emit router logits on prefill
                             kwargs['output_router_logits'] = True
                             
                             # Initialize routing hook if needed
@@ -421,8 +427,13 @@ def patch_hflm_verbose():
                         logger.info(f"PATCHED FORWARD CALLED - routing enabled: {is_routing_tracking_enabled()}")
                         
                         # Determine prefill vs decode
-                        # Treat any call without past_key_values as prefill
-                        is_prefill = ('past_key_values' not in kwargs)
+                        # Treat prefill as when past_key_values is absent or None/empty
+                        pkv = kwargs.get('past_key_values', None)
+                        is_prefill = (
+                            'past_key_values' not in kwargs or
+                            pkv is None or
+                            (hasattr(pkv, '__len__') and len(pkv) == 0)
+                        )
 
                         # Only capture routing during prefill (first forward pass)
                         should_capture_routing = (
@@ -432,6 +443,7 @@ def patch_hflm_verbose():
                         )
                         
                         if should_capture_routing:
+                            # Force emit router logits on prefill
                             kwargs['output_router_logits'] = True
                             
                             # Initialize routing hook if needed
@@ -469,14 +481,14 @@ def patch_hflm_verbose():
                             logger.info(f"Output type: {type(output)}")
                             logger.info(f"Output has router_logits: {hasattr(output, 'router_logits')}")
                             
-                            # Check for router_logits in the output
+                            # Check for router_logits in the output (robust paths)
                             router_logits = None
                             if hasattr(output, 'router_logits') and output.router_logits is not None:
                                 router_logits = output.router_logits
-                                logger.info(f"Found router_logits with length: {len(router_logits)}")
-                            elif isinstance(output, dict) and 'router_logits' in output:
+                            elif isinstance(output, dict) and 'router_logits' in output and output['router_logits'] is not None:
                                 router_logits = output['router_logits']
-                                logger.info("Found router_logits in dict")
+                            elif hasattr(output, 'logits') and not isinstance(output, dict) and hasattr(output.logits, 'router_logits') and output.logits.router_logits is not None:
+                                router_logits = output.logits.router_logits
                             
                             logger.info(f"Routing capture - input_ids: {input_ids is not None}, router_logits: {router_logits is not None}, hook: {_routing_hook_instance is not None}")
                             
