@@ -315,12 +315,12 @@ def main():
                 print(f"DEBUG: Single score for {task_name}: {scores[0]}")
 
         # Calculate derived metrics
-        enhanced_scores: Dict[str, Optional[float]] = {k: v for k, v in task_scores.items()}
+        enhanced_scores: Dict[str, Optional[float]] = {k: round(v, 3) if v is not None else v for k, v in task_scores.items()}
         
         # Calculate MC7
         mc7_score = calculate_mc7(task_scores)
         if mc7_score is not None:
-            enhanced_scores["MC7"] = mc7_score
+            enhanced_scores["MC7"] = round(mc7_score, 3)
         else:
             print(f"ERROR: Could not calculate MC7 for model {model_name}")
             enhanced_scores["MC7"] = None
@@ -328,28 +328,28 @@ def main():
         # Calculate Gen5
         gen5_score = calculate_gen5(task_scores)
         if gen5_score is not None:
-            enhanced_scores["Gen5"] = gen5_score
+            enhanced_scores["Gen5"] = round(gen5_score, 3)
         else:
             print(f"ERROR: Could not calculate Gen5 for model {model_name}")
             enhanced_scores["Gen5"] = None
         
         # Copy MMLU
         if "mmlu:mc" in task_scores:
-            enhanced_scores["MMLU"] = task_scores["mmlu:mc"]
+            enhanced_scores["MMLU"] = round(task_scores["mmlu:mc"], 3)
         else:
             print(f"ERROR: Missing mmlu:mc for model {model_name}")
             enhanced_scores["MMLU"] = None
         
         # Copy AGI Eval
         if "agi_eval_english:1shot" in task_scores:
-            enhanced_scores["AGI Eval"] = task_scores["agi_eval_english:1shot"]
+            enhanced_scores["AGI Eval"] = round(task_scores["agi_eval_english:1shot"], 3)
         else:
             print(f"ERROR: Missing agi_eval_english:1shot for model {model_name}")
             enhanced_scores["AGI Eval"] = None
         
         # Copy BBH
         if "bbh:cot-v1::olmes" in task_scores:
-            enhanced_scores["BBH"] = task_scores["bbh:cot-v1::olmes"]
+            enhanced_scores["BBH"] = round(task_scores["bbh:cot-v1::olmes"], 3)
         else:
             print(f"ERROR: Missing bbh:cot-v1::olmes for model {model_name}")
             enhanced_scores["BBH"] = None
@@ -357,7 +357,7 @@ def main():
         # Calculate Code Average
         code_avg_score = calculate_code_avg(task_scores)
         if code_avg_score is not None:
-            enhanced_scores["Code Avg."] = code_avg_score
+            enhanced_scores["Code Avg."] = round(code_avg_score, 3)
         else:
             print(f"ERROR: Could not calculate Code Average for model {model_name}")
             enhanced_scores["Code Avg."] = None
@@ -365,7 +365,7 @@ def main():
         # Calculate Math Average
         math_avg_score = calculate_math_avg(task_scores)
         if math_avg_score is not None:
-            enhanced_scores["Math Avg."] = math_avg_score
+            enhanced_scores["Math Avg."] = round(math_avg_score, 3)
         else:
             print(f"ERROR: Could not calculate Math Average for model {model_name}")
             enhanced_scores["Math Avg."] = None
