@@ -341,9 +341,8 @@ def patch_hflm_verbose():
                     def patched_method(self, *args, **kwargs):
                         global _routing_hook_instance
                         # Determine prefill vs decode
-                        input_ids_arg = kwargs.get('input_ids') if 'input_ids' in kwargs else (args[0] if args else None)
-                        seq_len = getattr(input_ids_arg, 'shape', [None, 0])[1] if input_ids_arg is not None else 0
-                        is_prefill = ('past_key_values' not in kwargs) and (seq_len is not None and seq_len > 1)
+                        # Treat any call without past_key_values as prefill
+                        is_prefill = ('past_key_values' not in kwargs)
 
                         # Only force output_router_logits during prefill
                         if is_routing_tracking_enabled() and is_prefill and 'output_router_logits' not in kwargs:
@@ -422,9 +421,8 @@ def patch_hflm_verbose():
                         logger.info(f"PATCHED FORWARD CALLED - routing enabled: {is_routing_tracking_enabled()}")
                         
                         # Determine prefill vs decode
-                        input_ids_arg = kwargs.get('input_ids') if 'input_ids' in kwargs else (args[0] if args else None)
-                        seq_len = getattr(input_ids_arg, 'shape', [None, 0])[1] if input_ids_arg is not None else 0
-                        is_prefill = ('past_key_values' not in kwargs) and (seq_len is not None and seq_len > 1)
+                        # Treat any call without past_key_values as prefill
+                        is_prefill = ('past_key_values' not in kwargs)
 
                         # Only capture routing during prefill (first forward pass)
                         should_capture_routing = (
