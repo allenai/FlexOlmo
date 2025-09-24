@@ -455,6 +455,22 @@ def load_model_mp(model_load_config, gpu_ids, request_queue, response_queue, is_
     try:
         if gpu_ids is not None:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, gpu_ids))
+        
+        # Apply routing patches in worker process if routing tracking is enabled
+        if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
+            logger.info("WORKER PROCESS: Applying routing patches...")
+            from routing_patch_standalone import patch_hflm_verbose, setup_routing_tracking
+            patch_hflm_verbose()
+            
+            # Initialize routing tracking for this worker process
+            model_name = model_load_config.get("model", "unknown_model").split("/")[-1]
+            routing_output_dir = os.environ.get("FLEXOLMO_ROUTING_OUTPUT_DIR", "routing_output")
+            setup_routing_tracking(model_name, routing_output_dir)
+            
+            logger.info("WORKER PROCESS: Applied routing patches and initialized routing tracking")
+        else:
+            logger.info(f"WORKER PROCESS: Routing not enabled - ROUTING_AVAILABLE: {ROUTING_AVAILABLE}, FLEXOLMO_ROUTING_TRACKING: {os.environ.get('FLEXOLMO_ROUTING_TRACKING', 'not set')}")
+        
         model = load_model(model_load_config)
         logger.info(f"Model initialized on GPU {gpu_ids}.")
     except Exception as e:

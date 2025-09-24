@@ -323,6 +323,7 @@ _routing_hook_instance = None
 def patch_hflm_verbose():
     """Patch the HFLM_Verbose class to add routing tracking."""
     try:
+        logger.info("PATCHING HFLM_Verbose...")
         from oe_eval.models.eleuther_huggingface import HFLM_Verbose  # type: ignore
         
         # Check what methods are available on HFLM_Verbose
@@ -422,6 +423,8 @@ def patch_hflm_verbose():
                     def patched_model_forward(*args, **kwargs):
                         global _routing_hook_instance
                         
+                        logger.info(f"PATCHED FORWARD CALLED - routing enabled: {is_routing_tracking_enabled()}")
+                        
                         # Detect if this is a generation step (cached decoding)
                         # Key indicators of generation/cached decoding:
                         is_cached_generation = (
@@ -474,16 +477,25 @@ def patch_hflm_verbose():
                         
                         # If routing tracking is enabled, capture router logits only during prefill
                         if (is_routing_tracking_enabled() and should_capture_routing and not is_cached_generation):
+                            logger.info("ATTEMPTING ROUTING CAPTURE")
                             # Ensure routing hook is initialized
                             ensure_routing_hook_initialized()
                             input_ids = kwargs.get("input_ids") or args[0] if args else None
+                            
+                            logger.info(f"Input IDs shape: {input_ids.shape if input_ids is not None else None}")
+                            logger.info(f"Output type: {type(output)}")
+                            logger.info(f"Output has router_logits: {hasattr(output, 'router_logits')}")
                             
                             # Check for router_logits in the output
                             router_logits = None
                             if hasattr(output, 'router_logits') and output.router_logits is not None:
                                 router_logits = output.router_logits
+                                logger.info(f"Found router_logits with length: {len(router_logits)}")
                             elif isinstance(output, dict) and 'router_logits' in output:
                                 router_logits = output['router_logits']
+                                logger.info("Found router_logits in dict")
+                            
+                            logger.info(f"Routing capture - input_ids: {input_ids is not None}, router_logits: {router_logits is not None}, hook: {_routing_hook_instance is not None}")
                             
                             if input_ids is not None and router_logits is not None and _routing_hook_instance:
                                 try:
@@ -496,7 +508,7 @@ def patch_hflm_verbose():
                                         model_num_experts=num_experts,
                                         model_num_experts_per_tok=num_experts_per_tok,
                                     )
-                                    logger.info("Captured router logits from prefill step")
+                                    logger.info("SUCCESS: Captured router logits from prefill step")
                                 except Exception as e:
                                     logger.warning(f"Failed to capture routing data: {e}")
                                     # Continue without routing capture to avoid breaking the evaluation
