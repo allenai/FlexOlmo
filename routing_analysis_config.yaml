@@ -5,7 +5,7 @@ model_path: "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-fle
 device: "cuda"
 
 # Analysis configuration
-layers_to_analyze: [0, 7, 15]  # Layers to analyze (matching your existing visualization)
+layers_to_analyze: [1, 15, 31]  # MoE layers to analyze (1, 15, 31 are MoE layers based on the model architecture)
 batch_size: 8  # Number of samples to process in parallel
 max_sequence_length: 2048  # Maximum sequence length for tokenization
 

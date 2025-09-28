@@ -150,12 +150,19 @@ class RouterAnalyzer:
         
         # Get model info
         self.num_experts = getattr(self.model.config, 'num_experts', 4)
-        self.num_layers = getattr(self.model.config, 'num_hidden_layers', 16)
+        self.num_layers = getattr(self.model.config, 'num_hidden_layers', 32)
+        
+        # Check which layers have MoE
+        self.moe_layers = []
+        for i in range(self.num_layers):
+            if hasattr(self.model.model.layers[i], 'block_sparse_moe'):
+                self.moe_layers.append(i)
         
         logger.info(f"Model loaded: {self.num_experts} experts, {self.num_layers} layers")
+        logger.info(f"MoE layers: {self.moe_layers}")
     
     def extract_router_logits(self, text: str, max_length: int = 2048) -> Optional[torch.Tensor]:
-        """Extract router logits for a given text"""
+        """Extract router logits for a given text using hooks"""
         try:
             # Tokenize input
             inputs = self.tokenizer(
@@ -169,56 +176,75 @@ class RouterAnalyzer:
             # Move to device
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            # Forward pass with router logits
+            # Store router logits from hooks
+            router_logits_list = []
+            
+            def router_hook(module, input, output):
+                """Hook to capture router logits from MoE layers"""
+                if hasattr(module, 'gate') and hasattr(module.gate, 'logits'):
+                    # This is a router gate, capture the logits
+                    router_logits_list.append(module.gate.logits.detach().clone())
+                elif hasattr(module, 'gate') and hasattr(module.gate, 'weight'):
+                    # Alternative: gate might be a linear layer
+                    # We need to compute logits from the input
+                    if len(input) > 0:
+                        gate_input = input[0] if isinstance(input, (list, tuple)) else input
+                        if hasattr(module.gate, 'forward'):
+                            with torch.no_grad():
+                                logits = module.gate(gate_input)
+                                router_logits_list.append(logits.detach().clone())
+            
+            # Register hooks on MoE layers
+            hooks = []
+            for layer_idx in self.moe_layers:
+                if layer_idx < len(self.model.model.layers):
+                    layer = self.model.model.layers[layer_idx]
+                    if hasattr(layer, 'block_sparse_moe'):
+                        hook = layer.block_sparse_moe.register_forward_hook(router_hook)
+                        hooks.append(hook)
+            
+            # Forward pass
             with torch.no_grad():
-                outputs = self.model(**inputs, output_router_logits=True)
+                outputs = self.model(**inputs)
             
-            # Extract router logits
-            if hasattr(outputs, 'router_logits') and outputs.router_logits is not None:
-                router_logits = outputs.router_logits
-                
-                # Handle different router_logits formats
-                if isinstance(router_logits, (list, tuple)):
-                    # Convert list/tuple of tensors to a single tensor
-                    # router_logits is typically [layer1_tensor, layer2_tensor, ...]
-                    # where each tensor has shape [batch_size, seq_len, num_experts]
-                    if len(router_logits) > 0:
-                        # Stack along a new dimension to get [num_layers, batch_size, seq_len, num_experts]
-                        stacked_logits = torch.stack(router_logits, dim=0)
-                        # Remove batch dimension: [num_layers, seq_len, num_experts]
-                        return stacked_logits.squeeze(1)
-                    else:
-                        logger.warning("Empty router logits list")
-                        return None
-                elif isinstance(router_logits, torch.Tensor):
-                    # Already a tensor, return as is
-                    return router_logits
-                else:
-                    logger.warning(f"Unexpected router_logits type: {type(router_logits)}")
-                    return None
+            # Remove hooks
+            for hook in hooks:
+                hook.remove()
             
-            logger.warning("No router logits found in model output")
-            return None
+            # Process captured router logits
+            if router_logits_list:
+                logger.debug(f"Captured {len(router_logits_list)} router logits from hooks")
+                # Stack the logits: [num_moe_layers, batch_size, seq_len, num_experts]
+                stacked_logits = torch.stack(router_logits_list, dim=0)
+                # Remove batch dimension: [num_moe_layers, seq_len, num_experts]
+                return stacked_logits.squeeze(1)
+            else:
+                logger.warning("No router logits captured from hooks")
+                return None
             
         except Exception as e:
             logger.error(f"Error extracting router logits: {e}")
+            import traceback
+            logger.debug(f"Full traceback: {traceback.format_exc()}")
             return None
     
     def analyze_expert_weights(self, router_logits: torch.Tensor) -> Dict[int, np.ndarray]:
         """Analyze expert weights from router logits"""
         expert_weights_by_layer = {}
         
-        # router_logits shape: [num_layers, seq_len, num_experts]
-        for layer_idx in range(router_logits.shape[0]):
-            layer_logits = router_logits[layer_idx]  # [seq_len, num_experts]
-            
-            # Convert to probabilities (softmax)
-            expert_probs = torch.softmax(layer_logits, dim=-1)  # [seq_len, num_experts]
-            
-            # Average across sequence length
-            avg_expert_weights = expert_probs.mean(dim=0).cpu().numpy()  # [num_experts]
-            
-            expert_weights_by_layer[layer_idx] = avg_expert_weights
+        # router_logits shape: [num_moe_layers, seq_len, num_experts]
+        # Only analyze MoE layers
+        for i, layer_idx in enumerate(self.moe_layers):
+            if i < router_logits.shape[0]:
+                layer_logits = router_logits[i]  # [seq_len, num_experts]
+                
+                # Convert to probabilities (softmax)
+                expert_probs = torch.softmax(layer_logits, dim=-1)  # [seq_len, num_experts]
+                
+                # Average across sequence length
+                avg_expert_weights = expert_probs.mean(dim=0).cpu().numpy()  # [num_experts]
+                
+                expert_weights_by_layer[layer_idx] = avg_expert_weights
         
         return expert_weights_by_layer
 
