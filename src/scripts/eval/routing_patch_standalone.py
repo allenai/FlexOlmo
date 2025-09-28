@@ -134,28 +134,29 @@ class RoutingHook:
         logger.info(f"Saved routing analysis for {self.task_name}: {len(self.routing_data)} forward passes, {self.total_tokens} tokens")
         return True
         
-        # For S3 paths, also save to the main evaluation output directory
-        # so they get uploaded automatically with the other results
-        if self.output_dir.startswith('s3://'):
-            # Get the main evaluation output directory from environment
-            eval_output_dir = os.environ.get('EVAL_OUTPUT_DIR', '/tmp/eval_output')
+        # Also write local duplicates under the main evaluation output directory so they upload with results
+        eval_output_dir = os.environ.get('EVAL_OUTPUT_DIR')
+        if eval_output_dir:
             routing_dir = f"{eval_output_dir}/routing_analysis/{self.model_name}"
-            
             Path(f"{routing_dir}/expert_counts").mkdir(parents=True, exist_ok=True)
             Path(f"{routing_dir}/expert_counts_crosslayer").mkdir(parents=True, exist_ok=True)
             Path(f"{routing_dir}/eid2token").mkdir(parents=True, exist_ok=True)
-            
-            # Copy files to evaluation output directory
-            import shutil
-            eval_expert_counts = f"{routing_dir}/expert_counts/{self.task_name}.pkl"
-            eval_crosslayer = f"{routing_dir}/expert_counts_crosslayer/{self.task_name}.pkl"
-            eval_token = f"{routing_dir}/eid2token/{self.task_name}.pkl"
-            
-            shutil.copy2(expert_counts_file, eval_expert_counts)
-            shutil.copy2(crosslayer_file, eval_crosslayer)
-            shutil.copy2(token_file, eval_token)
-            
-            logger.info(f"Saved routing files to evaluation output directory: {routing_dir}")
+
+            # Re-dump objects locally (avoid relying on copying from s3 paths)
+            with open(f"{routing_dir}/expert_counts/{self.task_name}.pkl", "wb") as f:
+                pkl.dump([layer_counters.get(i, Counter()) for i in selected_layers], f)
+            with open(f"{routing_dir}/expert_counts_crosslayer/{self.task_name}.pkl", "wb") as f:
+                if len(selected_layers) >= 2:
+                    crosslayer_data = [crosslayer_counters.get((selected_layers[0], selected_layers[1]), Counter())]
+                    if len(selected_layers) >= 3:
+                        crosslayer_data.append(crosslayer_counters.get((selected_layers[1], selected_layers[2]), Counter()))
+                else:
+                    crosslayer_data = [Counter()]
+                pkl.dump(crosslayer_data, f)
+            with open(f"{routing_dir}/eid2token/{self.task_name}.pkl", "wb") as f:
+                pkl.dump(eid2token_mappings, f)
+
+            logger.info(f"Saved routing files to eval output directory for upload: {routing_dir}")
         
     def _process_routing_data(self):
         """Process routing data using weights instead of binary selections."""
