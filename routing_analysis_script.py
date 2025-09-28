@@ -87,30 +87,63 @@ class RouterAnalyzer:
         self.model_path = model_path
         self.device = device
         
-        # Load model and tokenizer using the same approach as the evaluation script
+        # Load model and tokenizer using a direct approach that bypasses transformers auto-detection
         logger.info(f"Loading model from {model_path}")
         
-        # Use the same approach as the evaluation script
-        from oe_eval.models.eleuther_huggingface import HFLM_Verbose
+        # Load tokenizer from the model path (since all tokenizer files are there)
+        logger.info(f"Loading tokenizer from model path: {model_path}")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         
-        # Use the same tokenizer logic as the evaluation script
-        if "olmo" in model_path or "OLMo" in model_path:
-            tokenizer_name = "allenai/dolma2-tokenizer"
-        else:
-            tokenizer_name = None
+        # Load model using a more direct approach
+        logger.info("Loading model with custom configuration handling...")
         
-        # Load using HFLM_Verbose (same as evaluation script)
-        logger.info("Loading model using HFLM_Verbose (same as evaluation script)...")
-        hf_model = HFLM_Verbose(
-            pretrained=model_path,
-            tokenizer=tokenizer_name,
-            trust_remote_code=True
-        )
+        # Try to load the model configuration first
+        try:
+            from transformers import AutoConfig
+            config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+            logger.info(f"Loaded config with model_type: {config.model_type}")
+        except Exception as e:
+            logger.warning(f"Could not load config: {e}")
+            # Create a minimal config
+            from transformers import PretrainedConfig
+            config = PretrainedConfig()
+            config.model_type = "olmoe2"
         
-        # Extract the actual model and tokenizer from HFLM_Verbose
-        self.model = hf_model.model
-        self.tokenizer = hf_model.tokenizer
-        logger.info("Successfully loaded model using HFLM_Verbose")
+        # Try to load the model with the config
+        try:
+            # Method 1: Try with the loaded config
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                config=config,
+                torch_dtype=torch.float16,
+                device_map="auto",
+                trust_remote_code=True
+            )
+            logger.info("Successfully loaded model with custom config")
+        except Exception as e:
+            logger.warning(f"Method 1 failed: {e}")
+            try:
+                # Method 2: Try with a different approach
+                from transformers import AutoModel
+                self.model = AutoModel.from_pretrained(
+                    model_path,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    trust_remote_code=True
+                )
+                logger.info("Successfully loaded model using AutoModel")
+            except Exception as e2:
+                logger.warning(f"Method 2 failed: {e2}")
+                # Method 3: Try with more permissive settings
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                    ignore_mismatched_sizes=True
+                )
+                logger.info("Successfully loaded model with permissive settings")
         self.model.eval()
         
         # Get model info
