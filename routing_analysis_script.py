@@ -166,7 +166,7 @@ class RouterAnalyzer:
         logger.info(f"MoE layers: {self.moe_layers}")
     
     def extract_router_logits(self, text: str, max_length: int = 2048) -> Optional[torch.Tensor]:
-        """Extract router logits for a given text using hooks"""
+        """Extract router logits for a given text using model's built-in router output"""
         try:
             # Tokenize input
             inputs = self.tokenizer(
@@ -180,88 +180,22 @@ class RouterAnalyzer:
             # Move to device
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            # Store router logits from hooks
-            router_logits_list = []
-            
-            def router_hook(module, input, output):
-                """Hook to capture router logits from MoE layers"""
-                try:
-                    if hasattr(module, 'gate') and hasattr(module.gate, 'logits'):
-                        # This is a router gate, capture the logits
-                        router_logits_list.append(module.gate.logits.detach().clone())
-                    elif hasattr(module, 'gate') and hasattr(module.gate, 'weight'):
-                        # Alternative: gate might be a linear layer
-                        # We need to compute logits from the input
-                        if len(input) > 0:
-                            gate_input = input[0] if isinstance(input, (list, tuple)) else input
-                            if hasattr(module.gate, 'forward'):
-                                with torch.no_grad():
-                                    logits = module.gate(gate_input)
-                                    router_logits_list.append(logits.detach().clone())
-                    else:
-                        # Try to find gate in submodules
-                        for name, submodule in module.named_modules():
-                            if 'gate' in name.lower() and hasattr(submodule, 'weight'):
-                                if len(input) > 0:
-                                    gate_input = input[0] if isinstance(input, (list, tuple)) else input
-                                    with torch.no_grad():
-                                        logits = submodule(gate_input)
-                                        router_logits_list.append(logits.detach().clone())
-                                        break
-                except Exception as e:
-                    logger.debug(f"Error in router hook: {e}")
-            
-            # Register hooks on MoE layers
-            hooks = []
-            for layer_idx in self.moe_layers:
-                if layer_idx < len(self.model.model.layers):
-                    layer = self.model.model.layers[layer_idx]
-                    hook_registered = False
-                    
-                    # Try block_sparse_moe first
-                    if hasattr(layer, 'block_sparse_moe') and layer.block_sparse_moe is not None:
-                        try:
-                            hook = layer.block_sparse_moe.register_forward_hook(router_hook)
-                            hooks.append(hook)
-                            logger.debug(f"Registered hook on block_sparse_moe for layer {layer_idx}")
-                            hook_registered = True
-                        except Exception as e:
-                            logger.warning(f"Failed to register hook on block_sparse_moe for layer {layer_idx}: {e}")
-                    
-                    # Fallback: try to find gate layer directly
-                    if not hook_registered:
-                        try:
-                            # Look for gate in the layer
-                            for name, module in layer.named_modules():
-                                if 'gate' in name.lower() and hasattr(module, 'weight'):
-                                    hook = module.register_forward_hook(router_hook)
-                                    hooks.append(hook)
-                                    logger.debug(f"Registered hook on gate {name} for layer {layer_idx}")
-                                    hook_registered = True
-                                    break
-                        except Exception as e:
-                            logger.warning(f"Failed to register hook on gate for layer {layer_idx}: {e}")
-                    
-                    if not hook_registered:
-                        logger.warning(f"Could not register any hook for layer {layer_idx}")
-            
-            # Forward pass
+            # Forward pass with router logits output
             with torch.no_grad():
-                outputs = self.model(**inputs)
+                outputs = self.model(**inputs, output_router_logits=True)
             
-            # Remove hooks
-            for hook in hooks:
-                hook.remove()
-            
-            # Process captured router logits
-            if router_logits_list:
-                logger.debug(f"Captured {len(router_logits_list)} router logits from hooks")
-                # Stack the logits: [num_moe_layers, batch_size, seq_len, num_experts]
-                stacked_logits = torch.stack(router_logits_list, dim=0)
+            # Extract router logits from model output
+            if hasattr(outputs, 'router_logits') and outputs.router_logits is not None:
+                router_logits = outputs.router_logits  # Shape: [num_moe_layers, batch_size, seq_len, num_experts]
+                
                 # Remove batch dimension: [num_moe_layers, seq_len, num_experts]
-                return stacked_logits.squeeze(1)
+                if router_logits.dim() == 4:
+                    router_logits = router_logits.squeeze(1)
+                
+                logger.debug(f"Captured router logits with shape: {router_logits.shape}")
+                return router_logits
             else:
-                logger.warning("No router logits captured from hooks")
+                logger.warning("No router logits found in model output")
                 return None
             
         except Exception as e:
@@ -283,7 +217,7 @@ class RouterAnalyzer:
                 # Convert to probabilities (softmax)
                 expert_probs = torch.softmax(layer_logits, dim=-1)  # [seq_len, num_experts]
                 
-                # Average across sequence length
+                # Average across sequence length (prefix + completion)
                 avg_expert_weights = expert_probs.mean(dim=0).cpu().numpy()  # [num_experts]
                 
                 expert_weights_by_layer[layer_idx] = avg_expert_weights
@@ -424,8 +358,28 @@ class RoutingPatternAnalyzer:
             batch = prefix_completion_pairs[i:i + self.batch_size]
             
             for prefix, completion in batch:
-                # Combine prefix and completion
-                full_text = prefix + completion
+                # Use chat template to properly format prefix + completion
+                try:
+                    # Try to use chat template if available
+                    if hasattr(self.router_analyzer.tokenizer, 'apply_chat_template'):
+                        # Format as a conversation with user message (prefix) and assistant response (completion)
+                        messages = [
+                            {"role": "user", "content": prefix},
+                            {"role": "assistant", "content": completion}
+                        ]
+                        full_text = self.router_analyzer.tokenizer.apply_chat_template(
+                            messages, 
+                            tokenize=False, 
+                            add_generation_prompt=False
+                        )
+                    else:
+                        # Fallback to simple concatenation if no chat template
+                        full_text = prefix + completion
+                        logger.warning("No chat template available, using simple concatenation")
+                except Exception as e:
+                    # Fallback to simple concatenation if chat template fails
+                    full_text = prefix + completion
+                    logger.warning(f"Chat template failed, using simple concatenation: {e}")
                 
                 # Extract router logits
                 router_logits = self.router_analyzer.extract_router_logits(
@@ -434,7 +388,7 @@ class RoutingPatternAnalyzer:
                 )
                 
                 if router_logits is not None:
-                    # Analyze expert weights
+                    # Analyze expert weights over the full sequence
                     expert_weights = self.router_analyzer.analyze_expert_weights(router_logits)
                     all_expert_weights.append(expert_weights)
         
@@ -601,11 +555,11 @@ def main():
     results = analyzer.analyze_all_tasks()
     
     # Save results
-    analyzer.save_results(output_dir / 'routing_analysis_results.json')
+    analyzer.save_results(str(output_dir / 'routing_analysis_results.json'))
     
     # Create visualization
     if args.visualize:
-        analyzer.create_visualization(output_dir / 'routing_pattern_analysis.jpg')
+        analyzer.create_visualization(str(output_dir / 'routing_pattern_analysis.jpg'))
     
     logger.info("Analysis complete!")
 
