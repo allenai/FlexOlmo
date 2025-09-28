@@ -189,7 +189,27 @@ class RouterAnalyzer:
             
             # Extract router logits
             if hasattr(outputs, 'router_logits') and outputs.router_logits is not None:
-                return outputs.router_logits
+                router_logits = outputs.router_logits
+                
+                # Handle different router_logits formats
+                if isinstance(router_logits, (list, tuple)):
+                    # Convert list/tuple of tensors to a single tensor
+                    # router_logits is typically [layer1_tensor, layer2_tensor, ...]
+                    # where each tensor has shape [batch_size, seq_len, num_experts]
+                    if len(router_logits) > 0:
+                        # Stack along a new dimension to get [num_layers, batch_size, seq_len, num_experts]
+                        stacked_logits = torch.stack(router_logits, dim=0)
+                        # Remove batch dimension: [num_layers, seq_len, num_experts]
+                        return stacked_logits.squeeze(1)
+                    else:
+                        logger.warning("Empty router logits list")
+                        return None
+                elif isinstance(router_logits, torch.Tensor):
+                    # Already a tensor, return as is
+                    return router_logits
+                else:
+                    logger.warning(f"Unexpected router_logits type: {type(router_logits)}")
+                    return None
             
             logger.warning("No router logits found in model output")
             return None
