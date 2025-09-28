@@ -230,17 +230,20 @@ class TaskDataProcessor:
         prefix_completion_pairs = []
         for sample in data:
             # Only process generation tasks, skip MC tasks
-            # Check if this is a generation task by looking for 'continuation' field
-            if 'continuation' not in sample:
+            # Check if this is a generation task by looking for 'model_output' field
+            if 'model_output' not in sample:
                 continue
                 
             # Extract model outputs
             model_outputs = sample.get('model_output', [])
-            if not model_outputs:
+            if not model_outputs or not isinstance(model_outputs, list):
                 continue
             
             # Get the first (best) completion
             best_output = model_outputs[0]
+            if not isinstance(best_output, dict) or 'continuation' not in best_output:
+                continue
+                
             completion = best_output.get('continuation', '')
             
             # For generation tasks, we need to reconstruct the full text
@@ -274,13 +277,15 @@ class TaskDataProcessor:
         """Match prompts with completions by index"""
         matched_pairs = []
         
+        # For now, match by index - this assumes the order is preserved
+        # In a more robust implementation, we'd match by doc_id
         min_length = min(len(prompts), len(completions))
         for i in range(min_length):
             prefix = prompts[i]
             completion = completions[i][1]  # completions[i] is (prefix, completion)
             matched_pairs.append((prefix, completion))
         
-        logger.info(f"Matched {len(matched_pairs)} prefix+completion pairs")
+        logger.info(f"Matched {len(matched_pairs)} prefix+completion pairs (prompts: {len(prompts)}, completions: {len(completions)})")
         return matched_pairs
 
 
