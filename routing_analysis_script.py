@@ -97,23 +97,33 @@ class RouterAnalyzer:
         # Load model using a more direct approach
         logger.info("Loading model with custom configuration handling...")
         
-        # Try to load the model configuration first
+        # Load the config using OlmoeConfig directly to handle the "olmoe2" model type
         try:
-            from transformers import AutoConfig
-            config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+            from transformers import OlmoeConfig
+            # Load the config file directly and patch the model_type
+            import json
+            import os
+            
+            config_path = os.path.join(model_path, "config.json")
+            with open(config_path, 'r') as f:
+                config_dict = json.load(f)
+            
+            # Patch the model_type from "olmoe2" to "olmoe"
+            if config_dict.get("model_type") == "olmoe2":
+                logger.info("Patching model_type from 'olmoe2' to 'olmoe' in config")
+                config_dict["model_type"] = "olmoe"
+            
+            # Create the config from the patched dictionary
+            config = OlmoeConfig.from_dict(config_dict)
             logger.info(f"Loaded config with model_type: {config.model_type}")
+            
         except Exception as e:
-            logger.warning(f"Could not load config: {e}")
-            # Create a minimal config and patch the model type
-            from transformers import PretrainedConfig
-            config = PretrainedConfig()
-            config.model_type = "olmoe"  # Use "olmoe" instead of "olmoe2"
-            logger.info("Created minimal config with model_type: olmoe")
-        
-        # Patch the model type if it's "olmoe2" to "olmoe"
-        if hasattr(config, 'model_type') and config.model_type == "olmoe2":
-            logger.info("Patching model_type from 'olmoe2' to 'olmoe'")
+            logger.warning(f"Could not load config with OlmoeConfig: {e}")
+            # Fallback: create a minimal OlmoeConfig
+            from transformers import OlmoeConfig
+            config = OlmoeConfig()
             config.model_type = "olmoe"
+            logger.info("Created minimal OlmoeConfig with model_type: olmoe")
         
         # Try to load the model with the config
         try:
