@@ -155,8 +155,12 @@ class RouterAnalyzer:
         # Check which layers have MoE
         self.moe_layers = []
         for i in range(self.num_layers):
-            if hasattr(self.model.model.layers[i], 'block_sparse_moe'):
+            layer = self.model.model.layers[i]
+            if hasattr(layer, 'block_sparse_moe') and layer.block_sparse_moe is not None:
                 self.moe_layers.append(i)
+                logger.debug(f"Found MoE layer at index {i}")
+            else:
+                logger.debug(f"Layer {i} is not MoE (has block_sparse_moe: {hasattr(layer, 'block_sparse_moe')}, is None: {getattr(layer, 'block_sparse_moe', None) is None})")
         
         logger.info(f"Model loaded: {self.num_experts} experts, {self.num_layers} layers")
         logger.info(f"MoE layers: {self.moe_layers}")
@@ -181,27 +185,65 @@ class RouterAnalyzer:
             
             def router_hook(module, input, output):
                 """Hook to capture router logits from MoE layers"""
-                if hasattr(module, 'gate') and hasattr(module.gate, 'logits'):
-                    # This is a router gate, capture the logits
-                    router_logits_list.append(module.gate.logits.detach().clone())
-                elif hasattr(module, 'gate') and hasattr(module.gate, 'weight'):
-                    # Alternative: gate might be a linear layer
-                    # We need to compute logits from the input
-                    if len(input) > 0:
-                        gate_input = input[0] if isinstance(input, (list, tuple)) else input
-                        if hasattr(module.gate, 'forward'):
-                            with torch.no_grad():
-                                logits = module.gate(gate_input)
-                                router_logits_list.append(logits.detach().clone())
+                try:
+                    if hasattr(module, 'gate') and hasattr(module.gate, 'logits'):
+                        # This is a router gate, capture the logits
+                        router_logits_list.append(module.gate.logits.detach().clone())
+                    elif hasattr(module, 'gate') and hasattr(module.gate, 'weight'):
+                        # Alternative: gate might be a linear layer
+                        # We need to compute logits from the input
+                        if len(input) > 0:
+                            gate_input = input[0] if isinstance(input, (list, tuple)) else input
+                            if hasattr(module.gate, 'forward'):
+                                with torch.no_grad():
+                                    logits = module.gate(gate_input)
+                                    router_logits_list.append(logits.detach().clone())
+                    else:
+                        # Try to find gate in submodules
+                        for name, submodule in module.named_modules():
+                            if 'gate' in name.lower() and hasattr(submodule, 'weight'):
+                                if len(input) > 0:
+                                    gate_input = input[0] if isinstance(input, (list, tuple)) else input
+                                    with torch.no_grad():
+                                        logits = submodule(gate_input)
+                                        router_logits_list.append(logits.detach().clone())
+                                        break
+                except Exception as e:
+                    logger.debug(f"Error in router hook: {e}")
             
             # Register hooks on MoE layers
             hooks = []
             for layer_idx in self.moe_layers:
                 if layer_idx < len(self.model.model.layers):
                     layer = self.model.model.layers[layer_idx]
-                    if hasattr(layer, 'block_sparse_moe'):
-                        hook = layer.block_sparse_moe.register_forward_hook(router_hook)
-                        hooks.append(hook)
+                    hook_registered = False
+                    
+                    # Try block_sparse_moe first
+                    if hasattr(layer, 'block_sparse_moe') and layer.block_sparse_moe is not None:
+                        try:
+                            hook = layer.block_sparse_moe.register_forward_hook(router_hook)
+                            hooks.append(hook)
+                            logger.debug(f"Registered hook on block_sparse_moe for layer {layer_idx}")
+                            hook_registered = True
+                        except Exception as e:
+                            logger.warning(f"Failed to register hook on block_sparse_moe for layer {layer_idx}: {e}")
+                    
+                    # Fallback: try to find gate layer directly
+                    if not hook_registered:
+                        try:
+                            # Look for gate in the layer
+                            for name, module in layer.named_modules():
+                                if 'gate' in name.lower() and hasattr(module, 'weight'):
+                                    hook = module.register_forward_hook(router_hook)
+                                    hooks.append(hook)
+                                    logger.debug(f"Registered hook on gate {name} for layer {layer_idx}")
+                                    hook_registered = True
+                                    break
+                        except Exception as e:
+                            logger.warning(f"Failed to register hook on gate for layer {layer_idx}: {e}")
+                    
+                    if not hook_registered:
+                        logger.warning(f"Could not register any hook for layer {layer_idx}")
             
             # Forward pass
             with torch.no_grad():
