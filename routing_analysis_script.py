@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import pickle
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
 import warnings
@@ -26,6 +27,9 @@ import seaborn as sns
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import boto3
 from botocore.exceptions import ClientError
+
+# Add FlexOLmo to path for custom model loading
+sys.path.append('/weka/oe-training-default/sanjaya/FlexOlmo')
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -86,12 +90,51 @@ class RouterAnalyzer:
         # Load model and tokenizer
         logger.info(f"Loading model from {model_path}")
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path, 
-            torch_dtype=torch.float16,
-            device_map="auto",
-            trust_remote_code=True
-        )
+        
+        # Try to load using FlexOLmo's model loading approach
+        try:
+            # First try standard transformers loading
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path, 
+                torch_dtype=torch.float16,
+                device_map="auto",
+                trust_remote_code=True
+            )
+        except ValueError as e:
+            if "model type" in str(e) and "not recognized" in str(e):
+                logger.warning(f"Model type not recognized by transformers: {e}")
+                logger.info("Attempting to load using FlexOLmo's model loading approach...")
+                
+                # Try using FlexOLmo's model loading
+                try:
+                    from src.offline_evals.load import load_model
+                    from src.offline_evals.model_config import ModelConfig
+                    
+                    # Create model config for FlexOLmo loading
+                    model_config = ModelConfig(
+                        model=model_path,
+                        model_type="hf",
+                        trust_remote_code=True
+                    )
+                    
+                    # Load using FlexOLmo's method
+                    self.model = load_model(model_config)
+                    logger.info("Successfully loaded model using FlexOLmo's loader")
+                    
+                except Exception as flexolmo_error:
+                    logger.error(f"FlexOLmo loading also failed: {flexolmo_error}")
+                    logger.info("Falling back to transformers with trust_remote_code=True")
+                    
+                    # Final fallback - try with more permissive settings
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        model_path, 
+                        torch_dtype=torch.float16,
+                        device_map="auto",
+                        trust_remote_code=True,
+                        local_files_only=False
+                    )
+            else:
+                raise
         self.model.eval()
         
         # Get model info
