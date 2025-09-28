@@ -91,7 +91,7 @@ class RouterAnalyzer:
         logger.info(f"Loading model from {model_path}")
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         
-        # Try to load using FlexOLmo's model loading approach
+        # Try to load using the same approach as the evaluation script
         try:
             # First try standard transformers loading
             self.model = AutoModelForCausalLM.from_pretrained(
@@ -103,26 +103,31 @@ class RouterAnalyzer:
         except ValueError as e:
             if "model type" in str(e) and "not recognized" in str(e):
                 logger.warning(f"Model type not recognized by transformers: {e}")
-                logger.info("Attempting to load using FlexOLmo's model loading approach...")
+                logger.info("Attempting to load using HFLM_Verbose approach...")
                 
-                # Try using FlexOLmo's model loading
+                # Try using the same approach as the evaluation script
                 try:
-                    from src.offline_evals.load import load_model
-                    from src.offline_evals.model_config import ModelConfig
+                    from oe_eval.models.eleuther_huggingface import HFLM_Verbose
                     
-                    # Create model config for FlexOLmo loading
-                    model_config = ModelConfig(
-                        model=model_path,
-                        model_type="hf",
+                    # Use the same tokenizer logic as the evaluation script
+                    if "olmo" in model_path or "OLMo" in model_path:
+                        tokenizer_name = "allenai/dolma2-tokenizer"
+                    else:
+                        tokenizer_name = None
+                    
+                    # Load using HFLM_Verbose (same as evaluation script)
+                    hf_model = HFLM_Verbose(
+                        pretrained=model_path,
+                        tokenizer=tokenizer_name,
                         trust_remote_code=True
                     )
                     
-                    # Load using FlexOLmo's method
-                    self.model = load_model(model_config)
-                    logger.info("Successfully loaded model using FlexOLmo's loader")
+                    # Extract the actual model from HFLM_Verbose
+                    self.model = hf_model.model
+                    logger.info("Successfully loaded model using HFLM_Verbose")
                     
-                except Exception as flexolmo_error:
-                    logger.error(f"FlexOLmo loading also failed: {flexolmo_error}")
+                except Exception as hf_error:
+                    logger.error(f"HFLM_Verbose loading also failed: {hf_error}")
                     logger.info("Falling back to transformers with trust_remote_code=True")
                     
                     # Final fallback - try with more permissive settings
