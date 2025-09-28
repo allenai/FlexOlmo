@@ -104,10 +104,16 @@ class RouterAnalyzer:
             logger.info(f"Loaded config with model_type: {config.model_type}")
         except Exception as e:
             logger.warning(f"Could not load config: {e}")
-            # Create a minimal config
+            # Create a minimal config and patch the model type
             from transformers import PretrainedConfig
             config = PretrainedConfig()
-            config.model_type = "olmoe2"
+            config.model_type = "olmoe"  # Use "olmoe" instead of "olmoe2"
+            logger.info("Created minimal config with model_type: olmoe")
+        
+        # Patch the model type if it's "olmoe2" to "olmoe"
+        if hasattr(config, 'model_type') and config.model_type == "olmoe2":
+            logger.info("Patching model_type from 'olmoe2' to 'olmoe'")
+            config.model_type = "olmoe"
         
         # Try to load the model with the config
         try:
