@@ -115,7 +115,13 @@ def calculate_math_avg(scores: Dict[str, float]) -> Optional[float]:
 
 
 def validate_required_columns(scores: Dict[str, Optional[float]]) -> bool:
-    """Validate that all required columns are present and populated"""
+    """Validate that all required columns are present and populated.
+
+    Note: We do not fail hard on missing/empty values anymore. This function
+    only logs what is missing and returns True to allow CSV generation to
+    proceed. Missing entries will be filled with the configured missing token
+    at write time.
+    """
     required_columns = [
         "MC7", "Gen5", "MMLU", "AGI Eval", "BBH", "Code Avg.", "Math Avg.",
         "agi_eval_english:1shot", "arc_challenge:mc", "arc_easy:mc", "bbh:cot-v1::olmes",
@@ -137,13 +143,9 @@ def validate_required_columns(scores: Dict[str, Optional[float]]) -> bool:
             empty_columns.append(col)
     
     if missing_columns:
-        print(f"ERROR: Missing required columns: {missing_columns}")
-        return False
-    
+        print(f"WARNING: Missing required columns: {missing_columns}")
     if empty_columns:
-        print(f"ERROR: Empty required columns: {empty_columns}")
-        return False
-    
+        print(f"WARNING: Empty required columns: {empty_columns}")
     return True
 
 
@@ -166,6 +168,12 @@ def main():
         type=str,
         default="primary_metric",
         help="Metric field to use per task (default: primary_metric)",
+    )
+    parser.add_argument(
+        "--missing-token",
+        type=str,
+        default="MISSING",
+        help="Token to write when a required value is missing",
     )
     args = parser.parse_args()
 
@@ -390,13 +398,16 @@ def main():
         writer = csv.DictWriter(f, fieldnames=header)
         writer.writeheader()
         for model_name, scores in sorted(model_to_task_scores.items()):
-            # Validate required columns
-            if not validate_required_columns(scores):
-                raise SystemExit(f"Validation failed for model {model_name}")
-            
+            # Log but do not fail on missing columns
+            validate_required_columns(scores)
+
             row: Dict[str, object] = {"model": model_name}
             for col in column_order:
-                row[col] = scores.get(col, "")
+                value = scores.get(col, None)
+                if value is None or value == "":
+                    row[col] = args.missing_token
+                else:
+                    row[col] = value
             writer.writerow(row)
 
     print(f"Wrote CSV with {len(model_to_task_scores)} models and {len(column_order)} columns to {args.output_csv}")
@@ -405,7 +416,7 @@ def main():
     print(f"\nValidation Summary:")
     print(f"- Total models processed: {len(model_to_task_scores)}")
     print(f"- Required columns: {len(column_order)}")
-    print(f"- All models passed validation")
+    print(f"- Missing/empty values (if any) were written as '{args.missing_token}'")
 
 
 if __name__ == "__main__":

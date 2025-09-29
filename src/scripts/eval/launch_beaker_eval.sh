@@ -4,7 +4,7 @@
 # Usage: bash src/scripts/eval/launch_beaker_eval.sh
 
 # Configuration
-MODELS=("/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-experts-sft-math-mixed/step9537-hf")
+MODELS=("/weka/oe-training-default/sanjaya/flexolmo/checkpoints/router-sft/step1212-hf")
 BASE_OUTPUT_DIR="s3://ai2-sewonm/sanjaya/eval_results"
 BATCH_SIZE=4
 CLUSTER="ai2/jupiter-cirrascale-2"
