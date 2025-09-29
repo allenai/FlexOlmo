@@ -144,11 +144,36 @@ class RouterAnalyzer:
         self.moe_layers = []
         for i in range(self.num_layers):
             layer = self.model.model.layers[i]
+            # Check for different MoE layer naming conventions
+            moe_found = False
             if hasattr(layer, 'block_sparse_moe') and layer.block_sparse_moe is not None:
+                moe_found = True
+            elif hasattr(layer, 'mlp') and hasattr(layer.mlp, 'experts'):
+                moe_found = True
+            elif hasattr(layer, 'feed_forward_moe') and layer.feed_forward_moe is not None:
+                moe_found = True
+            elif hasattr(layer, 'moe') and layer.moe is not None:
+                moe_found = True
+            
+            if moe_found:
                 self.moe_layers.append(i)
                 logger.debug(f"Found MoE layer at index {i}")
             else:
-                logger.debug(f"Layer {i} is not MoE (has block_sparse_moe: {hasattr(layer, 'block_sparse_moe')}, is None: {getattr(layer, 'block_sparse_moe', None) is None})")
+                logger.debug(f"Layer {i} is not MoE - checking attributes: {[attr for attr in dir(layer) if 'moe' in attr.lower() or 'expert' in attr.lower()]}")
+        
+        # If no MoE layers found, try to infer from config
+        if not self.moe_layers and hasattr(self.model.config, 'num_experts') and self.model.config.num_experts > 1:
+            logger.warning("No MoE layers detected, but model has multiple experts. Trying to infer MoE layers...")
+            # For OLMoE models, MoE layers might be at specific positions
+            # Common patterns: every layer, every 2nd layer, or specific layers
+            if hasattr(self.model.config, 'moe_layers'):
+                self.moe_layers = self.model.config.moe_layers
+            else:
+                # Try common MoE layer patterns
+                for pattern in [list(range(self.num_layers)), list(range(1, self.num_layers, 2)), [1, 15, 31]]:
+                    logger.info(f"Trying MoE layer pattern: {pattern}")
+                    self.moe_layers = pattern
+                    break
         
         logger.info(f"Model loaded: {self.num_experts} experts, {self.num_layers} layers")
         logger.info(f"MoE layers: {self.moe_layers}")
@@ -174,13 +199,24 @@ class RouterAnalyzer:
             
             # Extract router logits from model output
             if hasattr(outputs, 'router_logits') and outputs.router_logits is not None:
-                router_logits = outputs.router_logits  # Shape: [num_moe_layers, batch_size, seq_len, num_experts]
+                router_logits = outputs.router_logits
                 
-                # Remove batch dimension: [num_moe_layers, seq_len, num_experts]
+                # Handle different router_logits formats
+                if isinstance(router_logits, tuple):
+                    # If it's a tuple, convert to tensor by stacking
+                    router_logits = torch.stack(router_logits, dim=0)
+                    logger.debug(f"Converted tuple to tensor with shape: {router_logits.shape}")
+                elif isinstance(router_logits, torch.Tensor):
+                    logger.debug(f"Router logits is already a tensor with shape: {router_logits.shape}")
+                else:
+                    logger.warning(f"Unexpected router_logits type: {type(router_logits)}")
+                    return None
+                
+                # Remove batch dimension if present: [num_moe_layers, seq_len, num_experts]
                 if router_logits.dim() == 4:
                     router_logits = router_logits.squeeze(1)
                 
-                logger.debug(f"Captured router logits with shape: {router_logits.shape}")
+                logger.debug(f"Final router logits shape: {router_logits.shape}")
                 return router_logits
             else:
                 logger.warning("No router logits found in model output")
