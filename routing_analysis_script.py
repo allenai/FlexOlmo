@@ -97,55 +97,43 @@ class RouterAnalyzer:
         # Load model using a more direct approach
         logger.info("Loading model with custom configuration handling...")
         
-        # Load the config using the standard AutoConfig - now supports olmoe2
+        # Load the model using OlmoeForCausalLM for OLMoE models
         try:
-            from transformers import AutoConfig
-            config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-            logger.info(f"Loaded config with model_type: {config.model_type}")
-            
-        except Exception as e:
-            logger.warning(f"Could not load config: {e}")
-            # Fallback: create a minimal config
-            from transformers import PretrainedConfig
-            config = PretrainedConfig()
-            config.model_type = "olmoe2"
-            logger.info("Created minimal config with model_type: olmoe2")
-        
-        # Try to load the model with the config
-        try:
-            # Method 1: Try with the loaded config
-            self.model = AutoModelForCausalLM.from_pretrained(
+            # Method 1: Try loading with OlmoeForCausalLM (for OLMoE models)
+            from transformers import OlmoeForCausalLM
+            self.model = OlmoeForCausalLM.from_pretrained(
                 model_path,
-                config=config,
                 torch_dtype=torch.float16,
                 device_map="auto",
                 trust_remote_code=True
             )
-            logger.info("Successfully loaded model with custom config")
+            logger.info("Successfully loaded model with OlmoeForCausalLM")
         except Exception as e:
-            logger.warning(f"Method 1 failed: {e}")
+            logger.warning(f"OlmoeForCausalLM failed: {e}")
             try:
-                # Method 2: Try with a different approach
-                from transformers import AutoModel
-                self.model = AutoModel.from_pretrained(
+                # Method 2: Try loading with AutoModelForCausalLM and trust_remote_code=True
+                self.model = AutoModelForCausalLM.from_pretrained(
                     model_path,
                     torch_dtype=torch.float16,
                     device_map="auto",
                     trust_remote_code=True
                 )
-                logger.info("Successfully loaded model using AutoModel")
+                logger.info("Successfully loaded model with AutoModelForCausalLM")
             except Exception as e2:
-                logger.warning(f"Method 2 failed: {e2}")
-                # Method 3: Try with more permissive settings
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    model_path,
-                    torch_dtype=torch.float16,
-                    device_map="auto",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    ignore_mismatched_sizes=True
-                )
-                logger.info("Successfully loaded model with permissive settings")
+                logger.warning(f"AutoModelForCausalLM failed: {e2}")
+                try:
+                    # Method 3: Try with AutoModel
+                    from transformers import AutoModel
+                    self.model = AutoModel.from_pretrained(
+                        model_path,
+                        torch_dtype=torch.float16,
+                        device_map="auto",
+                        trust_remote_code=True
+                    )
+                    logger.info("Successfully loaded model using AutoModel")
+                except Exception as e3:
+                    logger.error(f"All loading methods failed: {e3}")
+                    raise RuntimeError(f"Could not load model from {model_path}. Please ensure the model is compatible with transformers and trust_remote_code=True is supported.")
         self.model.eval()
         
         # Get model info
