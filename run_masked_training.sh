@@ -1,5 +1,9 @@
 #!/bin/bash
 set -e
+# Clone OLMo-core if not present
+if [ ! -d "OLMo-core" ]; then
+    git clone --branch cross-stage-training https://github.com/allenai/OLMo-core.git OLMo-core
+fi
 export PYTHONPATH=OLMo-core/src:$PYTHONPATH
 python src/scripts/train/OLMoE-4x7B.py FlexOlmo-4x7B-RT-experts-sft-masked \
   --trainer.callbacks.profiler.enabled=true \
