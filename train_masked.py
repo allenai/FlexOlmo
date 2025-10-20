@@ -2,6 +2,11 @@ import os
 import subprocess
 import sys
 
+# The first argument is the run name from torchrun, ignore it
+if len(sys.argv) > 1:
+    run_name = sys.argv[1]
+    print(f"Ignoring run name from torchrun: {run_name}")
+
 # Set up environment
 os.environ['PYTHONPATH'] = 'OLMo-core/src:' + os.environ.get('PYTHONPATH', '')
 
@@ -27,4 +32,5 @@ cmd = [
     '--trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-experts-sft-math-mixed-masked'
 ]
 
+print(f"Running command: {' '.join(cmd)}")
 subprocess.run(cmd, check=True)
