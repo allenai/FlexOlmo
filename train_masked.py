@@ -7,13 +7,12 @@ if len(sys.argv) > 1:
     run_name = sys.argv[1]
     print(f"Ignoring run name from torchrun: {run_name}")
 
-# Set up environment
-os.environ['PYTHONPATH'] = 'OLMo-core/src:' + os.environ.get('PYTHONPATH', '')
-
-# Clone OLMo-core if not present
-if not os.path.exists('OLMo-core'):
-    subprocess.run(['git', 'clone', '--branch', 'cross-stage-training', 
-                   'https://github.com/allenai/OLMo-core.git', 'OLMo-core'], check=True)
+# Ensure olmo-core is at the requested commit (install from Git)
+subprocess.run(['pip', 'uninstall', '-y', 'olmo-core'], check=False)
+subprocess.run([
+    'pip', 'install',
+    'git+https://github.com/allenai/OLMo-core.git@c6c0e0946c8ccccd267321649d147b9d32187042'
+], check=True)
 
 # Run the training script
 cmd = [
