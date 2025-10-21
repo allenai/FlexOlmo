@@ -81,6 +81,7 @@ def build_launch_config(
             # Setup python environment.
             "conda shell.bash activate base",
             "pip install -e '.[dev,beaker,wandb,train]'",  # we don't need eval, and it causes dependency conflicts
+            "pip uninstall -y olmo-core && pip install git+https://github.com/allenai/OLMo-core.git@f18a9bf44496acc1fa0cad7d8c8b9fb111eff315",
             "pip freeze",
             # Move AWS credentials from env to relevant files
             "mkdir -p ~/.aws",
