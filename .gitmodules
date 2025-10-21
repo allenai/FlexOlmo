@@ -1,4 +1,0 @@
-[submodule "OLMo-core"]
-	path = OLMo-core
-	url = https://github.com/allenai/OLMo-core.git
-	branch = cross-stage-training

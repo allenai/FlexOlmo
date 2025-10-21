@@ -7,11 +7,11 @@ if len(sys.argv) > 1:
     run_name = sys.argv[1]
     print(f"Ignoring run name from torchrun: {run_name}")
 
-# Ensure olmo-core is at the requested commit (install from Git)
+# Install olmo-core from your commit with masking support
 subprocess.run(['pip', 'uninstall', '-y', 'olmo-core'], check=False)
 subprocess.run([
     'pip', 'install',
-    'git+https://github.com/allenai/OLMo-core.git@c6c0e0946c8ccccd267321649d147b9d32187042'
+    'git+https://github.com/allenai/OLMo-core.git@f18a9bf44496acc1fa0cad7d8c8b9fb111eff315'
 ], check=True)
 
 # Run the training script
