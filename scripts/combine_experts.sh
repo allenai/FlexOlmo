@@ -11,10 +11,10 @@ EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_fl
 
 python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${PUBLIC_EXPERT} ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
-    -e src/data/domain_embeddings/grit/public \
-       src/data/domain_embeddings/grit/math \
-       src/data/domain_embeddings/grit/code \
-       src/data/domain_embeddings/grit/public \
+    -e src/data/domain_embeddings/grit/public.npy \
+       src/data/domain_embeddings/grit/math.npy \
+       src/data/domain_embeddings/grit/code.npy \
+       src/data/domain_embeddings/grit/public.npy \
     -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-math-code-experts-sft-math-mixed-masked-domain-embeddings
 
 # Optional router training on proxy data (provided by data owners)
