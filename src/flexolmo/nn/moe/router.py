@@ -19,11 +19,17 @@ from olmo_core.nn.moe.router import (
     MoERouterType,
     _uniform_expert_assignment,
 )
-from olmo_core.ops.moe import histc
+
 from torch.distributed import DeviceMesh
 from torch.distributed.tensor import Replicate, Shard, distribute_tensor
 from torch.distributed.tensor.parallel import PrepareModuleInput, parallelize_module
 
+
+def histc(x: torch.Tensor, num_classes: int) -> torch.Tensor:
+    if x.device.type == "cpu":
+        return torch.histc(x.float(), bins=num_classes, min=0, max=num_classes - 1).int()
+    else:
+        return torch.histc(x, bins=num_classes, min=0, max=num_classes - 1)
 
 class ExtendedMoERouterType(StrEnum):
     """
