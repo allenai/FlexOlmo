@@ -15,7 +15,7 @@ python src/scripts/upcycle/dense_to_expert_moe.py \
        src/data/domain_embeddings/grit/math.npy \
        src/data/domain_embeddings/grit/code.npy \
        src/data/domain_embeddings/grit/public.npy \
-    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-math-code-experts-sft-math-mixed-masked-domain-embeddings
+    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-math-code-experts-sft-math-mixed-domain-embeddings
 
 # Optional router training on proxy data (provided by data owners)
 
