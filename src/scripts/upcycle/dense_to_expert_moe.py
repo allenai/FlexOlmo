@@ -292,16 +292,6 @@ if __name__ == "__main__":
                 else:
                     log.warning(f"{key} equivalent not found in dense model")
 
-    # Add disabled_expert_mask buffer to all router layers for compatibility
-    # This ensures the checkpoint has the buffer that the new OLMo-core router expects
-    for block_idx in range(model_config.n_layers):
-        router_key = f"blocks.{block_idx}.feed_forward_moe.router.disabled_expert_mask"
-        if router_key not in moe_state_dict:
-            log.info(f"Adding disabled_expert_mask buffer for block {block_idx}")
-            # Create a boolean tensor with all False (no experts disabled by default)
-            num_experts = model_config.block.feed_forward_moe.num_experts
-            moe_state_dict[router_key] = torch.zeros(num_experts, dtype=torch.bool)
-
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
     save_state_dict(target_path, {"model": moe_state_dict}, save_overwrite=True)
     
