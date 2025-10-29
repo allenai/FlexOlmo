@@ -55,7 +55,7 @@ def load_model_config(config: dict) -> TransformerConfig:
         tokenizer_vocab_size = config["dataset"]["tokenizer"].get("vocab_size")
         if tokenizer_vocab_size and model_config_dict.get("vocab_size") != tokenizer_vocab_size:
             log.warning(f"Fixing vocab_size mismatch: model={model_config_dict.get('vocab_size')}, tokenizer={tokenizer_vocab_size}")
-            model_config_dict["vocab_size"] = tokenizer_vocab_size
+            model_config_dict["vocab_size"] = model_config_dict.get('vocab_size')
 
     log.info(f"Model config dict after cleanup: {list(model_config_dict.keys())}")
     log.info(f"Block config: {model_config_dict.get('block', 'NOT FOUND')}")
