@@ -87,9 +87,10 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=8,  # TODO: set this to number of GPUs / num_experts, 16 when using 8 nodes
+            num_replicas=32,  # For 64 GPUs (8 nodes * 8 GPUs) with 2 experts: 64 / 2 = 32 replicas per expert
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
+        # The HSDP sharding degree must match the expert parallelism degree (2).
         ep_config=TransformerExpertParallelConfig(degree=2),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
