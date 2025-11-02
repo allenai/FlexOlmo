@@ -23,7 +23,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_gpus=8 \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-math-mid-train \
-   --trainer.callbacks.profiler.enabled=true \
+   --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.mix=mj_finemath4plus \
    --trainer.max_duration.value=50_000_000_000 \
