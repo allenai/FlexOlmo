@@ -45,7 +45,7 @@ def build_launch_config(
 
     return BeakerLaunchConfig(
         name=f"{name}-{generate_uuid()[:8]}",
-        budget="ai2/oe-training",
+        budget="ai2/oe-base",
         cmd=command,
         task_name="train",
         workspace="ai2/OLMo-modular",
