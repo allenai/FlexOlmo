@@ -19,7 +19,7 @@ CODE_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/
 #    --launch.budget=ai2/oe-base \
 
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
-   --launch.num_nodes=1 \
+   --launch.num_nodes=2 \
    --launch.num_gpus=8 \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Math-2x7B-RT \
