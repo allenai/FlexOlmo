@@ -96,7 +96,6 @@ def _train(
         # Try loading a checkpoint from the save folder, otherwise start from the pretraining checkpoint.
         if not trainer.maybe_load_checkpoint(trainer.save_folder):
             trainer.load_checkpoint(checkpoint, load_trainer_state=False)
-            log.info("Successfully loaded checkpoint")
 
         if get_local_rank() == 0:
             print("Updated config:")
