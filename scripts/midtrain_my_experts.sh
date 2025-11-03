@@ -17,13 +17,14 @@ MATH_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/
 MATH_EXPERT_TEST=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test
 CODE_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/code-base
 SANJAY_EXPERT=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/merged-2x7B-general-math
-TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/merged-2x7B-general-math-4
+TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/merged-2x7B-general-math-4-unsharded
 
 #    --launch.budget=ai2/oe-base \
 
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_nodes=2 \
    --launch.num_gpus=8 \
+   --launch.budget=ai2/oe-base \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B.py Flex-2x7B-math-mid-train \
    --trainer.callbacks.profiler.enabled=false \
