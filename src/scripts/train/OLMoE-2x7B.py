@@ -90,6 +90,7 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             num_replicas=8,  # For 64 GPUs (8 nodes * 8 GPUs) with 2 experts: 64 / 2 = 32 replicas per expert
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
+        # The HSDP sharding degree must match the expert parallelism degree (2).
         ep_config=TransformerExpertParallelConfig(degree=2),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
@@ -100,9 +101,9 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             ),
             enabled=False,
         ),
-        z_loss_multiplier=1e-5,  # swj check
+        z_loss_multiplier=None,
         max_grad_norm=1.0,
-        scheduler=CosWithWarmup(warmup_steps=0),  # TODO: set as needed
+        scheduler=CosWithWarmup(warmup_steps=100),  # TODO: set as needed
     )
 
 
@@ -110,13 +111,15 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     from flexolmo.data.mixes import CustomDataMix
 
     dataset_config = common.dataset
-    dataset_config.mix = CustomDataMix.public_mix
+    dataset_config.mix = CustomDataMix.proxy_combined_public_math_code_news
     return dataset_config
 
 
 def build_trainer_config(common: CommonComponents) -> TrainerConfig:
     trainer_config = common.trainer
     # Add any changes to the trainer configuration here
+    trainer_config.max_duration.value = 5_000_000_000
+    trainer_config.max_duration.unit = DurationUnit("tokens")
     return trainer_config
 
 
