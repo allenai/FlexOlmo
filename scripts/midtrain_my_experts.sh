@@ -21,7 +21,7 @@ TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/
 
 #    --launch.budget=ai2/oe-base \
 
-python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
+python src/scripts/beaker/launch.py launch ai2/ceres \
    --launch.num_nodes=2 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oe-base \
