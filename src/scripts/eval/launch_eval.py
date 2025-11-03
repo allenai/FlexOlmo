@@ -171,6 +171,69 @@ _parser.add_argument(
     default=1,
     help="Number of workers.",
 )
+
+# Routing tracking arguments
+_parser.add_argument(
+    "--enable-routing-tracking",
+    action="store_true",
+    help="Enable routing tracking for MoE models",
+)
+_parser.add_argument(
+    "--routing-output-dir",
+    type=str,
+    default="routing_output",
+    help="Directory to save routing analysis results",
+)
+
+# Add the missing gantry/beaker arguments from the original script
+_parser.add_argument(
+    "--use-gantry",
+    action="store_true",
+    help="Use gantry for launching evaluations",
+)
+_parser.add_argument(
+    "--cluster",
+    type=str,
+    help="Name of the cluster to launch on",
+)
+_parser.add_argument(
+    "--beaker-workspace",
+    type=str,
+    default="ai2/OLMo-modular",
+    help="Beaker workspace name",
+)
+_parser.add_argument(
+    "--beaker-budget",
+    type=str,
+    default="ai2/oe-training",
+    help="Beaker budget name",
+)
+_parser.add_argument(
+    "--beaker-priority",
+    type=str,
+    default="normal",
+    help="Beaker job priority",
+)
+_parser.add_argument(
+    "--gantry-secret-aws-access-key-id",
+    type=str,
+    help="Gantry secret for AWS access key ID",
+)
+_parser.add_argument(
+    "--gantry-secret-aws-secret-access",
+    type=str,
+    help="Gantry secret for AWS secret access key",
+)
+_parser.add_argument(
+    "--gantry-secret-hf-read-only",
+    type=str,
+    help="Gantry secret for HF read-only token",
+)
+_parser.add_argument(
+    "--gantry-args",
+    type=str,
+    help="Gantry arguments string",
+)
 ## Internal Ai2 arguments added:
 HAS_AI2_INTERNAL = (
     inspect.getmodule(add_internal_launch_args).__name__  # type: ignore
@@ -342,6 +405,16 @@ def launch_eval(args_dict: dict):
             args_dict, model_config, model_gantry_args, task_configs, tasks
         )
         batch_size = internal_args.get("batch_size", batch_size)
+    else:
+        # Initialize internal_args if not available
+        internal_args = {
+            "gantry_args": {},
+            "internal_run_eval_args": {},
+            "batch_size": batch_size,
+            "beaker_cluster_list": [],
+            "needs_nfs": False,
+            "needs_s3": False,
+        }
 
     model_name = model_config.pop("model")
     run_eval_args = {
@@ -358,6 +431,8 @@ def launch_eval(args_dict: dict):
         "gsheet",
         "hf_save_dir",
         "wandb_run_path",
+        "enable_routing_tracking",
+        "routing_output_dir",
     ]:
         if args_dict[key]:
             run_eval_args[key] = args_dict[key]
@@ -370,19 +445,62 @@ def launch_eval(args_dict: dict):
     if model_config:
         run_eval_args["model-args"] = model_config
 
-    run_eval_command = make_cli_command(
-        "python -m offline_evals.run_eval",
-        run_eval_args,
-    )
-
     if HAS_AI2_INTERNAL:
         run_eval_args.update(internal_args.get("internal_run_eval_args", {}))
 
-        internal_args["gantry_args"][
-            "install"
-            # ] += "; pip uninstall -y transformers; pip install 'transformers@git+https://github.com/2015aroras/transformers@shanea/olmoe2'; pip install torch==2.4.0 torchvision==0.19.0"
-        ] += "; pip uninstall -y transformers; pip install 'transformers@git+https://github.com/swj0419/transformers'; pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124; pip install ipdb"
+    # Add routing tracking setup if enabled
+    if args_dict.get("enable_routing_tracking"):
+        # Set environment variables for routing tracking
+        model_path = model_config.get("model_path") or model_config.get("model")
+        routing_output_dir = args_dict.get("routing_output_dir", "routing_output")
+        
+        # Set environment variables that the routing patch will detect
+        os.environ["FLEXOLMO_ROUTING_TRACKING"] = "true"
+        os.environ["FLEXOLMO_ROUTING_OUTPUT_DIR"] = routing_output_dir
+        os.environ["FLEXOLMO_MODEL_NAME"] = os.path.basename(str(model_path)) if model_path else "unknown_model"
+        
+        logger.info("Routing tracking enabled - will capture router logits during evaluation")
+    
+    # Use standard evaluation script (routing patch will be automatically applied)
+    run_eval_command = make_cli_command("python -m offline_evals.run_eval", run_eval_args)
 
+    # Handle gantry arguments from command line
+    if args_dict.get("use_gantry"):
+        # Parse gantry args string if provided
+        if args_dict.get("gantry_args"):
+            import json
+            try:
+                gantry_args_dict = json.loads(args_dict["gantry_args"])
+                internal_args["gantry_args"].update(gantry_args_dict)
+            except json.JSONDecodeError:
+                logger.warning("Invalid gantry-args JSON, using defaults")
+        
+        # Set gantry configuration from command line arguments
+        internal_args["gantry_args"].update({
+            "workspace": args_dict.get("beaker_workspace", "ai2/OLMo-modular"),
+            "budget": args_dict.get("beaker_budget", "ai2/oe-training"),
+            "priority": args_dict.get("beaker_priority", "normal"),
+            "cluster": args_dict.get("cluster", "ai2/jupiter-cirrascale-2"),
+        })
+        
+        # Add gantry secrets if provided
+        if args_dict.get("gantry_secret_aws_access_key_id"):
+            internal_args["gantry_args"]["aws_access_key_id"] = args_dict["gantry_secret_aws_access_key_id"]
+        if args_dict.get("gantry_secret_aws_secret_access"):
+            internal_args["gantry_args"]["aws_secret_access_key"] = args_dict["gantry_secret_aws_secret_access"]
+        if args_dict.get("gantry_secret_hf_read_only"):
+            internal_args["gantry_args"]["hf_token"] = args_dict["gantry_secret_hf_read_only"]
+
+    # Set default install commands for internal path
+    if "install" not in internal_args["gantry_args"]:
+        internal_args["gantry_args"]["install"] = ""
+    
+    internal_args["gantry_args"][
+        "install"
+    ] += "; pip uninstall -y transformers; pip install 'transformers@git+https://github.com/swj0419/transformers'; pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124; pip install ipdb"
+
+    # Always try to use internal path if gantry is requested or if internal utilities are available
+    if args_dict.get("use_gantry") or HAS_AI2_INTERNAL:
         return launch_internal(args_dict, run_eval_command, internal_args, len(all_tasks))
 
     if args_dict["dry_run"]:

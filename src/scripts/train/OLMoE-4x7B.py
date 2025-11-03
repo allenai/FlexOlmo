@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 
 def build_model_config(common: CommonComponents) -> TransformerConfig:
-    return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
+    return TransformerConfig.olmoe_nx7b(  # type: ignore
         vocab_size=common.tokenizer.padded_vocab_size(),
         num_experts=4,
         top_k=4,
@@ -87,7 +87,7 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=4,  # TODO: set this to number of GPUs / num_experts, 32 when using 8 nodes
+            num_replicas=16,  # TODO: set this to number of GPUs / num_experts, 32 when using 8 nodes
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=4),

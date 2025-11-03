@@ -1,0 +1,15 @@
+# Requirements for routing analysis script
+
+# Core dependencies
+torch>=2.0.0
+transformers>=4.30.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# AWS and data handling
+boto3>=1.26.0
+PyYAML>=6.0
+
+# Optional: for better performance
+accelerate>=0.20.0

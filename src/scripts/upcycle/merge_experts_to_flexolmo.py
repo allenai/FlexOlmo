@@ -4,7 +4,7 @@ import logging
 
 import torch
 from olmo_core.data.tokenizer import TokenizerConfig
-from olmo_core.distributed.checkpoint import save_state_dict
+from olmo_core.distributed.checkpoint import save_state_dict, load_keys, get_checkpoint_metadata
 from olmo_core.nn.moe import MoEConfig
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.train.config import TrainerConfig
@@ -73,6 +73,28 @@ def load_state_dict(path: str):
     return state_dict
 
 
+def load_state_dict_distributed(path: str):
+    """
+    Load a state dictionary from a distributed checkpoint using OLMo-core's distributed checkpoint loading.
+    Returns the same type as the original load_state_dict function.
+    """
+    try:
+        # Try OLMo-core distributed checkpoint path first
+        ckpt_dir = path + "/model_and_optim"
+        metadata = get_checkpoint_metadata(ckpt_dir)
+        model_keys = [
+            key[len("model.") :]
+            for key in metadata.state_dict_metadata.keys()
+            if key.startswith("model.")
+        ]
+        loaded_values = list(load_keys(ckpt_dir, [f"model.{k}" for k in model_keys]))
+        return {k: v for k, v in zip(model_keys, loaded_values)}
+    except Exception:
+        # Fall back to regular torch.load
+        state_dict = torch.load(path + "/model.pt", map_location="cpu")
+        return state_dict
+
+
 def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
@@ -98,10 +120,10 @@ if __name__ == "__main__":
     target_path = args.target
 
     moe_to_expert_mapping = {
-        "feed_forward_moe.experts.mlp.w1": "feed_forward_moe.experts.mlp.w1",
-        "feed_forward_moe.experts.mlp.w2": "feed_forward_moe.experts.mlp.w2",
-        "feed_forward_moe.experts.mlp.w3": "feed_forward_moe.experts.mlp.w3",
-        "feed_forward_moe.router.weight": "feed_forward_moe.router.weight",
+        "feed_forward_moe.experts.mlp.w1": "feed_forward.w1.weight",
+        "feed_forward_moe.experts.mlp.w2": "feed_forward.w2.weight",
+        "feed_forward_moe.experts.mlp.w3": "feed_forward.w3.weight",
+        # "feed_forward_moe.router.weight": "feed_forward.w1",
         "attention.q_norm.weight": "attention.q_norm.weight",
         "attention.k_norm.weight": "attention.k_norm.weight",
         "attention_norm.weight": "attention_norm.weight",
@@ -137,10 +159,10 @@ if __name__ == "__main__":
         if expert == 0:
             merged_config_dict = config
 
-        expert_state_dict = load_state_dict(path)
+        expert_state_dict = load_state_dict_distributed(path)
         # bp()
         log.info(f"Expert model config {load_model_config(config)}")
-        log.info("Expert {expert} model loaded")
+        log.info(f"Expert {expert} model loaded")
 
         # copy over the keys in the dense state_dict to final_state_dict
         for key in list(moe_state_dict.keys()):
@@ -150,6 +172,14 @@ if __name__ == "__main__":
                     if pattern in key:
                         dense_key = key.replace(pattern, moe_to_expert_mapping[pattern])
                         break
+                if dense_key is None:
+                    log.warning(f"No dense key mapping for '{key}', skipping")
+                    continue
+                if dense_key not in expert_state_dict:
+                    sample_keys = list(expert_state_dict.keys())[:25]
+                    raise KeyError(
+                        f"Missing '{dense_key}' in expert checkpoint at {path}. Sample keys: {sample_keys}"
+                    )
                 log.info(f"Copying key {dense_key} to {key} in MoE model")
                 if "expert" in key:
                     # bp()
