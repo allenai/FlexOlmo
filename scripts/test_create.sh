@@ -6,7 +6,7 @@ EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_fl
 
 python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${PUBLIC_EXPERT} ${EXPERT_1} \
-    -t ../checkpoints/flex-experiments/experts/merged-2x7B-general-math
+    -t ../checkpoints/flex-experiments/experts/merged-2x7B-general-math-2
 
 # Optional router training on proxy data (provided by data owners)
 
