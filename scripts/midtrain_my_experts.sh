@@ -17,7 +17,7 @@ MATH_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/
 MATH_EXPERT_TEST=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test
 CODE_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/code-base
 SANJAY_EXPERT=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/merged-2x7B-general-math
-TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/test-my-sanjaya-ckpt3
+TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/merged-2x7B-general-math-4
 
 #    --launch.budget=ai2/oe-base \
 
@@ -31,7 +31,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --dataset.mix=mj_finemath4plus \
    --trainer.max_duration.value=50_000_000_000 \
    --trainer.max_duration.unit=tokens \
-   --trainer.load_path=${SANJAY_EXPERT} \
+   --trainer.load_path=${TEST_EXPERT} \
    --model.block.feed_forward_moe.router.top_k=2 \
    --train_module.rank_microbatch_size=4096 \
    --train_module.scheduler.warmup_steps=2000 \
