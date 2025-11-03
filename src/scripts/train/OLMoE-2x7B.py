@@ -56,7 +56,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
             "blocks.*.attention*",
             "blocks.*.feed_forward_norm.*",
             "lm_head.*",
-            "blocks.*.feed_forward_moe.experts*",  # TODO: comment if you also want to train the expert weights.
+            # "blocks.*.feed_forward_moe.experts*",  # TODO: comment if you also want to train the expert weights.
         ],
     )
 
@@ -67,7 +67,7 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
         max_sequence_length=common.dataset.effective_sequence_length,
         optim=AdamWConfig(
             lr=6e-4,
-            weight_decay=0.1,  # 0
+            weight_decay=0.0,  # 0
             betas=(0.9, 0.95),
             fused=True,
             #  group_overrides=[
@@ -87,7 +87,7 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=32,  # For 64 GPUs (8 nodes * 8 GPUs) with 2 experts: 64 / 2 = 32 replicas per expert
+            num_replicas=8,  # For 64 GPUs (8 nodes * 8 GPUs) with 2 experts: 64 / 2 = 32 replicas per expert
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         # The HSDP sharding degree must match the expert parallelism degree (2).
