@@ -1,0 +1,96 @@
+# Routing Analysis Configuration
+
+# Model configuration
+model_path: "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-experts-sft/step9537-hf"
+device: "cuda"
+
+# Analysis configuration
+layers_to_analyze: [1, 15, 31]  # MoE layers to analyze (1, 15, 31 are MoE layers based on the model architecture)
+batch_size: 8  # Number of samples to process in parallel
+max_sequence_length: 2048  # Maximum sequence length for tokenization
+
+# S3 base path
+s3_base_path: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf"
+
+# Task configurations
+tasks:
+  # Generation tasks
+  codex_humaneval:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-codex_humaneval-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-codex_humaneval-requests.jsonl"
+    
+  codex_humanevalplus:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-codex_humanevalplus-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-codex_humanevalplus-requests.jsonl"
+    
+  gsm8k:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-gsm8k-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-gsm8k-requests.jsonl"
+    
+  coqa:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-coqa-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-coqa-requests.jsonl"
+    
+  triviaqa:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-triviaqa-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-triviaqa-requests.jsonl"
+    
+  drop:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-drop-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-drop-requests.jsonl"
+    
+  squad:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-squad-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-squad-requests.jsonl"
+    
+  naturalqs_open:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-naturalqs_open-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-naturalqs_open-requests.jsonl"
+    
+  mbpp:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-mbpp-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-mbpp-requests.jsonl"
+    
+  mbppplus:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-mbppplus-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-mbppplus-requests.jsonl"
+    
+  # Math tasks
+  minerva_math_algebra:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_algebra-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_algebra-requests.jsonl"
+    
+  minerva_math_counting_and_probability:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_counting_and_probability-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_counting_and_probability-requests.jsonl"
+    
+  minerva_math_geometry:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_geometry-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_geometry-requests.jsonl"
+    
+  minerva_math_intermediate_algebra:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_intermediate_algebra-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_intermediate_algebra-requests.jsonl"
+    
+  minerva_math_number_theory:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_number_theory-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_number_theory-requests.jsonl"
+    
+  minerva_math_prealgebra:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_prealgebra-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_prealgebra-requests.jsonl"
+    
+  minerva_math_precalculus:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_precalculus-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-minerva_math_precalculus-requests.jsonl"
+    
+  # Additional generation tasks
+  bbh_cot_v1:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-bbh:cot-v1::olmes-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-bbh:cot-v1::olmes-requests.jsonl"
+    
+  agi_eval_english_1shot:
+    predictions_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-agi_eval_english:1shot-predictions.jsonl"
+    requests_s3_key: "sanjaya/eval_results/weka_oe-training-default_sanjaya_flexolmo_checkpoints_OLMo2-7b-flex-base-merged-math-code-RT-experts-sft_step9537-hf/task-000-agi_eval_english:1shot-requests.jsonl"
+    
+  # Note: MC tasks are skipped as they don't work with the current routing analysis approach

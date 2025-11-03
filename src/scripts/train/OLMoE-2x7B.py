@@ -158,3 +158,4 @@ if __name__ == "__main__":
         train(config)
     finally:
         teardown_training_environment()
+

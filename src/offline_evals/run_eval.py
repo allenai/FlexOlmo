@@ -46,6 +46,15 @@ from oe_eval.utils import (
     task_file_name,
 )
 
+# Import routing tracking patch if enabled
+try:
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts', 'eval'))
+    from routing_patch_standalone import is_routing_tracking_enabled, setup_routing_for_task, save_routing_results_for_task
+    ROUTING_AVAILABLE = True
+except ImportError:
+    ROUTING_AVAILABLE = False
+
 # Import utility functions for internal evals
 try:
     from oe_eval_internal.utilities.run_eval_utils import (
@@ -192,6 +201,19 @@ _parser.add_argument(
     help="Number of GPUs to use",
 )
 
+# Routing tracking arguments
+_parser.add_argument(
+    "--enable-routing-tracking",
+    action="store_true",
+    help="Enable routing tracking for MoE models",
+)
+_parser.add_argument(
+    "--routing-output-dir",
+    type=str,
+    default="routing_output",
+    help="Directory to save routing analysis results",
+)
+
 ## Add internal Ai2 run_eval arguments:
 if HAS_AI2_INTERNAL:
     add_internal_run_eval_args(_parser)
@@ -327,6 +349,10 @@ def process_eval_args(args_dict: dict) -> dict:
     compute_config["recompute_metrics"] = args_dict.pop("recompute_metrics")
     compute_config["wandb_run_path"] = args_dict.pop("wandb_run_path")
 
+    # Routing tracking config
+    compute_config["enable_routing_tracking"] = args_dict.pop("enable_routing_tracking", False)
+    compute_config["routing_output_dir"] = args_dict.pop("routing_output_dir", "routing_output")
+
     if HAS_AI2_INTERNAL:
         process_internal_compute_config(args_dict, compute_config)
 
@@ -429,6 +455,22 @@ def load_model_mp(model_load_config, gpu_ids, request_queue, response_queue, is_
     try:
         if gpu_ids is not None:
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, gpu_ids))
+        
+        # Apply routing patches in worker process if routing tracking is enabled
+        if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
+            logger.info("WORKER PROCESS: Applying routing patches...")
+            from routing_patch_standalone import patch_hflm_verbose, setup_routing_tracking
+            patch_hflm_verbose()
+            
+            # Initialize routing tracking for this worker process
+            model_name = model_load_config.get("model", "unknown_model").split("/")[-1]
+            routing_output_dir = os.environ.get("FLEXOLMO_ROUTING_OUTPUT_DIR", "routing_output")
+            setup_routing_tracking(model_name, routing_output_dir)
+            
+            logger.info("WORKER PROCESS: Applied routing patches and initialized routing tracking")
+        else:
+            logger.info(f"WORKER PROCESS: Routing not enabled - ROUTING_AVAILABLE: {ROUTING_AVAILABLE}, FLEXOLMO_ROUTING_TRACKING: {os.environ.get('FLEXOLMO_ROUTING_TRACKING', 'not set')}")
+        
         model = load_model(model_load_config)
         logger.info(f"Model initialized on GPU {gpu_ids}.")
     except Exception as e:
@@ -444,7 +486,23 @@ def load_model_mp(model_load_config, gpu_ids, request_queue, response_queue, is_
                 break
 
             task_config, instances, request_id = request
+            # Ensure CURRENT_TASK is set in worker for routing tracking
+            try:
+                if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
+                    os.environ['CURRENT_TASK'] = task_config.get('task_name', 'unknown_task')
+            except Exception:
+                pass
+
             result = evaluate(model, instances, task_config)
+
+            # Flush routing results from the worker process after each evaluated task
+            try:
+                if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
+                    from routing_patch_standalone import save_routing_results_for_task
+                    save_routing_results_for_task(model)
+            except Exception:
+                pass
+
             response_queue.put((result, request_id))
     except Exception as e:
         logger.error(f"Failed to evaluate on GPU {gpu_ids}: {e}")
@@ -550,6 +608,8 @@ def run_eval(args_dict: dict):
     output_dir = compute_config["output_dir"]
     cached_output_dir = compute_config["cached_output_dir"]
     recompute_metrics = compute_config["recompute_metrics"]
+    enable_routing_tracking = compute_config.get("enable_routing_tracking", False)
+    routing_output_dir = compute_config.get("routing_output_dir", "routing_output")
     have_all_predictions = False
     if compute_config["recompute_metrics"]:
         # Check if we have all predictions, then we can skip loading model
@@ -624,6 +684,13 @@ def run_eval(args_dict: dict):
         # logger.info(f"Loaded model config: {eval_model.model.config}")
 
     logger.info(f"Model loaded. Model hash: {model_hash['hash']}")
+    if enable_routing_tracking:
+        logger.info("Routing tracking is enabled")
+        # Set environment variables for routing tracking
+        os.environ['EVAL_OUTPUT_DIR'] = output_dir
+        os.environ['FLEXOLMO_ROUTING_OUTPUT_DIR'] = routing_output_dir
+        model_name = model_config.get("model", "unknown_model").split("/")[-1]
+        os.environ['FLEXOLMO_MODEL_NAME'] = model_name
 
     metrics_output_file = None
     remote_output_dir = compute_config["remote_output_dir"]
@@ -645,6 +712,14 @@ def run_eval(args_dict: dict):
     for task_idx, task in enumerate(task_objects):
         start_time = time.time()
         task_name = task.task_name
+        
+        # Setup routing tracking for this task if enabled
+        if ROUTING_AVAILABLE and is_routing_tracking_enabled():
+            setup_routing_for_task(task_name)
+            # Also set up the routing hook instance with proper model name and output directory
+            from routing_patch_standalone import setup_routing_tracking
+            model_name = model_config.get("model", "unknown_model").split("/")[-1]
+            setup_routing_tracking(model_name, routing_output_dir)
         predictions_file = None
         cached_predictions = None
         # Move task files from cache directory if need be
@@ -901,6 +976,10 @@ def run_eval(args_dict: dict):
             logger.info(f"Data written to gsheet: {gsheet_res}")
 
         logger.info(f"\n\n** Task metrics: **\n{metrics}")
+        
+        # Save routing results for this task if routing tracking is enabled
+        if ROUTING_AVAILABLE and is_routing_tracking_enabled() and eval_model is not None:
+            save_routing_results_for_task(eval_model)
 
     # Finish all tasks, close mp
     for queue in request_queues:
