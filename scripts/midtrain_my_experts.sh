@@ -32,7 +32,7 @@ python src/scripts/beaker/launch.py launch ai2/ceres \
    --dataset.mix=mj_finemath4plus \
    --trainer.max_duration.value=50_000_000_000 \
    --trainer.max_duration.unit=tokens \
-   --trainer.load_path=${TEST_EXPERT} \
+   --trainer.load_path=${SANJAY_EXPERT} \
    --model.block.feed_forward_moe.router.top_k=2 \
    --train_module.rank_microbatch_size=4096 \
    --train_module.scheduler.warmup_steps=2000 \
