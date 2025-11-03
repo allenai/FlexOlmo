@@ -51,12 +51,12 @@ def load_model_config(config: dict) -> TransformerConfig:
     compile_k = model_config_dict.pop("compile", None)  # noqa: F841
     float8_config = model_config_dict.pop("float8_config", None)  # noqa: F841
 
-    # Fix vocab_size mismatch - use the tokenizer's vocab_size if available
+    # Fix vocab_size mismatch - use the model's vocab_size if available
     if "dataset" in config and "tokenizer" in config["dataset"]:
         tokenizer_vocab_size = config["dataset"]["tokenizer"].get("vocab_size")
         if tokenizer_vocab_size and model_config_dict.get("vocab_size") != tokenizer_vocab_size:
             log.warning(f"Fixing vocab_size mismatch: model={model_config_dict.get('vocab_size')}, tokenizer={tokenizer_vocab_size}")
-            model_config_dict["vocab_size"] = tokenizer_vocab_size
+            model_config_dict["vocab_size"] = model_config_dict.get("vocab_size")
 
     log.info(f"Model config dict after cleanup: {list(model_config_dict.keys())}")
     log.info(f"Block config: {model_config_dict.get('block', 'NOT FOUND')}")
