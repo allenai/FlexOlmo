@@ -26,7 +26,7 @@ EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_fl
 
 python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${PUBLIC_EXPERT} ${EXPERT_1} \
-    -t /weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test4
+    -t /weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test-new-conda-env
 
 # python src/scripts/upcycle/dense_to_expert_moe.py \
 #     -m ${PUBLIC_EXPERT} ${EXPERT_1} \
