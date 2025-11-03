@@ -11,13 +11,13 @@ EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_fl
 
 python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${PUBLIC_EXPERT} ${EXPERT_1} \
-    -t ${CHECKPOINTS}/merged-2x7B-general-math
+    -t ${CHECKPOINTS}/merged-2x7B-general-math-2
 
 # 2x7B Model 2: Expert 2 (EXPERT_2) + Expert 3 (EXPERT_3)
 echo "Creating 2x7B Model 2: Expert 2 + Expert 3"
 python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${EXPERT_2} ${EXPERT_3} \
-    -t ${CHECKPOINTS}/merged-2x7B-general-code
+    -t ${CHECKPOINTS}/merged-2x7B-general-code-2
 
 # Optional router training on proxy data (provided by data owners)
 
