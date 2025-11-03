@@ -17,7 +17,7 @@ MATH_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/
 MATH_EXPERT_TEST=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test
 CODE_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/code-base
 SANJAY_EXPERT=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/merged-2x7B-general-math
-TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test3
+TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/math-base-test4
 
 #    --launch.budget=ai2/oe-base \
 
