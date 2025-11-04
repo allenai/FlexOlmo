@@ -21,12 +21,12 @@ CODE_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
 
 #    --launch.budget=ai2/oe-base \
 
-python src/scripts/beaker/launch.py launch ai2/ceres \
-   --launch.num_nodes=1 \
+python src/scripts/beaker/launch.py launch ai2/jupiter \
+   --launch.num_nodes=8 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oe-base \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-math-mid-train-test \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-math-anneal \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.mix=mj_finemath4plus \
@@ -37,7 +37,7 @@ python src/scripts/beaker/launch.py launch ai2/ceres \
    --train_module.rank_microbatch_size=4096 \
    --train_module.scheduler.warmup_steps=2000 \
    --train_module.optim.lr=9e-4 \
-   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-midtrain-test
+   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias
 
 # # Code-2x7B Mid Training
 # echo "🚀 Launching Code-2x7B Mid Training..."
@@ -48,7 +48,7 @@ python src/scripts/beaker/launch.py launch ai2/ceres \
 #    --launch.num_gpus=8 \
 #    --launch.budget=ai2/oe-base \
 #    --launch.workspace=ai2/flex2 \
-#    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B.py Flex-2x7B-code-mid-train \
+#    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-code-anneal \
 #    --trainer.callbacks.profiler.enabled=false \
 #    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
 #    --dataset.mix=starcoder \
@@ -59,7 +59,7 @@ python src/scripts/beaker/launch.py launch ai2/ceres \
 #    --train_module.rank_microbatch_size=4096 \
 #    --train_module.scheduler.warmup_steps=2000 \
 #    --train_module.optim.lr=9e-4 \
-#    --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-midtrain
+#    --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias
 
 
 # torchrun --nproc-per-node=8 src/scripts/train/OLMoE-2x7B-anneal.py olmoe-2x7B-${EXPERT}_top2_grit_learnbias \
