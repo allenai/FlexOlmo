@@ -22,7 +22,7 @@ CODE_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
 #    --launch.budget=ai2/oe-base \
 
 python src/scripts/beaker/launch.py launch ai2/ceres \
-   --launch.num_nodes=8 \
+   --launch.num_nodes=4 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oe-base \
    --launch.workspace=ai2/flex2 \
@@ -39,8 +39,12 @@ python src/scripts/beaker/launch.py launch ai2/ceres \
    --train_module.optim.lr=9e-4 \
    --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-midtrain
 
+# Code-2x7B Mid Training
+echo "🚀 Launching Code-2x7B Mid Training..."
+echo ""
+
 python src/scripts/beaker/launch.py launch ai2/ceres \
-   --launch.num_nodes=8 \
+   --launch.num_nodes=4 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oe-base \
    --launch.workspace=ai2/flex2 \
