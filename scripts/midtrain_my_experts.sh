@@ -24,7 +24,7 @@ CODE_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
 python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_nodes=8 \
    --launch.num_gpus=8 \
-   --launch.budget=ai2/oe-base \
+   --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-math-anneal \
    --trainer.callbacks.profiler.enabled=false \
@@ -46,7 +46,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter \
 # python src/scripts/beaker/launch.py launch ai2/jupiter \
 #    --launch.num_nodes=8 \
 #    --launch.num_gpus=8 \
-#    --launch.budget=ai2/oe-base \
+#    --launch.budget=ai2/oceo \
 #    --launch.workspace=ai2/flex2 \
 #    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-code-anneal \
 #    --trainer.callbacks.profiler.enabled=false \
