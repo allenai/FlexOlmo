@@ -67,7 +67,6 @@ train = [
     "protobuf==5.29.4"
 ]
 eval = [
-    "ai2-olmes@git+https://github.com/allenai/olmes@4f04122642bcee6d74393ec2ecfb0e572a64da53",
     "s3fs",
     "smart-open",
     "torchvision",
