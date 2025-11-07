@@ -140,7 +140,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
             --batch-size $batch_size \
             --gpus $gpus \
             --enable-routing-tracking \
-            --routing-output-dir s3://ai2-sewonm/sanjaya/routing_analysis"
+            --routing-output-dir s3://ai2-sewonm/jacobm/routing_analysis"
     
         echo "Launched evaluation for model: $model, task: $TASK"
         echo "----------------------------------------"
