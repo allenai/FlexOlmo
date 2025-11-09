@@ -16,6 +16,8 @@ from olmo_core.utils import get_default_device, seed_all
 
 from flexolmo.internal.common import ExperimentConfig
 from flexolmo.internal.model_utils import *  # noqa
+from flexolmo.data.expert_label_injector import wrap_data_loader_with_expert_labels
+from flexolmo.train.train_module.supervised_router import SupervisedRouterTrainModule
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +86,16 @@ def _train(
 
     dataset = config.dataset.build()
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
+    
+    # Wrap data loader with expert label injection if using supervised router training
+    if isinstance(train_module, SupervisedRouterTrainModule):
+        log.info("Wrapping data loader with expert label injection for supervised router training")
+        data_loader = wrap_data_loader_with_expert_labels(
+            data_loader,
+            use_domain_labels=train_module.use_domain_labels,
+            dataset=dataset,
+        )  # type: ignore
+    
     trainer = config.trainer.build(train_module, data_loader)
 
     # Record the config to W&B/Comet and each checkpoint dir.

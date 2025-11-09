@@ -54,6 +54,9 @@ class CustomDataMix(DataMixBase):
     # 2x7B router training mixes
     math_general_rt_mix = "math_general_rt_mix"
     code_general_rt_mix = "code_general_rt_mix"
+    
+    # 4x7B supervised router training mix (with one-hot labels)
+    router_training_mix_labeled = "router_training_mix_labeled"
 
     def build(self, base_dir: str, tokenizer: str) -> Tuple[List[str], List[str]]:
         """
@@ -78,10 +81,32 @@ class CustomDataMix(DataMixBase):
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    label, path = line.split(",")
-                    path = path.replace("{TOKENIZER}", tokenizer_id)
-                    paths.append(f"{base_dir}{path}")
-                    labels.append(label)
+                    # Handle two formats:
+                    # 1. Standard: "label,path/to/file.npy"
+                    # 2. Labeled: "label,one_hot_label,path/to/file.npy" (e.g., "mj_finemath4plus,1,0,0,0,path/to/file.npy")
+                    parts = line.split(",")
+                    if len(parts) == 2:
+                        # Standard format
+                        label, path = parts
+                        path = path.replace("{TOKENIZER}", tokenizer_id)
+                        paths.append(f"{base_dir}{path}")
+                        labels.append(label)
+                    elif len(parts) >= 6:
+                        # Labeled format: label,one_hot_0,one_hot_1,one_hot_2,one_hot_3,path/to/file.npy
+                        # Parse one-hot label (4 values: expert 0, 1, 2, 3)
+                        domain_label = parts[0]
+                        one_hot_label = ",".join(parts[1:5])  # "1,0,0,0"
+                        path = ",".join(parts[5:])  # Handle paths with commas
+                        path = path.replace("{TOKENIZER}", tokenizer_id)
+                        paths.append(f"{base_dir}{path}")
+                        # Store as "domain_label|one_hot_label" for later parsing
+                        labels.append(f"{domain_label}|{one_hot_label}")
+                    else:
+                        # Try to handle as standard format (fallback)
+                        label, path = parts[0], ",".join(parts[1:])
+                        path = path.replace("{TOKENIZER}", tokenizer_id)
+                        paths.append(f"{base_dir}{path}")
+                        labels.append(label)
         return paths, labels
 
 
@@ -137,6 +162,79 @@ def get_mixture_dataset_config(
     # but this is hard-coded and should be modified in the future
     #
     # seed and processes not to be hard-coded in the future as well
+    assert prev_dataset_config.sequence_length is not None
+    return SourceMixtureDatasetConfig(
+        source_configs=source_configs,
+        max_tokens=5_000_000_000,
+        sequence_length=prev_dataset_config.sequence_length,
+        seed=2025,
+        dtype=NumpyDatasetDType(prev_dataset_config.get_dtype().__name__),
+        processes=8,
+    )
+
+
+def get_mixture_dataset_config_by_domain(
+    prev_dataset_config: NumpyDatasetConfig,
+) -> SourceMixtureDatasetConfig:
+    """
+    Create SourceMixtureDatasetConfig where each domain label gets its own source.
+    
+    This is useful for supervised router training where we need to track which domain
+    (starcoder, mj_finemath4plus, etc.) each sequence came from.
+    
+    Example usage:
+        dataset_config.mix = "router_training_mix"
+        dataset_config.mix_base_dir = "/weka/oe-training-default/ai2-llm/"
+        dataset_config.source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config)
+        dataset_config.mix = None
+    """
+    assert prev_dataset_config.mix is not None
+    mix_name = prev_dataset_config.mix.split(",")[0]  # Take first mix name
+    base_dir = prev_dataset_config.mix_base_dir
+
+    assert base_dir is not None
+
+    if not base_dir.endswith("/"):
+        base_dir = base_dir + "/"
+
+    # Group paths by domain label
+    domain_to_paths: dict[str, list[str]] = {}
+
+    with _get_data_mix_path(mix_name) as mix_path:
+        with mix_path.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                
+                # Parse: "domain_label,path/to/file.npy"
+                parts = line.split(",", 1)
+                if len(parts) != 2:
+                    continue
+                
+                domain_label = parts[0]
+                path = parts[1]
+                full_path = f"{base_dir}{path}"
+                
+                if domain_label not in domain_to_paths:
+                    domain_to_paths[domain_label] = []
+                domain_to_paths[domain_label].append(full_path)
+
+    # Create a SourceMixtureConfig for each domain
+    source_configs: List[SourceMixtureConfig] = []
+    num_domains = len(domain_to_paths)
+    
+    for domain_label, paths in domain_to_paths.items():
+        source_configs.append(
+            SourceMixtureConfig(
+                source_name=domain_label,  # Use domain label as source name!
+                paths=paths,
+                max_repetition_ratio=3,
+                target_ratio=1.0 / num_domains,
+            )
+        )
+
+    assert prev_dataset_config.sequence_length is not None
     return SourceMixtureDatasetConfig(
         source_configs=source_configs,
         max_tokens=5_000_000_000,
