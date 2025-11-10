@@ -10,7 +10,7 @@ MODELS=(
     # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
     # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf"
 )
-BASE_OUTPUT_DIR="s3://ai2-sewonm/jacobm/eval_results"
+BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
 BATCH_SIZE=4
 CLUSTER="ai2/jupiter-cirrascale-2"
 LIMIT=1000
@@ -121,6 +121,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
     gantry run \
         --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
+        --weka oe-adapt-default:/weka/oe-adapt-default \
         --install "pip install -e \".[eval]\"" \
         --budget ai2/oceo \
         --workspace ai2/flex2 \
