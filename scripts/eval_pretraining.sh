@@ -12,7 +12,7 @@ MODELS=(
 )
 BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
 BATCH_SIZE=4
-CLUSTER="ai2/jupiter-cirrascale-2"
+CLUSTER="ai2/saturn-cirrascale"
 LIMIT=1000
 model_type=hf
 
@@ -20,48 +20,47 @@ model_type=hf
 TASKS=(
     # MC9 tasks
     arc_easy:mc::olmes
-    arc_challenge:mc::olmes
-    boolq:mc::olmes
-    csqa:mc::olmes
-    hellaswag:mc::olmes
-    openbookqa:mc::olmes
-    piqa:mc::olmes
-    socialiqa:mc::olmes
-    winogrande:mc::olmes
+    # arc_challenge:mc::olmes
+    # boolq:mc::olmes
+    # csqa:mc::olmes
+    # hellaswag:mc::olmes
+    # openbookqa:mc::olmes
+    # piqa:mc::olmes
+    # socialiqa:mc::olmes
+    # winogrande:mc::olmes
     
-    # Gen5 tasks
-    coqa::olmes
-    squad::olmes
-    naturalqs::olmes
-    triviaqa::olmes
-    drop::olmes
+    # # Gen5 tasks
+    # coqa::olmes
+    # squad::olmes
+    # naturalqs::olmes
+    # triviaqa::olmes
+    # drop::olmes
 
-    # MMLU tasks
-    mmlu:mc::olmes
-    mmlu_pro_mc::none
+    # # MMLU tasks
+    # mmlu:mc::olmes
+    # mmlu_pro_mc::none
 
-    # AGI eval
-    agi_eval_english:1shot::olmes
+    # # AGI eval
+    # agi_eval_english:1shot::olmes
 
-    # BBH
-    bbh:cot-v1::olmes
+    # # BBH
+    # bbh:cot-v1::olmes
 
-    # Math2 tasks
-    gsm8k::olmes
-    minerva_math_algebra::olmes
-    minerva_math_counting_and_probability::olmes
-    minerva_math_geometry::olmes
-    minerva_math_intermediate_algebra::olmes
-    minerva_math_number_theory::olmes
-    minerva_math_prealgebra::olmes
-    minerva_math_precalculus::olmes
+    # # Math2 tasks
+    # gsm8k::olmes
+    # minerva_math_algebra::olmes
+    # minerva_math_counting_and_probability::olmes
+    # minerva_math_geometry::olmes
+    # minerva_math_intermediate_algebra::olmes
+    # minerva_math_number_theory::olmes
+    # minerva_math_prealgebra::olmes
+    # minerva_math_precalculus::olmes
 
-    # Code4 tasks
-    codex_humaneval:temp0.8
-    codex_humanevalplus:temp0.8
-    mbpp::none
-    mbppplus::none
-
+    # # Code4 tasks
+    # codex_humaneval:temp0.8
+    # codex_humanevalplus:temp0.8
+    # mbpp::none
+    # mbppplus::none
 )
 
 # Function to get checkpoint name (matching the original script)
