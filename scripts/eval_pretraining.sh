@@ -118,10 +118,10 @@ for MODEL_PATH in "${MODELS[@]}"; do
     echo "  Batch size: $batch_size"
     echo "  Job name: $job_name"
     
-        # --beaker-image jacobm/oe-eval-olmo3-official-test-4 \
     gantry run \
         --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
+        --beaker-image oe-eval-beaker/oe_eval_auto \
         --budget ai2/oe-base \
         --workspace ai2/flex2 \
         --cluster $CLUSTER \
