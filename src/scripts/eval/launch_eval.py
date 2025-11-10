@@ -33,7 +33,9 @@ try:
         process_internal_args,
     )
 
+    print("importing offline evals")
     from offline_evals.launch_utils import launch_internal
+    print("imported offline evals")
 except ModuleNotFoundError:
     add_internal_launch_args = lambda *x: None  # noqa: E731
     launch_internal = lambda *x: None  # noqa: E731
