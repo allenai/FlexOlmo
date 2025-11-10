@@ -121,27 +121,25 @@ for MODEL_PATH in "${MODELS[@]}"; do
     gantry run \
         --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
-        --beaker-image ai2/conda \
-        --budget ai2/oe-base \
+        --install "pip install -e \".[all]\"" \
+        --budget ai2/oceo \
         --workspace ai2/flex2 \
         --cluster $CLUSTER \
         --priority urgent \
         --gpus $gpus \
-        --env-secret HF_TOKEN=jacobm_HF_TOKEN \
-        --env-secret AWS_ACCESS_KEY_ID=jacobm_AWS_ACCESS_KEY_ID \
-        --env-secret AWS_SECRET_ACCESS_KEY=jacobm_AWS_SECRET_ACCESS_KEY \
-        --install src/scripts/eval/setup_eval_env.sh \
+        --env-secret HF_TOKEN=SANJAYA_HF_TOKEN \
+        --env-secret AWS_ACCESS_KEY_ID=SANJAYA_AWS_ACCESS_KEY_ID \
+        --env-secret AWS_SECRET_ACCESS_KEY=SANJAYA_AWS_SECRET_ACCESS_KEY \
         -- \
-        bash -c "python src/scripts/eval/launch_eval.py \
+        bash -c "PYTHONPATH=. python -u src/scripts/eval/launch_eval.py \
             --model $MODEL_PATH \
             --model-type hf \
             --task $TASK \
             --limit $LIMIT \
-            --remote-output-dir $OUTPUT_DIR \
+            --output-dir $OUTPUT_DIR \
             --batch-size $batch_size \
             --gpus $gpus \
-            --enable-routing-tracking \
-            --routing-output-dir s3://ai2-sewonm/jacobm/routing_analysis"
+            "
     
         echo "Launched evaluation for model: $model, task: $TASK"
         echo "----------------------------------------"
