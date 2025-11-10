@@ -130,6 +130,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --env-secret HF_TOKEN=jacobm_HF_TOKEN \
         --env-secret AWS_ACCESS_KEY_ID=jacobm_AWS_ACCESS_KEY_ID \
         --env-secret AWS_SECRET_ACCESS_KEY=jacobm_AWS_SECRET_ACCESS_KEY \
+        --install src/scripts/eval/setup_eval_env.sh \
         -- \
         bash -c "PYTHONPATH=. python src/scripts/eval/launch_eval.py \
             --model $MODEL_PATH \
