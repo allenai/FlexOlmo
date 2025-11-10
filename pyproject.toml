@@ -81,7 +81,7 @@ embeddings =[
     "smart-open",
 ]
 extraction = [
-    "transformers@git+https://github.com/swj0419/transformers",
+    "transformers >= 4.57.1",
     "accelerate",
     "rank_bm25",
     "s3fs",
