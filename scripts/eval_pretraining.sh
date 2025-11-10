@@ -91,12 +91,12 @@ for MODEL_PATH in "${MODELS[@]}"; do
         model=$(echo $MODEL_PATH | cut -d'/' -f2)
     fi
     
-    OUTPUT_DIR="${BASE_OUTPUT_DIR}/$model"
+    OUTPUT_DIR="${BASE_OUTPUT_DIR}/$model/$TASK"
     
     for TASK in "${TASKS[@]}"; do
         echo "Launching evaluation for model: $model, task: $TASK"
     
-    gpus=4
+    gpus=1
     
     # Batch size adjustment (matching original script)
     if [[ $TASK == *"cot"* || $TASK == "minerva_math_"* || $TASK == "mbpp"* || $TASK == "bigcodebench"* || $TASK == "ruler"* || $TASK == "sciriff"* ]]; then
