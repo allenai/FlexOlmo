@@ -121,7 +121,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
     gantry run \
         --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
-        --install "pip install -e \".[all]\"" \
+        --install "pip install -e \".[eval]\"" \
         --budget ai2/oceo \
         --workspace ai2/flex2 \
         --cluster $CLUSTER \
