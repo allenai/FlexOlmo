@@ -12,10 +12,19 @@ from typing import List
 ## It should have minimal dependencies so it can run without installing extra packages
 
 try:
-    print("test")
     from oe_eval.configs.models import MODEL_CONFIGS
-except Exception:
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+except Exception as e:
+    print(f"First import failed: {e}")
+    
+    # Calculate and print the path being added
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    parent_dir = os.path.dirname(script_dir)
+    print(f"Adding to sys.path: {parent_dir}")
+    print(f"Contents: {os.listdir(parent_dir) if os.path.exists(parent_dir) else 'Path does not exist'}")
+    
+    sys.path.insert(0, parent_dir)
+    
+    # Try importing again
     from oe_eval.configs.models import MODEL_CONFIGS
 
 # Check for Ai2 internal utilities handling compute resources
