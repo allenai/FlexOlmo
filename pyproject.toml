@@ -71,7 +71,7 @@ eval = [
     "smart-open",
     "torchvision",
     "prettytable",
-    "oe-eval@https://github.com/allenai/oe-eval-internal.git", # "ai2-olmes@git+https://github.com/allenai/olmes",
+    "ai2-olmes@git+https://github.com/allenai/olmes", # "oe-eval@https://github.com/allenai/oe-eval-internal.git", # 
     "beaker-gantry"
 ]
 embeddings =[
