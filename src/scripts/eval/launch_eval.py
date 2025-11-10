@@ -12,8 +12,9 @@ from typing import List
 ## It should have minimal dependencies so it can run without installing extra packages
 
 try:
+    print("test")
     from oe_eval.configs.models import MODEL_CONFIGS
-except ModuleNotFoundError:
+except Exception:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     from oe_eval.configs.models import MODEL_CONFIGS
 
