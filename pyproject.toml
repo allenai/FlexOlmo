@@ -70,7 +70,9 @@ eval = [
     "s3fs",
     "smart-open",
     "torchvision",
-    "prettytable"
+    "prettytable",
+    "ai2-olmes@git+https://github.com/allenai/olmes",
+    "beaker-gantry"
 ]
 embeddings =[
     "gritlm",
