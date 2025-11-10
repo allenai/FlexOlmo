@@ -7,7 +7,7 @@
 MODELS=(
     # need: general model, pretrained model (hf versions)
     "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-hf"
-    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
+    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
     "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf"
 )
 BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
@@ -19,7 +19,7 @@ model_type=hf
 # Define all available tasks from run_eval.sh (ALL tasks from all groups)
 TASKS=(
     # MC9 tasks
-    # arc_easy:mc::olmes
+    arc_easy:mc::olmes
     arc_challenge:mc::olmes
     boolq:mc::olmes
     csqa:mc::olmes
@@ -91,7 +91,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         model=$(echo $MODEL_PATH | cut -d'/' -f2)
     fi
     
-    OUTPUT_DIR="${BASE_OUTPUT_DIR}/$model/$TASK"
+    OUTPUT_DIR="${BASE_OUTPUT_DIR}/$model"
     
     for TASK in "${TASKS[@]}"; do
         echo "Launching evaluation for model: $model, task: $TASK"
@@ -127,9 +127,9 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --cluster $CLUSTER \
         --priority urgent \
         --gpus $gpus \
-        --env-secret HF_TOKEN=SANJAYA_HF_TOKEN \
-        --env-secret AWS_ACCESS_KEY_ID=SANJAYA_AWS_ACCESS_KEY_ID \
-        --env-secret AWS_SECRET_ACCESS_KEY=SANJAYA_AWS_SECRET_ACCESS_KEY \
+        --env-secret HF_TOKEN=jacobm_HF_TOKEN \
+        --env-secret AWS_ACCESS_KEY_ID=jacobm_AWS_ACCESS_KEY_ID \
+        --env-secret AWS_SECRET_ACCESS_KEY=jacobm_AWS_SECRET_ACCESS_KEY \
         -- \
         bash -c "PYTHONPATH=. python -u src/scripts/eval/launch_eval.py \
             --model $MODEL_PATH \
