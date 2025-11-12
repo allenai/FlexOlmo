@@ -44,7 +44,7 @@ echo "🚀 Launching Code-2x7B Mid Training..."
 echo ""
 
 python src/scripts/beaker/launch.py launch ai2/jupiter \
-   --launch.num_nodes=8 \
+   --launch.num_nodes=4 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
