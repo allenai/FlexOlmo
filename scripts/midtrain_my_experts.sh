@@ -21,7 +21,7 @@ CODE_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
 
 #    --launch.budget=ai2/oe-base \
 
-# python src/scripts/beaker/launch.py launch ai2/jupiter \
+# uv python src/scripts/beaker/launch.py launch ai2/jupiter \
 #    --launch.num_nodes=8 \
 #    --launch.num_gpus=8 \
 #    --launch.budget=ai2/oceo \
