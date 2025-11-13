@@ -4,7 +4,7 @@
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_nodes=1 \
    --launch.num_gpus=8 \
-   --launch.budget=ai2/oe-base \
+   --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlmo-4x7B-Supervised-RT \
    --trainer.callbacks.profiler.enabled=false \
