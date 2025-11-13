@@ -105,7 +105,7 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=16,  # Set to number of GPUs / num_experts
+            num_replicas=2,  # Set to number of GPUs / num_experts (8 GPUs / 4 experts = 2)
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=4),
