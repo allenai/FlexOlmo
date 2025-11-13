@@ -231,7 +231,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     hooks = []
                     for block in self.model.blocks:
                         if hasattr(block, "feed_forward_moe") and hasattr(block.feed_forward_moe, "router"):
-                            hook = block.feed_forward_moe.router.register_forward_hook(router_hook)
+                            hook = block.feed_forward_moe.router.register_forward_hook(router_hook)  # type: ignore
                             hooks.append(hook)
                     
                     # Forward pass
