@@ -1,7 +1,10 @@
+import logging
 import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, List, Tuple
+
+import numpy as np
 
 from olmo_core.data import NumpyDatasetConfig
 from olmo_core.data.mixes import DataMixBase
@@ -10,6 +13,8 @@ from olmo_core.data.source_mixture import (
     SourceMixtureDatasetConfig,
 )
 from olmo_core.data.types import NumpyDatasetDType
+
+log = logging.getLogger(__name__)
 
 __all__ = ["CustomDataMix"]
 
@@ -173,14 +178,45 @@ def get_mixture_dataset_config(
     )
 
 
+def _validate_numpy_file(file_path: str, dtype_name: str) -> bool:
+    """Validate that a numpy file can be memory-mapped with the expected dtype.
+    
+    Returns True if file is valid, False if corrupted or inaccessible.
+    """
+    try:
+        # Map dtype name to numpy dtype
+        dtype_map = {
+            "uint16": np.uint16,
+            "uint32": np.uint32,
+            "int32": np.int32,
+        }
+        dtype = dtype_map.get(dtype_name, np.uint16)
+        
+        # Try to memory-map the file
+        # If the file size is not a multiple of dtype size, this will raise ValueError
+        mmap = np.memmap(file_path, mode="r", dtype=dtype)
+        del mmap  # Close the memmap
+        return True
+    except (ValueError, OSError, FileNotFoundError) as e:
+        log.warning(f"Skipping corrupted/inaccessible file: {file_path} ({e})")
+        return False
+
+
 def get_mixture_dataset_config_by_domain(
     prev_dataset_config: NumpyDatasetConfig,
+    validate_files: bool = False,  # Disabled by default to match regular mix handling behavior
 ) -> SourceMixtureDatasetConfig:
     """
     Create SourceMixtureDatasetConfig where each domain label gets its own source.
     
     This is useful for supervised router training where we need to track which domain
     (starcoder, mj_finemath4plus, etc.) each sequence came from.
+    
+    Args:
+        prev_dataset_config: The dataset config containing mix and mix_base_dir
+        validate_files: If True, validate numpy files before including them (default: False).
+                       This helps catch corrupted files early, but adds overhead.
+                       Set to True if you encounter "Size of available data is not a multiple" errors.
     
     Example usage:
         dataset_config.mix = "router_training_mix"
@@ -199,6 +235,8 @@ def get_mixture_dataset_config_by_domain(
 
     # Group paths by domain label
     domain_to_paths: dict[str, list[str]] = {}
+    total_files = 0
+    skipped_files = 0
 
     with _get_data_mix_path(mix_name) as mix_path:
         with mix_path.open() as f:
@@ -215,10 +253,26 @@ def get_mixture_dataset_config_by_domain(
                 domain_label = parts[0]
                 path = parts[1]
                 full_path = f"{base_dir}{path}"
+                total_files += 1
+                
+                # Validate file if requested (helps catch corrupted files early)
+                if validate_files:
+                    dtype_name = prev_dataset_config.get_dtype().__name__
+                    if not _validate_numpy_file(full_path, dtype_name):
+                        skipped_files += 1
+                        continue  # Skip corrupted/inaccessible files
                 
                 if domain_label not in domain_to_paths:
                     domain_to_paths[domain_label] = []
                 domain_to_paths[domain_label].append(full_path)
+    
+    if validate_files and skipped_files > 0:
+        log.warning(
+            f"File validation: Skipped {skipped_files}/{total_files} corrupted/inaccessible files. "
+            f"Proceeding with {total_files - skipped_files} valid files."
+        )
+    elif validate_files:
+        log.info(f"File validation: All {total_files} files are valid.")
 
     # Create a SourceMixtureConfig for each domain
     source_configs: List[SourceMixtureConfig] = []
