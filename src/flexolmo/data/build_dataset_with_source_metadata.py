@@ -24,11 +24,11 @@ def add_source_name_metadata(
     """
     Add source_name metadata to dataset config so it appears in batches.
     
-    This function:
-    1. Builds the SourceMixtureDataset to get source information
-    2. Creates a mapping from paths to source names
-    3. Creates metadata list with source_name for each path
-    4. Sets include_instance_metadata=True
+    This function creates metadata directly from source_mixture_config.source_configs
+    WITHOUT building the full mixture (which would count tokens for all files and be slow).
+    
+    The metadata order matches the order that to_paths() returns: iterate through
+    source_configs, then through paths within each source.
     
     Args:
         dataset_config: The dataset config to modify
@@ -44,44 +44,36 @@ def add_source_name_metadata(
         log.warning("No source_mixture_config found, cannot add source_name metadata")
         return dataset_config
     
-    # Build the mixture to get source information
-    mixture = source_mixture_config.build()
-    
-    # Create metadata by iterating in the same order as to_paths()
-    # to_paths() does: chain.from_iterable([outcome.path_tokens for outcome in self.sources])
-    # So we need to match that exact order to ensure metadata[i] corresponds to paths[i]
+    # Create metadata directly from source_configs (fast, no token counting)
+    # This matches the order that SourceMixtureDataset.to_paths() returns:
+    # chain.from_iterable([outcome.path_tokens for outcome in self.sources])
     metadata: List[Dict[str, Any]] = []
     
-    # Iterate in the same order as to_paths() - through sources, then path_tokens
-    # to_paths() implementation: chain.from_iterable([outcome.path_tokens for outcome in self.sources])
-    for outcome in mixture.sources:
-        source_name = outcome.name
-        for path_token in outcome.path_tokens:
-            # Create metadata for this path_token in the same order as to_paths() returns
+    # Iterate through source_configs in order, then through paths within each source
+    # This matches the order that the built mixture would return
+    for source_config in source_mixture_config.source_configs:
+        source_name = source_config.source_name
+        # Create one metadata entry per path in this source
+        for _ in source_config.paths:
             metadata.append({"source_name": source_name})
-    
-    # Verify: paths should match the order we just created metadata
-    paths = mixture.to_paths()
-    if len(paths) != len(metadata):
-        log.warning(
-            f"Mismatch: {len(paths)} paths but {len(metadata)} metadata entries. "
-            "This should not happen!"
-        )
     
     # Update dataset config
     dataset_config.metadata = metadata
     dataset_config.include_instance_metadata = True
     
     # Get unique sources for logging
-    unique_sources = set(outcome.name for outcome in mixture.sources)
+    unique_sources = set(source_config.source_name for source_config in source_mixture_config.source_configs)
+    total_paths = sum(len(source_config.paths) for source_config in source_mixture_config.source_configs)
     
-    log.info(f"Added source_name metadata for {len(metadata)} paths")
+    log.info(f"Added source_name metadata for {total_paths} paths (fast path, no token counting)")
     log.info(f"Unique sources ({len(unique_sources)}): {sorted(unique_sources)}")
     
     # Log some examples for debugging
     if len(metadata) > 0:
         log.debug(f"First 5 metadata entries: {metadata[:5]}")
-        log.debug(f"First 5 paths: {[str(p) for p in paths[:5]]}")
+        if len(source_mixture_config.source_configs) > 0:
+            first_source = source_mixture_config.source_configs[0]
+            log.debug(f"First 5 paths from first source: {first_source.paths[:5]}")
     
     return dataset_config
 
