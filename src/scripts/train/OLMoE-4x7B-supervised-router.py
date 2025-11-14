@@ -92,7 +92,7 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
             betas=(0.9, 0.95),
             fused=True,
         ),
-        compile_model=True,
+        compile_model=False,  # Disabled temporarily: forward hooks don't work well with torch.compile
         ac_config=TransformerActivationCheckpointingConfig(
             mode=TransformerActivationCheckpointingMode.selected_modules,
             modules=[

@@ -139,20 +139,23 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         batch_size = expert_labels.shape[0]
         seq_len = router_logits.shape[0] // batch_size
         
+        # Ensure expert_labels is on the same device as router_logits
+        expert_labels = expert_labels.to(router_logits.device)
+        
         # Expand expert_labels to match sequence length
         # expert_labels: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
-        expert_labels_expanded = expert_labels.unsqueeze(1).expand(-1, seq_len, -1)  # (batch_size, seq_len, num_experts)
+        # Use repeat instead of expand to avoid view issues with torch.compile
+        expert_labels_expanded = expert_labels.unsqueeze(1).repeat(1, seq_len, 1)  # (batch_size, seq_len, num_experts)
         expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1])  # (batch_size * seq_len, num_experts)
-        
-        # Move to same device as router_logits
-        expert_labels_expanded = expert_labels_expanded.to(router_logits.device)
         
         # Compute cross-entropy loss
         # router_logits: (batch_size * seq_len, num_experts)
-        # expert_labels: (batch_size * seq_len, num_experts)
+        # expert_labels_expanded: (batch_size * seq_len, num_experts)
+        # Convert one-hot to class indices for cross_entropy
+        expert_indices = expert_labels_expanded.argmax(dim=-1)  # (batch_size * seq_len,)
         router_loss = F.cross_entropy(
             router_logits,
-            expert_labels_expanded.argmax(dim=-1),  # Convert one-hot to class indices
+            expert_indices,
             reduction="sum",
         ) / num_tokens
         
@@ -278,14 +281,27 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         router_batch_loss += get_local_tensor(router_loss.detach())
                 
                 # Combine losses
-                loss = torch.tensor(0.0, device=self.device)
-                if not self.router_loss_only:
+                # Critical: loss must always be part of the computation graph (never a leaf tensor)
+                # This is essential for torch.compile to work correctly during backward pass
+                if self.router_loss_only:
+                    # Router-only training: must have router_loss
+                    if router_loss is None:
+                        raise RuntimeError(
+                            f"router_loss_only=True but router_loss is None. "
+                            f"expert_labels available: {micro_expert_labels is not None}, "
+                            f"router_logits available: {router_logits is not None}"
+                        )
+                    # router_loss comes from cross_entropy with router_logits, so it's in the graph
+                    # Use multiplication (not in-place) to ensure it stays in graph
+                    loss = router_loss * self.router_loss_weight
+                else:
+                    # Standard training: start with CE loss (always in graph)
                     loss = ce_loss
                     if z_loss is not None:
-                        loss += z_loss
-                
-                if router_loss is not None:
-                    loss += self.router_loss_weight * router_loss
+                        loss = loss + z_loss
+                    # Add router loss if available
+                    if router_loss is not None:
+                        loss = loss + (router_loss * self.router_loss_weight)
 
                 # Update batch losses
                 ce_batch_loss += get_local_tensor(ce_loss.detach())
