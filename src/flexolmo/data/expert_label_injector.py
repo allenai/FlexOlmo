@@ -31,7 +31,14 @@ class ExpertLabelDataLoaderWrapper:
     - From batch metadata
     """
     
-    def __init__(self, data_loader, use_domain_labels: bool = True, dataset=None):
+    def __init__(
+        self,
+        data_loader,
+        use_domain_labels: bool = True,
+        dataset=None,
+        strict_metadata: bool = False,
+        max_missing_metadata_batches: int = 10,
+    ):
         """
         Args:
             data_loader: The underlying data loader to wrap
@@ -41,6 +48,9 @@ class ExpertLabelDataLoaderWrapper:
         self.data_loader = data_loader
         self.use_domain_labels = use_domain_labels
         self.dataset = dataset
+        self.strict_metadata = strict_metadata
+        self.max_missing_metadata_batches = max_missing_metadata_batches
+        self._missing_metadata_batches = 0
         
         # Try to get dataset from data_loader if not provided
         if self.dataset is None and hasattr(data_loader, 'dataset'):
@@ -264,6 +274,14 @@ class ExpertLabelDataLoaderWrapper:
                     if isinstance(instance_indices, torch.Tensor):
                         instance_indices = instance_indices.cpu().tolist()[:5]  # First 5 for logging
                     log.warning(f"  Instance indices (first 5): {instance_indices}")
+                self._missing_metadata_batches += 1
+                if self.strict_metadata and self._missing_metadata_batches >= self.max_missing_metadata_batches:
+                    raise RuntimeError(
+                        "ExpertLabelDataLoaderWrapper: failed to extract domain labels from "
+                        f"{self._missing_metadata_batches} consecutive batches. "
+                        "Ensure dataset metadata is built via add_source_name_metadata() "
+                        "as explained in SUPERVISED_ROUTER_TRAINING_GUIDE.md."
+                    )
             else:
                 log.debug(
                     f"use_domain_labels=False, using default general expert labels. "
@@ -275,7 +293,12 @@ class ExpertLabelDataLoaderWrapper:
         return batch
 
 
-def wrap_data_loader_with_expert_labels(data_loader, use_domain_labels: bool = True, dataset=None):
+def wrap_data_loader_with_expert_labels(
+    data_loader,
+    use_domain_labels: bool = True,
+    dataset=None,
+    strict_metadata: bool = False,
+):
     """
     Convenience function to wrap a data loader with expert label injection.
     
@@ -287,5 +310,10 @@ def wrap_data_loader_with_expert_labels(data_loader, use_domain_labels: bool = T
     Returns:
         ExpertLabelDataLoaderWrapper instance
     """
-    return ExpertLabelDataLoaderWrapper(data_loader, use_domain_labels=use_domain_labels, dataset=dataset)
+    return ExpertLabelDataLoaderWrapper(
+        data_loader,
+        use_domain_labels=use_domain_labels,
+        dataset=dataset,
+        strict_metadata=strict_metadata,
+    )
 
