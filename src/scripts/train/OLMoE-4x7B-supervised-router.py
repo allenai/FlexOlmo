@@ -187,7 +187,7 @@ if __name__ == "__main__":
             root_dir=get_root_dir(),
             sequence_length=SEQUENCE_LENGTH,
             global_batch_size=128 * SEQUENCE_LENGTH,
-            include_default_evals=True,
+            include_default_evals=False,  # Disable evals that expect text-based datasets
             freeze_embeddings=False,
             model_config_builder=build_model_config,
             dataset_config_builder=build_dataset_config,

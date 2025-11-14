@@ -68,6 +68,14 @@ def add_source_name_metadata(
     log.info(f"Added source_name metadata for {total_paths} paths (fast path, no token counting)")
     log.info(f"Unique sources ({len(unique_sources)}): {sorted(unique_sources)}")
     
+    # Warn that dataset build will be slow
+    if total_paths > 1000:
+        log.info(
+            f"⚠️  Note: Dataset build will gather instance indices for {total_paths} files. "
+            f"This may take several minutes but is a one-time cost. "
+            f"Metadata creation completed quickly (no token counting performed)."
+        )
+    
     # Log some examples for debugging
     if len(metadata) > 0:
         log.debug(f"First 5 metadata entries: {metadata[:5]}")
