@@ -137,7 +137,8 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     
     # Use get_mixture_dataset_config_by_domain to split by domain labels
     # This ensures each domain (starcoder, mj_finemath4plus, etc.) becomes its own source
-    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config)
+    # Enable file validation to skip corrupted files (prevents errors during dataset building)
+    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=True)
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
