@@ -298,40 +298,99 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             router_logits_list.append(output[0])  # Extract logits
                     
                     # Register hooks on all router modules
+                    # Handle FSDP-wrapped models - need to access the underlying module
                     hooks = []
                     blocks_checked = 0
-                    for i, block in enumerate(self.model.blocks):
-                        blocks_checked += 1
-                        # Try multiple ways to find the MoE router
-                        router = None
-                        
-                        # Method 1: feed_forward_moe.router (standard OLMoE structure)
-                        if hasattr(block, "feed_forward_moe"):
-                            feed_forward_moe = getattr(block, "feed_forward_moe")
-                            if feed_forward_moe is not None and hasattr(feed_forward_moe, "router"):
-                                router = getattr(feed_forward_moe, "router")
-                        
-                        # Method 2: block_sparse_moe.router (alternative structure)
-                        if router is None and hasattr(block, "block_sparse_moe"):
-                            block_sparse_moe = getattr(block, "block_sparse_moe")
-                            if block_sparse_moe is not None and hasattr(block_sparse_moe, "router"):
-                                router = getattr(block_sparse_moe, "router")
-                        
-                        # Method 3: moe.router (another alternative)
-                        if router is None and hasattr(block, "moe"):
-                            moe = getattr(block, "moe")
-                            if moe is not None and hasattr(moe, "router"):
-                                router = getattr(moe, "router")
-                        
-                        # Method 4: feed_forward.router (if feed_forward is MoE)
-                        if router is None and hasattr(block, "feed_forward"):
-                            feed_forward = getattr(block, "feed_forward")
-                            if feed_forward is not None and hasattr(feed_forward, "router"):
-                                router = getattr(feed_forward, "router")
-                        
-                        if router is not None:
-                            hook = router.register_forward_hook(router_hook)  # type: ignore
+                    
+                    # Get the actual model (unwrap if FSDP wrapped)
+                    # FSDP wraps models, so we need to access the underlying module
+                    model_to_inspect = self.model
+                    
+                    # Try different ways to unwrap FSDP
+                    if hasattr(self.model, '_fsdp_wrapped_module'):
+                        model_to_inspect = self.model._fsdp_wrapped_module
+                    elif hasattr(self.model, 'module'):
+                        model_to_inspect = self.model.module
+                    elif hasattr(self.model, '_orig_mod'):
+                        model_to_inspect = self.model._orig_mod
+                    
+                    # Use named_modules to find router modules (works with FSDP)
+                    # This is more reliable than trying to unwrap manually
+                    blocks = []
+                    router_modules = []
+                    
+                    # Search for router modules using named_modules
+                    for name, module in self.model.named_modules():
+                        # Look for router modules directly
+                        if 'router' in name.lower() and hasattr(module, 'forward'):
+                            router_modules.append((name, module))
+                        # Also collect blocks for fallback
+                        if 'blocks' in name and '.' not in name.split('blocks')[0]:  # Top-level blocks
+                            try:
+                                if isinstance(module, (list, tuple)):
+                                    blocks.extend([m for m in module if isinstance(m, torch.nn.Module)])
+                                elif hasattr(module, '__iter__') and not isinstance(module, (str, bytes)):
+                                    # Type checker doesn't know module is iterable, but we check at runtime
+                                    blocks.extend([m for m in module if isinstance(m, torch.nn.Module)])  # type: ignore
+                            except Exception:
+                                pass
+                    
+                    # If we found router modules directly, use those
+                    if router_modules:
+                        log.debug(f"Found {len(router_modules)} router modules via named_modules")
+                        for name, router_module in router_modules:
+                            hook = router_module.register_forward_hook(router_hook)  # type: ignore
                             hooks.append(hook)
+                        blocks_checked = len(router_modules)
+                    # Otherwise, try to get blocks and find routers within them
+                    elif hasattr(model_to_inspect, 'blocks'):
+                        blocks_attr = getattr(model_to_inspect, 'blocks')
+                        # If it's a ModuleList or similar, iterate directly
+                        if hasattr(blocks_attr, '__iter__') and not isinstance(blocks_attr, (str, bytes)):
+                            try:
+                                blocks = [m for m in blocks_attr if isinstance(m, torch.nn.Module)]
+                            except Exception:
+                                blocks = []
+                    
+                    # If we already registered hooks from named_modules, skip block iteration
+                    if not router_modules and blocks:
+                        for i, block in enumerate(blocks):
+                            blocks_checked += 1
+                            
+                            # Skip if block is not a module (e.g., string)
+                            if not isinstance(block, torch.nn.Module):
+                                continue
+                            
+                            # Try multiple ways to find the MoE router
+                            router = None
+                            
+                            # Method 1: feed_forward_moe.router (standard OLMoE structure)
+                            if hasattr(block, "feed_forward_moe"):
+                                feed_forward_moe = getattr(block, "feed_forward_moe")
+                                if feed_forward_moe is not None and hasattr(feed_forward_moe, "router"):
+                                    router = getattr(feed_forward_moe, "router")
+                            
+                            # Method 2: block_sparse_moe.router (alternative structure)
+                            if router is None and hasattr(block, "block_sparse_moe"):
+                                block_sparse_moe = getattr(block, "block_sparse_moe")
+                                if block_sparse_moe is not None and hasattr(block_sparse_moe, "router"):
+                                    router = getattr(block_sparse_moe, "router")
+                            
+                            # Method 3: moe.router (another alternative)
+                            if router is None and hasattr(block, "moe"):
+                                moe = getattr(block, "moe")
+                                if moe is not None and hasattr(moe, "router"):
+                                    router = getattr(moe, "router")
+                            
+                            # Method 4: feed_forward.router (if feed_forward is MoE)
+                            if router is None and hasattr(block, "feed_forward"):
+                                feed_forward = getattr(block, "feed_forward")
+                                if feed_forward is not None and hasattr(feed_forward, "router"):
+                                    router = getattr(feed_forward, "router")
+                            
+                            if router is not None and isinstance(router, torch.nn.Module):
+                                hook = router.register_forward_hook(router_hook)  # type: ignore
+                                hooks.append(hook)
                     
                     if len(hooks) == 0:
                         # Log detailed debugging info
