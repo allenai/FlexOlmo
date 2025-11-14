@@ -183,7 +183,17 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         
         # CRITICAL: Materialize expanded labels to ensure proper storage
         expert_labels_expanded = (expert_labels_expanded + 0.0).contiguous()
-        
+
+        # ---- Defensive casting / cloning (storage safety) --------------------
+        # We have occasionally observed obscure "setStorage: ... storage of size 0" runtime
+        # errors during backward when the input to `F.cross_entropy` is a bf16 tensor coming
+        # from FSDP-sharded views.  Empirically, cloning the logits onto a fresh Float32
+        # storage eliminates the issue while having negligible memory impact (the tensor is
+        # immediately reduced to a scalar loss).  We therefore clone/cast the logits right
+        # before the loss computation.
+        router_logits_safe = router_logits.to(torch.float32).clone()
+
+        # ----------------------------------------------------------------------
         # Compute cross-entropy loss
         # router_logits: (batch_size * seq_len, num_experts)
         # expert_labels_expanded: (batch_size * seq_len, num_experts)
@@ -191,14 +201,14 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         expert_indices = expert_labels_expanded.argmax(dim=-1)  # (batch_size * seq_len,)
         
         # Ensure expert_indices is contiguous and on the same device as router_logits
-        expert_indices = expert_indices.to(router_logits.device).contiguous()
+        expert_indices = expert_indices.to(router_logits_safe.device).contiguous()
         
         # For FSDP compatibility, clone expert_indices to ensure proper storage
         # This is safe since expert_indices are target labels and don't need gradients
         expert_indices = expert_indices.clone().detach().long()
         
         router_loss = F.cross_entropy(
-            router_logits,
+            router_logits_safe,
             expert_indices,
             reduction="sum",
         ) / num_tokens
