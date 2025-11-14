@@ -150,8 +150,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if router_logits.dim() == 3:
             # (num_layers, batch_size * seq_len, num_experts)
             # Average across layers for simplicity (or sum, depending on preference)
-            # Use contiguous() to ensure proper storage for FSDP
-            router_logits = router_logits.mean(dim=0).contiguous()  # (batch_size * seq_len, num_experts)
+            # For FSDP, we need to ensure the mean operation creates a properly materialized tensor
+            # Use sum and divide instead of mean to avoid potential view issues
+            router_logits = (router_logits.sum(dim=0) / router_logits.shape[0]).contiguous()  # (batch_size * seq_len, num_experts)
         elif router_logits.dim() != 2:
             raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
         else:
@@ -176,8 +177,12 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         # Convert one-hot to class indices for cross_entropy
         expert_indices = expert_labels_expanded.argmax(dim=-1)  # (batch_size * seq_len,)
         
-        # Ensure expert_indices is contiguous
-        expert_indices = expert_indices.contiguous()
+        # Ensure expert_indices is contiguous and on the same device as router_logits
+        expert_indices = expert_indices.to(router_logits.device).contiguous()
+        
+        # For FSDP compatibility, clone expert_indices to ensure proper storage
+        # This is safe since expert_indices are target labels and don't need gradients
+        expert_indices = expert_indices.clone().detach().long()
         
         router_loss = F.cross_entropy(
             router_logits,
@@ -221,10 +226,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 )
                 # Use general expert (Expert 1: [0, 1, 0, 0]) as default
                 from flexolmo.data.expert_label_utils import get_expert_label_tensor
-                expert_labels = torch.stack(
-                    [get_expert_label_tensor("general") for _ in range(batch_size)],
-                    dim=0
-                )
+                # Create expert labels on the correct device and ensure they're contiguous
+                expert_labels_list = [get_expert_label_tensor("general") for _ in range(batch_size)]
+                expert_labels = torch.stack(expert_labels_list, dim=0).to(self.device).contiguous()
             else:
                 log.debug("No expert labels found in batch, skipping router loss")
         
@@ -287,10 +291,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     # Use default general expert as fallback
                     from flexolmo.data.expert_label_utils import get_expert_label_tensor
                     micro_batch_size = input_ids.shape[0]
-                    micro_expert_labels = torch.stack(
-                        [get_expert_label_tensor("general") for _ in range(micro_batch_size)],
-                        dim=0
-                    ).to(self.device)
+                    expert_labels_list = [get_expert_label_tensor("general") for _ in range(micro_batch_size)]
+                    micro_expert_labels = torch.stack(expert_labels_list, dim=0).to(self.device).contiguous()
 
                 # Run forward pass with router logits if we have expert labels OR if router_loss_only
                 # (we need router logits to compute router loss)
@@ -307,8 +309,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             logits = output[0]
                             # Ensure logits are a tensor and part of computation graph
                             if isinstance(logits, torch.Tensor):
-                                # Clone to ensure we have a proper tensor (not a view that might break)
-                                # But keep it in the computation graph
+                                # Don't clone - we need to keep the computation graph intact for gradients
+                                # Just ensure it's contiguous (handled later when stacking)
                                 if logits.requires_grad:
                                     router_logits_list.append(logits)
                                 else:
@@ -476,11 +478,23 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             try:
                                 # Log shapes before stacking
                                 log.info(f"Stacking {len(valid_logits)} router logits with shapes: {[l.shape for l in valid_logits]}")
+                                
+                                # Check devices - all should be on the same device
+                                devices = [l.device for l in valid_logits]
+                                unique_devices = set(devices)
+                                if len(unique_devices) > 1:
+                                    log.warning(f"Router logits are on different devices: {unique_devices}. Moving all to {self.device}")
+                                    valid_logits = [l.to(self.device) for l in valid_logits]
+                                
                                 # Ensure all logits are contiguous before stacking (important for FSDP)
                                 valid_logits = [l.contiguous() if not l.is_contiguous() else l for l in valid_logits]
+                                
+                                # Stack router logits
                                 router_logits = torch.stack(valid_logits, dim=0)  # (num_layers, batch*seq_len, num_experts)
-                                # Ensure stacked tensor is contiguous
-                                router_logits = router_logits.contiguous()
+                                
+                                # Ensure stacked tensor is contiguous and on correct device
+                                router_logits = router_logits.contiguous().to(self.device)
+                                
                                 log.info(f"Stacked router logits shape: {router_logits.shape}, dtype: {router_logits.dtype}, device: {router_logits.device}")
                                 log.info(f"Router logits requires_grad: {router_logits.requires_grad}, is_leaf: {router_logits.is_leaf}, is_contiguous: {router_logits.is_contiguous()}")
                             except Exception as e:
