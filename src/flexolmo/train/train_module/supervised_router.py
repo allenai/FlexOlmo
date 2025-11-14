@@ -146,30 +146,39 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             Router loss (scalar tensor)
         """
         # Handle different router_logits shapes
+        # Ensure router_logits is contiguous to avoid storage issues with FSDP
         if router_logits.dim() == 3:
             # (num_layers, batch_size * seq_len, num_experts)
             # Average across layers for simplicity (or sum, depending on preference)
-            router_logits = router_logits.mean(dim=0)  # (batch_size * seq_len, num_experts)
+            # Use contiguous() to ensure proper storage for FSDP
+            router_logits = router_logits.mean(dim=0).contiguous()  # (batch_size * seq_len, num_experts)
         elif router_logits.dim() != 2:
             raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
+        else:
+            # Ensure 2D tensor is also contiguous
+            router_logits = router_logits.contiguous()
         
         batch_size = expert_labels.shape[0]
         seq_len = router_logits.shape[0] // batch_size
         
-        # Ensure expert_labels is on the same device as router_logits
-        expert_labels = expert_labels.to(router_logits.device)
+        # Ensure expert_labels is on the same device as router_logits and is contiguous
+        expert_labels = expert_labels.to(router_logits.device).contiguous()
         
         # Expand expert_labels to match sequence length
         # expert_labels: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
-        # Use repeat instead of expand to avoid view issues with torch.compile
+        # Use repeat and ensure contiguous to avoid view issues with FSDP
         expert_labels_expanded = expert_labels.unsqueeze(1).repeat(1, seq_len, 1)  # (batch_size, seq_len, num_experts)
-        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1])  # (batch_size * seq_len, num_experts)
+        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1]).contiguous()  # (batch_size * seq_len, num_experts)
         
         # Compute cross-entropy loss
         # router_logits: (batch_size * seq_len, num_experts)
         # expert_labels_expanded: (batch_size * seq_len, num_experts)
         # Convert one-hot to class indices for cross_entropy
         expert_indices = expert_labels_expanded.argmax(dim=-1)  # (batch_size * seq_len,)
+        
+        # Ensure expert_indices is contiguous
+        expert_indices = expert_indices.contiguous()
+        
         router_loss = F.cross_entropy(
             router_logits,
             expert_indices,
@@ -467,9 +476,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             try:
                                 # Log shapes before stacking
                                 log.info(f"Stacking {len(valid_logits)} router logits with shapes: {[l.shape for l in valid_logits]}")
+                                # Ensure all logits are contiguous before stacking (important for FSDP)
+                                valid_logits = [l.contiguous() if not l.is_contiguous() else l for l in valid_logits]
                                 router_logits = torch.stack(valid_logits, dim=0)  # (num_layers, batch*seq_len, num_experts)
+                                # Ensure stacked tensor is contiguous
+                                router_logits = router_logits.contiguous()
                                 log.info(f"Stacked router logits shape: {router_logits.shape}, dtype: {router_logits.dtype}, device: {router_logits.device}")
-                                log.info(f"Router logits requires_grad: {router_logits.requires_grad}, is_leaf: {router_logits.is_leaf}")
+                                log.info(f"Router logits requires_grad: {router_logits.requires_grad}, is_leaf: {router_logits.is_leaf}, is_contiguous: {router_logits.is_contiguous()}")
                             except Exception as e:
                                 log.error(f"Error stacking router logits: {e}")
                                 log.error(f"Router logits shapes: {[l.shape for l in valid_logits]}")
