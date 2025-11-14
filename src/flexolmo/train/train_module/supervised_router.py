@@ -146,30 +146,43 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             Router loss (scalar tensor)
         """
         # Handle different router_logits shapes
-        # Ensure router_logits is contiguous to avoid storage issues with FSDP
+        # CRITICAL: Ensure router_logits is fully materialized before any operations
+        # FSDP may return tensors with storage issues that cause problems during backward
+        if isinstance(router_logits, DTensor):
+            router_logits = get_full_tensor(router_logits)
+        
+        # Force materialization by adding 0 (preserves gradients, forces storage allocation)
+        router_logits = (router_logits + 0.0).contiguous()
+        
         if router_logits.dim() == 3:
             # (num_layers, batch_size * seq_len, num_experts)
             # Average across layers for simplicity (or sum, depending on preference)
             # For FSDP, we need to ensure the mean operation creates a properly materialized tensor
             # Use sum and divide instead of mean to avoid potential view issues
-            router_logits = (router_logits.sum(dim=0) / router_logits.shape[0]).contiguous()  # (batch_size * seq_len, num_experts)
+            router_logits = router_logits.sum(dim=0) / router_logits.shape[0]  # (batch_size * seq_len, num_experts)
+            # Force materialization again after reduction
+            router_logits = (router_logits + 0.0).contiguous()
         elif router_logits.dim() != 2:
             raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
-        else:
-            # Ensure 2D tensor is also contiguous
-            router_logits = router_logits.contiguous()
         
         batch_size = expert_labels.shape[0]
         seq_len = router_logits.shape[0] // batch_size
         
         # Ensure expert_labels is on the same device as router_logits and is contiguous
-        expert_labels = expert_labels.to(router_logits.device).contiguous()
+        expert_labels = expert_labels.to(router_logits.device)
+        
+        # CRITICAL: Materialize expert_labels to ensure proper storage
+        # This prevents storage allocation issues during backward pass
+        expert_labels = (expert_labels + 0.0).contiguous()
         
         # Expand expert_labels to match sequence length
         # expert_labels: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
         # Use repeat and ensure contiguous to avoid view issues with FSDP
         expert_labels_expanded = expert_labels.unsqueeze(1).repeat(1, seq_len, 1)  # (batch_size, seq_len, num_experts)
-        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1]).contiguous()  # (batch_size * seq_len, num_experts)
+        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1])  # (batch_size * seq_len, num_experts)
+        
+        # CRITICAL: Materialize expanded labels to ensure proper storage
+        expert_labels_expanded = (expert_labels_expanded + 0.0).contiguous()
         
         # Compute cross-entropy loss
         # router_logits: (batch_size * seq_len, num_experts)
@@ -486,11 +499,35 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                     log.warning(f"Router logits are on different devices: {unique_devices}. Moving all to {self.device}")
                                     valid_logits = [l.to(self.device) for l in valid_logits]
                                 
-                                # Ensure all logits are contiguous before stacking (important for FSDP)
-                                valid_logits = [l.contiguous() if not l.is_contiguous() else l for l in valid_logits]
+                                # CRITICAL: Materialize router logits as full tensors (not views/sharded)
+                                # FSDP may return sharded tensors or views that cause storage issues during backward
+                                # We need to ensure they're fully materialized tensors with proper storage
+                                materialized_logits = []
+                                for i, logits in enumerate(valid_logits):
+                                    try:
+                                        # For FSDP/DTensor compatibility, use get_full_tensor to ensure
+                                        # we have a properly materialized tensor with correct storage
+                                        if isinstance(logits, DTensor):
+                                            # If it's a DTensor, get the full tensor
+                                            materialized = get_full_tensor(logits)
+                                        else:
+                                            # For regular tensors, ensure they're materialized
+                                            # Use an identity operation (add 0) to force materialization
+                                            # while preserving the computation graph and gradients
+                                            materialized = (logits + 0.0).contiguous()
+                                        
+                                        # Ensure it's on the correct device
+                                        if materialized.device != self.device:
+                                            materialized = materialized.to(self.device)
+                                        
+                                        materialized_logits.append(materialized)
+                                    except Exception as e:
+                                        log.warning(f"Error materializing logits from layer {i}: {e}, using original")
+                                        # Fallback: ensure contiguous
+                                        materialized_logits.append(logits.contiguous() if not logits.is_contiguous() else logits)
                                 
                                 # Stack router logits
-                                router_logits = torch.stack(valid_logits, dim=0)  # (num_layers, batch*seq_len, num_experts)
+                                router_logits = torch.stack(materialized_logits, dim=0)  # (num_layers, batch*seq_len, num_experts)
                                 
                                 # Ensure stacked tensor is contiguous and on correct device
                                 router_logits = router_logits.contiguous().to(self.device)
@@ -540,6 +577,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     )
                     if router_loss is not None:
                         router_batch_loss += get_local_tensor(router_loss.detach())
+                        # CRITICAL: Materialize router_loss to ensure proper storage for backward pass
+                        # This prevents "storage of size 0" errors during backward
+                        router_loss = (router_loss + 0.0).contiguous()
                 
                 # Combine losses
                 # Critical: loss must always be part of the computation graph (never a leaf tensor)
@@ -555,6 +595,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     # router_loss comes from cross_entropy with router_logits, so it's in the graph
                     # Use multiplication (not in-place) to ensure it stays in graph
                     loss = router_loss * self.router_loss_weight
+                    # Ensure final loss is materialized
+                    loss = (loss + 0.0).contiguous()
                 else:
                     # Standard training: start with CE loss (always in graph)
                     loss = ce_loss
