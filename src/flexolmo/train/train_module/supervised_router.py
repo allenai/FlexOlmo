@@ -7,7 +7,7 @@ are provided and used to train the router via cross-entropy loss on router logit
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 import torch
 import torch.distributed.checkpoint.state_dict as dist_cp_sd
@@ -151,6 +151,25 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if isinstance(router_logits, DTensor):
             router_logits = get_full_tensor(router_logits)
         
+        # Debug storage characteristics to diagnose zero-storage gradients
+        try:
+            storage_size = (
+                router_logits.untyped_storage().nbytes()
+                if hasattr(router_logits, "untyped_storage")
+                else router_logits.storage().nbytes()
+            )
+        except Exception:
+            storage_size = None
+        log.debug(
+            "Router logits storage info: shape=%s, dtype=%s, storage_bytes=%s, stride=%s, req_grad=%s, is_leaf=%s",
+            tuple(router_logits.shape),
+            router_logits.dtype,
+            storage_size,
+            tuple(router_logits.stride()),
+            router_logits.requires_grad,
+            router_logits.is_leaf,
+        )
+        
         # Force materialization by adding 0 (preserves gradients, forces storage allocation)
         router_logits = (router_logits + 0.0).contiguous()
         
@@ -184,31 +203,14 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         # CRITICAL: Materialize expanded labels to ensure proper storage
         expert_labels_expanded = (expert_labels_expanded + 0.0).contiguous()
 
-        # ---- Defensive detach / clone with gradient bridge -------------------
-        # Some FSDP-sharded bf16 tensors are still views on zero-sized storage.
-        # We isolate them by:
-        #   1. Detaching so autograd never tries to write into the old storage.
-        #   2. clone() + cast → fresh FP32 storage that is safe for CE.
-        #   3. Re-enable grad and register a hook that back-propagates the gradient
-        #      to the original `router_logits` tensor.
-
-        router_logits_safe = (
-            router_logits
-            .detach()               # cut graph to problematic view
-            .clone()                # fresh dense storage
-            .to(torch.float32)      # numerically stable dtype
-            .requires_grad_(True)
-        )
-
-        # Bridge gradients: when grad w.r.t. safe tensor is produced, send it to
-        # the original tensor so router weights still learn.
-        def _bridge_grad(grad: torch.Tensor):  # grad has dtype fp32
-            # Cast back to original dtype to match router_logits
-            router_logits.backward(grad.to(router_logits.dtype))
-            # We return None because we manually handled the gradient.
-            return None
-
-        router_logits_safe.register_hook(_bridge_grad)
+        # ---- Defensive casting / cloning (storage safety) --------------------
+        # We have occasionally observed obscure \"setStorage: ... storage of size 0\" runtime
+        # errors during backward when the input to `F.cross_entropy` is a bf16 tensor coming
+        # from FSDP-sharded views.  Empirically, cloning the logits onto a fresh Float32
+        # storage eliminates the issue while having negligible memory impact (the tensor is
+        # immediately reduced to a scalar loss).  We therefore clone/cast the logits right
+        # before the loss computation.
+        router_logits_safe = router_logits.to(torch.float32).clone()
         
         # ----------------------------------------------------------------------
         # Compute cross-entropy loss
@@ -336,12 +338,11 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
 
                 # Run forward pass with router logits if we have expert labels OR if router_loss_only
                 # (we need router logits to compute router loss)
-                router_logits = None
+                router_loss: Optional[torch.Tensor] = None
                 should_capture_router_logits = (micro_expert_labels is not None) or self.router_loss_only
                 
                 if should_capture_router_logits:
-                    # Store router logits using a forward hook
-                    router_logits_list = []
+                    router_loss_terms: List[torch.Tensor] = []
                     
                     def router_hook(module, input, output):
                         # The router forward returns: (logits, scores, expert_weights, expert_indices, batch_size_per_expert)
@@ -349,15 +350,23 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             logits = output[0]
                             # Ensure logits are a tensor and part of computation graph
                             if isinstance(logits, torch.Tensor):
-                                # Don't clone - we need to keep the computation graph intact for gradients
-                                # Just ensure it's contiguous (handled later when stacking)
-                                if logits.requires_grad:
-                                    router_logits_list.append(logits)
-                                else:
-                                    # If logits don't require grad, we still need them for loss computation
-                                    # but we should log a warning
-                                    log.warning(f"Router logits from {module} don't require grad, but capturing anyway")
-                                    router_logits_list.append(logits)
+                                if micro_expert_labels is None:
+                                    log.warning("Router hook triggered without expert labels; skipping router loss term")
+                                    return
+                                
+                                try:
+                                    loss_term = self._compute_router_loss(
+                                        logits,
+                                        micro_expert_labels,
+                                        batch_num_tokens_for_loss,
+                                    )
+                                    router_loss_terms.append(loss_term)
+                                except Exception as exc:
+                                    log.warning(
+                                        "Failed to compute router loss for module %s: %s",
+                                        module,
+                                        exc,
+                                    )
                             else:
                                 log.warning(f"Router output[0] is not a tensor: {type(logits)}")
                     
@@ -492,94 +501,20 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     for hook in hooks:
                         hook.remove()
                     
-                    # Stack router logits from all layers
-                    if router_logits_list:
-                        # Validate router logits before stacking
-                        valid_logits = []
-                        for i, logits in enumerate(router_logits_list):
-                            if logits is None:
-                                log.warning(f"Router logits from layer {i} are None, skipping")
-                                continue
-                            if not isinstance(logits, torch.Tensor):
-                                log.warning(f"Router logits from layer {i} are not a tensor (type: {type(logits)}), skipping")
-                                continue
-                            if logits.numel() == 0:
-                                log.warning(f"Router logits from layer {i} are empty, skipping")
-                                continue
-                            # Ensure logits are part of computation graph (not detached)
-                            if not logits.requires_grad:
-                                log.warning(f"Router logits from layer {i} don't require grad, but continuing anyway")
-                            valid_logits.append(logits)
-                        
-                        if not valid_logits:
-                            log.error("No valid router logits captured after validation")
-                            router_logits = None
-                        else:
-                            try:
-                                # Log shapes before stacking
-                                log.info(f"Stacking {len(valid_logits)} router logits with shapes: {[l.shape for l in valid_logits]}")
-                                
-                                # Check devices - all should be on the same device
-                                devices = [l.device for l in valid_logits]
-                                unique_devices = set(devices)
-                                if len(unique_devices) > 1:
-                                    log.warning(f"Router logits are on different devices: {unique_devices}. Moving all to {self.device}")
-                                    valid_logits = [l.to(self.device) for l in valid_logits]
-                                
-                                # CRITICAL: Materialize router logits as full tensors (not views/sharded)
-                                # FSDP may return sharded tensors or views that cause storage issues during backward
-                                # We need to ensure they're fully materialized tensors with proper storage
-                                materialized_logits = []
-                                for i, logits in enumerate(valid_logits):
-                                    try:
-                                        # For FSDP/DTensor compatibility, use get_full_tensor to ensure
-                                        # we have a properly materialized tensor with correct storage
-                                        if isinstance(logits, DTensor):
-                                            # If it's a DTensor, get the full tensor
-                                            materialized = get_full_tensor(logits)
-                                        else:
-                                            # For regular tensors, ensure they're materialized
-                                            # Use an identity operation (add 0) to force materialization
-                                            # while preserving the computation graph and gradients
-                                            materialized = (logits + 0.0).contiguous()
-                                        
-                                        # Ensure it's on the correct device
-                                        if materialized.device != self.device:
-                                            materialized = materialized.to(self.device)
-                                        
-                                        materialized_logits.append(materialized)
-                                    except Exception as e:
-                                        log.warning(f"Error materializing logits from layer {i}: {e}, using original")
-                                        # Fallback: ensure contiguous
-                                        materialized_logits.append(logits.contiguous() if not logits.is_contiguous() else logits)
-                                
-                                # Stack router logits
-                                router_logits = torch.stack(materialized_logits, dim=0)  # (num_layers, batch*seq_len, num_experts)
-                                
-                                # Ensure stacked tensor is contiguous and on correct device
-                                router_logits = router_logits.contiguous().to(self.device)
-                                
-                                log.info(f"Stacked router logits shape: {router_logits.shape}, dtype: {router_logits.dtype}, device: {router_logits.device}")
-                                log.info(f"Router logits requires_grad: {router_logits.requires_grad}, is_leaf: {router_logits.is_leaf}, is_contiguous: {router_logits.is_contiguous()}")
-                            except Exception as e:
-                                log.error(f"Error stacking router logits: {e}")
-                                log.error(f"Router logits shapes: {[l.shape for l in valid_logits]}")
-                                log.error(f"Router logits dtypes: {[l.dtype for l in valid_logits]}")
-                                log.error(f"Router logits devices: {[l.device for l in valid_logits]}")
-                                router_logits = None
-                    else:
-                        router_logits = None
-                    
-                    if router_logits is None and self.router_loss_only:
-                        # This is a critical error - we can't train router without router logits
+                    if router_loss_terms:
+                        router_loss = torch.stack(router_loss_terms, dim=0).mean()
+                        log.debug(
+                            "Computed router loss from %s router modules; sample loss=%s",
+                            len(router_loss_terms),
+                            router_loss.detach().float().item()
+                            if router_loss.requires_grad
+                            else router_loss.item(),
+                        )
+                    elif self.router_loss_only:
                         raise RuntimeError(
-                            f"router_loss_only=True but no router logits captured. "
-                            f"This likely means the model is not a MoE model or the router modules weren't found. "
+                            f"router_loss_only=True but no router loss terms were computed. "
                             f"Checked {blocks_checked} blocks, registered {len(hooks)} hooks. "
-                            f"Please verify: "
-                            f"1. The checkpoint is from a MoE model (not dense), "
-                            f"2. The model config has num_experts > 1, "
-                            f"3. The model blocks have MoE layers with router modules."
+                            f"Please verify that the model contains MoE router modules."
                         )
                 else:
                     # Standard forward pass without router logits
@@ -594,19 +529,10 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         **model_kwargs,
                     )
 
-                # Compute supervised router loss if expert labels are provided
-                router_loss = None
-                if micro_expert_labels is not None and router_logits is not None:
-                    router_loss = self._compute_router_loss(
-                        router_logits,
-                        micro_expert_labels,
-                        batch_num_tokens_for_loss,
-                    )
-                    if router_loss is not None:
-                        router_batch_loss += get_local_tensor(router_loss.detach())
-                        # CRITICAL: Materialize router_loss to ensure proper storage for backward pass
-                        # This prevents "storage of size 0" errors during backward
-                        router_loss = (router_loss + 0.0).contiguous()
+                # Accumulate supervised router loss if available
+                if router_loss is not None:
+                    router_batch_loss += get_local_tensor(router_loss.detach())
+                    router_loss = (router_loss + 0.0).contiguous()
                 
                 # Combine losses
                 # Critical: loss must always be part of the computation graph (never a leaf tensor)
@@ -616,8 +542,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     if router_loss is None:
                         raise RuntimeError(
                             f"router_loss_only=True but router_loss is None. "
-                            f"expert_labels available: {micro_expert_labels is not None}, "
-                            f"router_logits available: {router_logits is not None}"
+                            f"expert_labels available: {micro_expert_labels is not None}"
                         )
                     # router_loss comes from cross_entropy with router_logits, so it's in the graph
                     # Use multiplication (not in-place) to ensure it stays in graph
