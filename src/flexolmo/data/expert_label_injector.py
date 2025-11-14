@@ -52,8 +52,13 @@ class ExpertLabelDataLoaderWrapper:
         
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over batches and inject expert labels."""
-        for batch in self.data_loader:
+        log.info("ExpertLabelDataLoaderWrapper: Starting iteration, will inject expert labels into batches")
+        for batch_idx, batch in enumerate(self.data_loader):
+            if batch_idx == 0:
+                log.info(f"ExpertLabelDataLoaderWrapper: Processing first batch. Batch keys before injection: {list(batch.keys())}")
             batch = self._inject_expert_labels(batch)
+            if batch_idx == 0:
+                log.info(f"ExpertLabelDataLoaderWrapper: After injection. Batch keys: {list(batch.keys())}, Has expert_labels: {'expert_labels' in batch}")
             yield batch
     
     def __len__(self) -> int:
@@ -111,6 +116,17 @@ class ExpertLabelDataLoaderWrapper:
         3. batch metadata fields
         """
         batch_size = batch["input_ids"].shape[0]
+        
+        # Log first batch for debugging
+        if not hasattr(self, '_first_batch_logged'):
+            self._first_batch_logged = True
+            log.info(f"ExpertLabelDataLoaderWrapper._inject_expert_labels: Processing batch with {batch_size} samples")
+            log.info(f"  Batch keys: {list(batch.keys())}")
+            log.info(f"  Has metadata: {'metadata' in batch}")
+            log.info(f"  Has dataset: {self.dataset is not None}")
+            log.info(f"  Has source_mapping: {self._source_mapping is not None}")
+            if self._source_mapping:
+                log.info(f"  Source mapping size: {len(self._source_mapping)}")
         
         # Try to extract domain labels
         domain_labels = None

@@ -84,6 +84,23 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         self.router_loss_weight = router_loss_weight
         self.router_loss_only = router_loss_only
         self.use_domain_labels = use_domain_labels
+        
+        # Log model structure for debugging
+        log.info(f"SupervisedRouterTrainModule initialized")
+        log.info(f"  Model type: {type(self.model)}")
+        log.info(f"  Has blocks: {hasattr(self.model, 'blocks')}")
+        if hasattr(self.model, 'blocks'):
+            try:
+                blocks_list = list(self.model.blocks) if hasattr(self.model.blocks, '__iter__') else []
+                log.info(f"  Number of blocks: {len(blocks_list)}")
+                if len(blocks_list) > 0:
+                    first_block = blocks_list[0]
+                    log.info(f"  First block type: {type(first_block)}")
+                    block_attrs = [attr for attr in dir(first_block) if not attr.startswith('_')]
+                    moe_related = [attr for attr in block_attrs if 'moe' in attr.lower() or 'expert' in attr.lower() or 'router' in attr.lower() or 'feed_forward' in attr.lower()]
+                    log.info(f"  First block MoE-related attributes: {moe_related}")
+            except Exception as e:
+                log.warning(f"  Could not inspect model blocks: {e}")
 
     def _extract_expert_labels_from_batch(self, batch: Dict[str, Any], batch_size: int) -> Optional[torch.Tensor]:
         """
@@ -166,6 +183,20 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         self.model.train()
 
         batch_size = batch["input_ids"].shape[0]
+        
+        # Log batch structure on first call (for debugging)
+        if not hasattr(self, '_first_batch_logged'):
+            self._first_batch_logged = True
+            log.info(f"SupervisedRouterTrainModule.train_batch: First batch received")
+            log.info(f"  Batch keys: {list(batch.keys())}")
+            log.info(f"  Batch size: {batch_size}")
+            log.info(f"  Has expert_labels: {'expert_labels' in batch}")
+            log.info(f"  Has metadata: {'metadata' in batch}")
+            if 'metadata' in batch:
+                metadata = batch['metadata']
+                log.info(f"  Metadata type: {type(metadata)}, length: {len(metadata) if isinstance(metadata, (list, tuple)) else 'N/A'}")
+                if isinstance(metadata, (list, tuple)) and len(metadata) > 0:
+                    log.info(f"  First metadata entry: {metadata[0]}")
         
         # Extract expert labels if present
         expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
@@ -268,16 +299,59 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     
                     # Register hooks on all router modules
                     hooks = []
-                    for block in self.model.blocks:
+                    blocks_checked = 0
+                    for i, block in enumerate(self.model.blocks):
+                        blocks_checked += 1
+                        # Try multiple ways to find the MoE router
+                        router = None
+                        
+                        # Method 1: feed_forward_moe.router (standard OLMoE structure)
                         if hasattr(block, "feed_forward_moe"):
                             feed_forward_moe = getattr(block, "feed_forward_moe")
-                            if hasattr(feed_forward_moe, "router"):
+                            if feed_forward_moe is not None and hasattr(feed_forward_moe, "router"):
                                 router = getattr(feed_forward_moe, "router")
-                                hook = router.register_forward_hook(router_hook)  # type: ignore
-                                hooks.append(hook)
+                        
+                        # Method 2: block_sparse_moe.router (alternative structure)
+                        if router is None and hasattr(block, "block_sparse_moe"):
+                            block_sparse_moe = getattr(block, "block_sparse_moe")
+                            if block_sparse_moe is not None and hasattr(block_sparse_moe, "router"):
+                                router = getattr(block_sparse_moe, "router")
+                        
+                        # Method 3: moe.router (another alternative)
+                        if router is None and hasattr(block, "moe"):
+                            moe = getattr(block, "moe")
+                            if moe is not None and hasattr(moe, "router"):
+                                router = getattr(moe, "router")
+                        
+                        # Method 4: feed_forward.router (if feed_forward is MoE)
+                        if router is None and hasattr(block, "feed_forward"):
+                            feed_forward = getattr(block, "feed_forward")
+                            if feed_forward is not None and hasattr(feed_forward, "router"):
+                                router = getattr(feed_forward, "router")
+                        
+                        if router is not None:
+                            hook = router.register_forward_hook(router_hook)  # type: ignore
+                            hooks.append(hook)
                     
                     if len(hooks) == 0:
-                        log.warning("No router modules found in model blocks. Cannot capture router logits.")
+                        # Log detailed debugging info
+                        log.error(
+                            f"No router modules found in model blocks after checking {blocks_checked} blocks. "
+                            f"Model type: {type(self.model)}, "
+                            f"Has blocks: {hasattr(self.model, 'blocks')}, "
+                            f"Number of blocks: {len(self.model.blocks) if hasattr(self.model, 'blocks') else 'N/A'}"
+                        )
+                        # Log attributes of first block for debugging
+                        if hasattr(self.model, 'blocks'):
+                            blocks_list = list(self.model.blocks) if hasattr(self.model.blocks, '__iter__') else []
+                            if len(blocks_list) > 0:
+                                first_block = blocks_list[0]
+                                block_attrs = [attr for attr in dir(first_block) if not attr.startswith('_')]
+                                moe_related = [attr for attr in block_attrs if 'moe' in attr.lower() or 'expert' in attr.lower() or 'router' in attr.lower()]
+                                log.error(f"First block attributes (MoE-related): {moe_related}")
+                                log.error(f"First block type: {type(first_block)}")
+                    else:
+                        log.debug(f"Registered {len(hooks)} router hooks on {blocks_checked} blocks")
                     
                     # Forward pass
                     output_dict, ce_loss, z_loss = self.model_forward(
@@ -298,8 +372,18 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     # Stack router logits from all layers
                     if router_logits_list:
                         router_logits = torch.stack(router_logits_list, dim=0)  # (num_layers, batch*seq_len, num_experts)
+                        log.debug(f"Captured router logits from {len(router_logits_list)} layers, shape: {router_logits.shape}")
                     elif self.router_loss_only:
-                        log.warning("router_loss_only=True but no router logits captured. Check if model has MoE layers.")
+                        # This is a critical error - we can't train router without router logits
+                        raise RuntimeError(
+                            f"router_loss_only=True but no router logits captured. "
+                            f"This likely means the model is not a MoE model or the router modules weren't found. "
+                            f"Checked {blocks_checked} blocks, registered {len(hooks)} hooks. "
+                            f"Please verify: "
+                            f"1. The checkpoint is from a MoE model (not dense), "
+                            f"2. The model config has num_experts > 1, "
+                            f"3. The model blocks have MoE layers with router modules."
+                        )
                 else:
                     # Standard forward pass without router logits
                     output_dict, ce_loss, z_loss = self.model_forward(
