@@ -295,7 +295,20 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     def router_hook(module, input, output):
                         # The router forward returns: (logits, scores, expert_weights, expert_indices, batch_size_per_expert)
                         if isinstance(output, tuple) and len(output) >= 1:
-                            router_logits_list.append(output[0])  # Extract logits
+                            logits = output[0]
+                            # Ensure logits are a tensor and part of computation graph
+                            if isinstance(logits, torch.Tensor):
+                                # Clone to ensure we have a proper tensor (not a view that might break)
+                                # But keep it in the computation graph
+                                if logits.requires_grad:
+                                    router_logits_list.append(logits)
+                                else:
+                                    # If logits don't require grad, we still need them for loss computation
+                                    # but we should log a warning
+                                    log.warning(f"Router logits from {module} don't require grad, but capturing anyway")
+                                    router_logits_list.append(logits)
+                            else:
+                                log.warning(f"Router output[0] is not a tensor: {type(logits)}")
                     
                     # Register hooks on all router modules
                     # Handle FSDP-wrapped models - need to access the underlying module
@@ -430,9 +443,43 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     
                     # Stack router logits from all layers
                     if router_logits_list:
-                        router_logits = torch.stack(router_logits_list, dim=0)  # (num_layers, batch*seq_len, num_experts)
-                        log.debug(f"Captured router logits from {len(router_logits_list)} layers, shape: {router_logits.shape}")
-                    elif self.router_loss_only:
+                        # Validate router logits before stacking
+                        valid_logits = []
+                        for i, logits in enumerate(router_logits_list):
+                            if logits is None:
+                                log.warning(f"Router logits from layer {i} are None, skipping")
+                                continue
+                            if not isinstance(logits, torch.Tensor):
+                                log.warning(f"Router logits from layer {i} are not a tensor (type: {type(logits)}), skipping")
+                                continue
+                            if logits.numel() == 0:
+                                log.warning(f"Router logits from layer {i} are empty, skipping")
+                                continue
+                            # Ensure logits are part of computation graph (not detached)
+                            if not logits.requires_grad:
+                                log.warning(f"Router logits from layer {i} don't require grad, but continuing anyway")
+                            valid_logits.append(logits)
+                        
+                        if not valid_logits:
+                            log.error("No valid router logits captured after validation")
+                            router_logits = None
+                        else:
+                            try:
+                                # Log shapes before stacking
+                                log.info(f"Stacking {len(valid_logits)} router logits with shapes: {[l.shape for l in valid_logits]}")
+                                router_logits = torch.stack(valid_logits, dim=0)  # (num_layers, batch*seq_len, num_experts)
+                                log.info(f"Stacked router logits shape: {router_logits.shape}, dtype: {router_logits.dtype}, device: {router_logits.device}")
+                                log.info(f"Router logits requires_grad: {router_logits.requires_grad}, is_leaf: {router_logits.is_leaf}")
+                            except Exception as e:
+                                log.error(f"Error stacking router logits: {e}")
+                                log.error(f"Router logits shapes: {[l.shape for l in valid_logits]}")
+                                log.error(f"Router logits dtypes: {[l.dtype for l in valid_logits]}")
+                                log.error(f"Router logits devices: {[l.device for l in valid_logits]}")
+                                router_logits = None
+                    else:
+                        router_logits = None
+                    
+                    if router_logits is None and self.router_loss_only:
                         # This is a critical error - we can't train router without router logits
                         raise RuntimeError(
                             f"router_loss_only=True but no router logits captured. "
