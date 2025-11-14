@@ -2,7 +2,7 @@ from typing import Dict
 
 from oe_eval.tasks.oe_eval_tasks import TASK_REGISTRY
 
-from . import (
+from .tasks import (
     squad,
     squad2,
 )
