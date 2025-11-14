@@ -6,9 +6,9 @@
 # Configuration
 MODELS=(
     # need: general model, pretrained model (hf versions)
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-hf"
-    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf"
+    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-hf"
+    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
+    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf"
 )
 BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
 # BASE_OUTPUT_DIR="s3://ai2-llm/jacobm/flexolmo/results"
