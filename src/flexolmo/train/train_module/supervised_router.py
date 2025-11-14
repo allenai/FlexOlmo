@@ -169,6 +169,25 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         
         # Extract expert labels if present
         expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
+        
+        # If router_loss_only=True, we MUST have expert labels
+        # If not found, use default general expert labels as fallback
+        if expert_labels is None:
+            if self.router_loss_only:
+                log.warning(
+                    f"router_loss_only=True but expert_labels not found in batch. "
+                    f"Batch keys: {list(batch.keys())}. "
+                    f"Using default general expert labels as fallback."
+                )
+                # Use general expert (Expert 1: [0, 1, 0, 0]) as default
+                from flexolmo.data.expert_label_utils import get_expert_label_tensor
+                expert_labels = torch.stack(
+                    [get_expert_label_tensor("general") for _ in range(batch_size)],
+                    dim=0
+                )
+            else:
+                log.debug("No expert labels found in batch, skipping router loss")
+        
         if expert_labels is not None:
             expert_labels = move_to_device(expert_labels, self.device)
 
@@ -218,10 +237,27 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     start_idx = micro_batch_idx * micro_batch_size
                     end_idx = start_idx + micro_batch_size
                     micro_expert_labels = expert_labels[start_idx:end_idx]
+                
+                # If router_loss_only=True, we must have expert labels (should be set above, but double-check)
+                if self.router_loss_only and micro_expert_labels is None:
+                    log.warning(
+                        f"router_loss_only=True but micro_expert_labels is None for micro_batch {micro_batch_idx}. "
+                        f"This should not happen if expert_labels was set above."
+                    )
+                    # Use default general expert as fallback
+                    from flexolmo.data.expert_label_utils import get_expert_label_tensor
+                    micro_batch_size = input_ids.shape[0]
+                    micro_expert_labels = torch.stack(
+                        [get_expert_label_tensor("general") for _ in range(micro_batch_size)],
+                        dim=0
+                    ).to(self.device)
 
-                # Run forward pass with router logits if we have expert labels
+                # Run forward pass with router logits if we have expert labels OR if router_loss_only
+                # (we need router logits to compute router loss)
                 router_logits = None
-                if micro_expert_labels is not None:
+                should_capture_router_logits = (micro_expert_labels is not None) or self.router_loss_only
+                
+                if should_capture_router_logits:
                     # Store router logits using a forward hook
                     router_logits_list = []
                     
@@ -233,9 +269,15 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     # Register hooks on all router modules
                     hooks = []
                     for block in self.model.blocks:
-                        if hasattr(block, "feed_forward_moe") and hasattr(block.feed_forward_moe, "router"):
-                            hook = block.feed_forward_moe.router.register_forward_hook(router_hook)  # type: ignore
-                            hooks.append(hook)
+                        if hasattr(block, "feed_forward_moe"):
+                            feed_forward_moe = getattr(block, "feed_forward_moe")
+                            if hasattr(feed_forward_moe, "router"):
+                                router = getattr(feed_forward_moe, "router")
+                                hook = router.register_forward_hook(router_hook)  # type: ignore
+                                hooks.append(hook)
+                    
+                    if len(hooks) == 0:
+                        log.warning("No router modules found in model blocks. Cannot capture router logits.")
                     
                     # Forward pass
                     output_dict, ce_loss, z_loss = self.model_forward(
@@ -256,6 +298,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     # Stack router logits from all layers
                     if router_logits_list:
                         router_logits = torch.stack(router_logits_list, dim=0)  # (num_layers, batch*seq_len, num_experts)
+                    elif self.router_loss_only:
+                        log.warning("router_loss_only=True but no router logits captured. Check if model has MoE layers.")
                 else:
                     # Standard forward pass without router logits
                     output_dict, ce_loss, z_loss = self.model_forward(

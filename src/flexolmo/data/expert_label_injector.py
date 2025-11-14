@@ -42,6 +42,14 @@ class ExpertLabelDataLoaderWrapper:
         self.use_domain_labels = use_domain_labels
         self.dataset = dataset
         
+        # Try to get dataset from data_loader if not provided
+        if self.dataset is None and hasattr(data_loader, 'dataset'):
+            self.dataset = data_loader.dataset
+        
+        # Build source mapping from dataset if available (for fallback)
+        self._source_mapping = None
+        self._build_source_mapping()
+        
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over batches and inject expert labels."""
         for batch in self.data_loader:
@@ -55,6 +63,43 @@ class ExpertLabelDataLoaderWrapper:
     def __getattr__(self, name):
         """Delegate all other attributes to the underlying data loader."""
         return getattr(self.data_loader, name)
+    
+    def _build_source_mapping(self):
+        """Build a mapping from instance indices to source names if dataset is available."""
+        if self.dataset is None:
+            return
+        
+        try:
+            # Try to extract source information from SourceMixtureDataset
+            if hasattr(self.dataset, 'sources'):
+                # This is a SourceMixtureDataset - we can map indices to sources
+                source_mapping = {}
+                current_idx = 0
+                for source in self.dataset.sources:
+                    source_name = getattr(source, 'source_name', None)
+                    if source_name is None and hasattr(source, 'source_config'):
+                        source_name = getattr(source.source_config, 'source_name', None)
+                    
+                    if source_name:
+                        # Get the number of instances in this source
+                        if hasattr(source, 'path_tokens'):
+                            num_instances = len(source.path_tokens)
+                        elif hasattr(source, '__len__'):
+                            num_instances = len(source)
+                        else:
+                            num_instances = 0
+                        
+                        # Map all indices for this source
+                        for i in range(num_instances):
+                            source_mapping[current_idx + i] = source_name
+                        current_idx += num_instances
+                
+                if source_mapping:
+                    self._source_mapping = source_mapping
+                    log.debug(f"Built source mapping for {len(source_mapping)} instances")
+        except Exception as e:
+            log.debug(f"Could not build source mapping from dataset: {e}")
+            self._source_mapping = None
     
     def _inject_expert_labels(self, batch: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -124,6 +169,53 @@ class ExpertLabelDataLoaderWrapper:
                 else:
                     domain_labels = None
         
+        # Method 6: Extract from dataset source mapping using instance indices
+        if domain_labels is None and self._source_mapping is not None:
+            # Try to get instance indices from batch
+            if "instance_indices" in batch:
+                instance_indices = batch["instance_indices"]
+                if isinstance(instance_indices, torch.Tensor):
+                    instance_indices = instance_indices.cpu().tolist()
+                elif isinstance(instance_indices, (list, tuple)):
+                    pass
+                else:
+                    instance_indices = None
+                
+                if instance_indices and len(instance_indices) == batch_size:
+                    domain_labels = []
+                    for idx in instance_indices:
+                        source_name = self._source_mapping.get(idx, "general")
+                        domain_labels.append(source_name)
+                    if domain_labels:
+                        log.debug(f"Extracted domain labels from dataset source mapping for {len(domain_labels)} instances")
+        
+        # Method 7: If we have dataset and can query it directly
+        if domain_labels is None and self.dataset is not None:
+            # Try to get source from dataset metadata if available
+            if hasattr(self.dataset, 'metadata') and self.dataset.metadata:
+                # If we can get instance indices, use them to look up metadata
+                if "instance_indices" in batch:
+                    instance_indices = batch["instance_indices"]
+                    if isinstance(instance_indices, torch.Tensor):
+                        instance_indices = instance_indices.cpu().tolist()
+                    
+                    if instance_indices and len(instance_indices) == batch_size:
+                        try:
+                            domain_labels = []
+                            for idx in instance_indices:
+                                if idx < len(self.dataset.metadata):
+                                    meta = self.dataset.metadata[idx]
+                                    if isinstance(meta, dict) and "source_name" in meta:
+                                        domain_labels.append(meta["source_name"])
+                                    else:
+                                        domain_labels.append("general")
+                                else:
+                                    domain_labels.append("general")
+                            if domain_labels:
+                                log.debug(f"Extracted domain labels from dataset.metadata for {len(domain_labels)} instances")
+                        except Exception as e:
+                            log.debug(f"Error extracting from dataset.metadata: {e}")
+        
         # Convert domain labels to expert labels
         if domain_labels and self.use_domain_labels:
             expert_labels_list = []
@@ -139,13 +231,29 @@ class ExpertLabelDataLoaderWrapper:
             batch["domain_labels"] = domain_labels if not isinstance(domain_labels, str) else [domain_labels] * batch_size
         else:
             # Fallback: use general expert if we couldn't extract domain labels
+            # Always set expert_labels (even if use_domain_labels is False) to ensure batches are consistent
             if self.use_domain_labels:
-                log.debug(
-                    f"Could not extract domain labels from batch, using default general expert labels. "
+                # Log warning (not just debug) since this indicates a potential issue
+                log.warning(
+                    f"⚠️ Could not extract domain labels from batch, using default general expert labels. "
                     f"Batch keys: {list(batch.keys())}, "
                     f"Has metadata: {'metadata' in batch}, "
-                    f"Metadata type: {type(batch.get('metadata'))}"
+                    f"Metadata type: {type(batch.get('metadata'))}, "
+                    f"Has dataset: {self.dataset is not None}, "
+                    f"Has source_mapping: {self._source_mapping is not None}"
                 )
+                # If we have instance_indices, log them for debugging
+                if "instance_indices" in batch:
+                    instance_indices = batch["instance_indices"]
+                    if isinstance(instance_indices, torch.Tensor):
+                        instance_indices = instance_indices.cpu().tolist()[:5]  # First 5 for logging
+                    log.warning(f"  Instance indices (first 5): {instance_indices}")
+            else:
+                log.debug(
+                    f"use_domain_labels=False, using default general expert labels. "
+                    f"Batch keys: {list(batch.keys())}"
+                )
+            # Always inject expert_labels to ensure consistency
             batch["expert_labels"] = torch.tensor([[0.0, 1.0, 0.0, 0.0]] * batch_size, dtype=torch.float32)
         
         return batch
