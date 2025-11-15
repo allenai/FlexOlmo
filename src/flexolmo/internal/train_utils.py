@@ -94,9 +94,9 @@ def _train(
             data_loader,
             use_domain_labels=train_module.use_domain_labels,
             dataset=dataset,
-        )  # type: ignore
+        )
     
-    trainer = config.trainer.build(train_module, data_loader)
+    trainer = config.trainer.build(train_module, data_loader)  # type: ignore[arg-type]
 
     # Record the config to W&B/Comet and each checkpoint dir.
     config_dict = config.as_config_dict()
@@ -108,6 +108,36 @@ def _train(
         # Try loading a checkpoint from the save folder, otherwise start from the pretraining checkpoint.
         if not trainer.maybe_load_checkpoint(trainer.save_folder):
             trainer.load_checkpoint(checkpoint, load_trainer_state=False)
+        
+        # CRITICAL FIX: Initialize any parameters that weren't in the checkpoint
+        # This handles cases where the checkpoint uses a different router type
+        # (e.g., standard router vs router with expert_bias)
+        if get_local_rank() == 0:
+            log.info("Checking for uninitialized parameters after checkpoint load...")
+            uninitialized_params = []
+            for name, param in model.named_parameters():
+                try:
+                    if param.device.type == "meta":
+                        uninitialized_params.append(f"{name}: still on meta device")
+                    elif param.numel() > 0:  # Skip empty tensors
+                        storage_size = (
+                            param.untyped_storage().nbytes()
+                            if hasattr(param, "untyped_storage")
+                            else param.storage().nbytes()
+                        )
+                        expected_size = param.numel() * param.element_size()
+                        if storage_size == 0:
+                            uninitialized_params.append(f"{name}: zero storage (expected {expected_size} bytes)")
+                except Exception as e:
+                    uninitialized_params.append(f"{name}: error checking ({e})")
+            
+            if uninitialized_params:
+                log.warning(f"Found {len(uninitialized_params)} uninitialized parameters:")
+                for param_info in uninitialized_params[:10]:  # Show first 10
+                    log.warning(f"  - {param_info}")
+                if len(uninitialized_params) > 10:
+                    log.warning(f"  ... and {len(uninitialized_params) - 10} more")
+                log.warning("These parameters may cause 'storage of size 0' errors during backward pass!")
 
         if get_local_rank() == 0:
             print("Updated config:")

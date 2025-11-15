@@ -208,7 +208,7 @@ class MoERouterWithExpertBias(MoERouter):
             # shape: (num_experts,)
             # NOTE: if we wanted to keep the batch dimension here like for sequence-level load balancing
             # loss, we could use `opts.batched_histc`.
-            batch_size_per_expert = histc(expert_indices, num_experts=self.num_experts)
+            batch_size_per_expert = histc(expert_indices, num_classes=self.num_experts)
             self._accumulate_batch_size_per_expert(batch_size_per_expert)
 
         return logits, scores, expert_weights, expert_indices, batch_size_per_expert
@@ -238,6 +238,11 @@ class MoELinearRouterWithExpertBias(MoERouterWithExpertBias):
     def reset_parameters(self) -> None:
         super().reset_parameters()
         nn.init.trunc_normal_(self.weight, std=0.002, a=-3 * 0.002, b=0)
+        # Initialize expert_bias (from parent class MoERouterWithExpertBias)
+        # This is critical to prevent "storage of size 0" errors when loading checkpoints
+        # that don't contain this parameter
+        if hasattr(self, 'expert_bias'):
+            nn.init.trunc_normal_(self.expert_bias, std=0.002, a=-3 * 0.002, b=0)
 
     def extra_repr(self):
         return f"in_features={self.d_model}, num_experts={self.num_experts}"
