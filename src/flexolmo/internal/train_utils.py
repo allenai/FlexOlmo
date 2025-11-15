@@ -17,7 +17,6 @@ from olmo_core.utils import get_default_device, seed_all
 from flexolmo.internal.common import ExperimentConfig
 from flexolmo.internal.model_utils import *  # noqa
 from flexolmo.train.train_module.supervised_router import SupervisedRouterTrainModule
-from flexolmo.data.wrapped_collator import ExpertLabelCollatorWrapper
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +71,21 @@ def _train(
 
     # Build components.
     model = config.model.build(init_device="meta")
-    train_module = config.train_module.build(model, device=device)
+    
+    # Build dataset first (needed for supervised router training)
+    dataset = config.dataset.build()
+    
+    # Pass dataset to train module if it's supervised router training
+    # This allows the train module to extract expert labels directly from dataset.metadata
+    train_module_kwargs = {}
+    if hasattr(config.train_module, '__dict__'):
+        # Check if this is SupervisedRouterTrainModule
+        config_dict = config.train_module.as_dict(exclude_none=True, recurse=False)
+        if 'router_loss_weight' in config_dict or 'router_loss_only' in config_dict:
+            train_module_kwargs['dataset'] = dataset
+            log.info("Passing dataset to SupervisedRouterTrainModule for direct metadata access")
+    
+    train_module = config.train_module.build(model, device=device, **train_module_kwargs)
 
     if config.model.freeze_params:
         for name, param in model.named_parameters():
@@ -84,40 +97,8 @@ def _train(
             else:
                 log.info(f"Param '{name}' will be trainable")
 
-    dataset = config.dataset.build()
-    
-    # Build data loader
+    # Build data loader (dataset already built above)
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
-    
-    # Wrap the collator for supervised router training
-    # We must wrap the existing collator (not replace) to preserve padding/batching behavior
-    if isinstance(train_module, SupervisedRouterTrainModule) and train_module.use_domain_labels:
-        if hasattr(data_loader, 'collator') and data_loader.collator is not None:
-            log.info(f"Wrapping existing collator for expert label injection: {type(data_loader.collator).__name__}")
-            wrapped_collator = ExpertLabelCollatorWrapper(data_loader.collator)
-            data_loader.collator = wrapped_collator  # type: ignore[assignment]
-            log.info("Successfully wrapped collator with ExpertLabelCollatorWrapper")
-            
-            # CRITICAL: Also check for internal collator references
-            # NumpyFSLDataLoader might store collator under different attributes
-            internal_attrs_wrapped = 0
-            for attr_name in dir(data_loader):
-                if 'collat' in attr_name.lower() and not attr_name.startswith('__'):
-                    if hasattr(data_loader, attr_name):
-                        old_val = getattr(data_loader, attr_name)
-                        if old_val is not None and old_val != wrapped_collator:
-                            try:
-                                setattr(data_loader, attr_name, wrapped_collator)
-                                log.info(f"Wrapped data loader attribute: {attr_name}")
-                                internal_attrs_wrapped += 1
-                            except Exception as e:
-                                log.debug(f"Could not wrap {attr_name}: {e}")
-            
-            if internal_attrs_wrapped > 0:
-                log.info(f"Wrapped {internal_attrs_wrapped} internal collator references")
-        else:
-            log.error("Data loader doesn't have a collator to wrap!")
-            log.error("Metadata/expert labels will use fallback!")
     
     trainer = config.trainer.build(train_module, data_loader)
 

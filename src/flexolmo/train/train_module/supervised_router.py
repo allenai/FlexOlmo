@@ -77,6 +77,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         router_loss_weight: float = 1.0,
         router_loss_only: bool = False,
         use_domain_labels: bool = True,
+        dataset=None,
         *args,
         **kwargs,
     ):
@@ -84,6 +85,21 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         self.router_loss_weight = router_loss_weight
         self.router_loss_only = router_loss_only
         self.use_domain_labels = use_domain_labels
+        self.dataset = dataset
+        
+        # Build instance index to source_name mapping from dataset metadata
+        self._instance_to_source = {}
+        if dataset is not None and hasattr(dataset, 'metadata') and dataset.metadata:
+            log.info(f"Building instance → source_name mapping from dataset metadata ({len(dataset.metadata)} entries)")
+            for idx, metadata in enumerate(dataset.metadata):
+                if isinstance(metadata, dict) and 'source_name' in metadata:
+                    self._instance_to_source[idx] = metadata['source_name']
+            log.info(f"Built mapping for {len(self._instance_to_source)} instances")
+            # Show sample mappings
+            sample_sources = list(set(self._instance_to_source.values()))[:10]
+            log.info(f"Sample sources in mapping: {sample_sources}")
+        else:
+            log.warning("No dataset metadata available - will use fallback expert labels")
         
         # Log model structure for debugging
         log.info(f"SupervisedRouterTrainModule initialized")
@@ -106,19 +122,42 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         """
         Extract expert labels from batch.
         
-        Primary method: batch["expert_labels"] (injected by ExpertLabelDataLoaderWrapper)
-        Fallback: batch["domain_labels"] if use_domain_labels is True
+        Methods (in priority order):
+        1. batch["expert_labels"] - Direct labels
+        2. batch instance_indices + dataset.metadata mapping  ← NEW: Simple lookup!
+        3. batch["domain_labels"] - Fallback
         
         Returns:
             Expert labels tensor of shape (batch_size, 4) or None
         """
-        # Primary method: Direct expert labels in batch (from ExpertLabelDataLoaderWrapper)
+        # Method 1: Direct expert labels in batch
         if "expert_labels" in batch:
             expert_labels = batch["expert_labels"]
             if isinstance(expert_labels, torch.Tensor):
                 return expert_labels.to(self.device)
         
-        # Fallback: Domain labels that we convert to expert labels
+        # Method 2: NEW - Use instance indices to lookup metadata from dataset
+        # This is the SIMPLE approach that bypasses all collator complexity!
+        if self._instance_to_source and "instance_indices" in batch:
+            instance_indices = batch["instance_indices"]
+            if isinstance(instance_indices, torch.Tensor):
+                instance_indices = instance_indices.cpu().tolist()
+            
+            if instance_indices and len(instance_indices) == batch_size:
+                expert_labels_list = []
+                domain_labels = []
+                
+                for idx in instance_indices:
+                    source_name = self._instance_to_source.get(idx, 'general')
+                    expert_label = get_expert_label_tensor(source_name)
+                    expert_labels_list.append(expert_label)
+                    domain_labels.append(source_name)
+                
+                if expert_labels_list:
+                    log.debug(f"Extracted expert labels from instance indices: {domain_labels[:3]}...")
+                    return torch.stack(expert_labels_list, dim=0).to(self.device)
+        
+        # Method 3: Domain labels that we convert to expert labels (fallback)
         if self.use_domain_labels and "domain_labels" in batch:
             domain_labels = batch["domain_labels"]
             if isinstance(domain_labels, (list, tuple)):
@@ -248,6 +287,22 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             log.info(f"  Batch size: {batch_size}")
             log.info(f"  Has expert_labels: {'expert_labels' in batch}")
             log.info(f"  Has metadata: {'metadata' in batch}")
+            log.info(f"  Has instance_indices: {'instance_indices' in batch}")
+            log.info(f"  Have instance_to_source mapping: {len(self._instance_to_source) > 0 if hasattr(self, '_instance_to_source') else False}")
+            
+            if 'instance_indices' in batch:
+                indices = batch['instance_indices']
+                log.info(f"  Instance indices type: {type(indices)}, shape/len: {indices.shape if hasattr(indices, 'shape') else len(indices)}")
+                if isinstance(indices, torch.Tensor):
+                    sample_indices = indices.cpu().tolist()[:3]
+                else:
+                    sample_indices = list(indices)[:3]
+                log.info(f"  First 3 instance indices: {sample_indices}")
+                # Try to look up their sources
+                if hasattr(self, '_instance_to_source') and self._instance_to_source:
+                    sample_sources = [self._instance_to_source.get(idx, 'UNKNOWN') for idx in sample_indices]
+                    log.info(f"  Their sources: {sample_sources}")
+            
             if 'metadata' in batch:
                 metadata = batch['metadata']
                 log.info(f"  Metadata type: {type(metadata)}, length: {len(metadata) if isinstance(metadata, (list, tuple)) else 'N/A'}")
