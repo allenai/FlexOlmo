@@ -16,7 +16,6 @@ from olmo_core.utils import get_default_device, seed_all
 
 from flexolmo.internal.common import ExperimentConfig
 from flexolmo.internal.model_utils import *  # noqa
-from flexolmo.data.collate import collate_with_expert_labels
 from flexolmo.train.train_module.supervised_router import SupervisedRouterTrainModule
 
 log = logging.getLogger(__name__)
@@ -86,24 +85,19 @@ def _train(
 
     dataset = config.dataset.build()
     
-    # Build data loader
+    # Build data loader (collator is set in the config if using supervised router training)
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
     
-    # Use custom collate function for supervised router training
-    # This preserves metadata and injects expert labels during batching
-    if isinstance(train_module, SupervisedRouterTrainModule) and train_module.use_domain_labels:
-        log.info("Using custom collate function to inject expert labels from metadata")
-        # Patch the collator on the data loader (olmo-core uses 'collator' not 'collate_fn')
-        if hasattr(data_loader, 'collator'):
-            data_loader.collator = collate_with_expert_labels
-            log.info("Successfully set custom collator on data loader")
-        elif hasattr(data_loader, 'collate_fn'):
-            data_loader.collate_fn = collate_with_expert_labels
-            log.info("Successfully set custom collate_fn on data loader")
+    # Log collator status for debugging
+    if isinstance(train_module, SupervisedRouterTrainModule):
+        if hasattr(config.data_loader, 'collator') and config.data_loader.collator is not None:  # type: ignore[attr-defined]
+            collator_name = getattr(config.data_loader.collator, '__name__', str(config.data_loader.collator))  # type: ignore[attr-defined]
+            log.info(f"Data loader config has custom collator: {collator_name}")
+        if hasattr(data_loader, 'collator') and data_loader.collator is not None:
+            collator_name = getattr(data_loader.collator, '__name__', str(data_loader.collator))
+            log.info(f"Data loader instance has collator: {collator_name}")
         else:
-            log.error("Data loader doesn't have 'collator' or 'collate_fn' attribute!")
-            log.error(f"Data loader type: {type(data_loader)}")
-            log.error("Metadata will NOT be preserved - expert labels will use fallback!")
+            log.warning("Data loader instance doesn't have collator set - metadata may be dropped!")
     
     trainer = config.trainer.build(train_module, data_loader)
 
