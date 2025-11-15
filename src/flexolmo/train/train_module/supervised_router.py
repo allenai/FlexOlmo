@@ -48,6 +48,8 @@ class SupervisedRouterTrainModuleConfig(TransformerTrainModuleConfig):
         self,
         model: Transformer,
         device: Optional[torch.device] = None,
+        dataset=None,  # Allow dataset to be passed for metadata access
+        **extra_kwargs,
     ) -> "SupervisedRouterTrainModule":
         kwargs = self.as_dict(exclude_none=True, recurse=False)
         if (autocast_precision := kwargs.pop("autocast_precision", None)) is not None:
@@ -59,7 +61,9 @@ class SupervisedRouterTrainModuleConfig(TransformerTrainModuleConfig):
         return SupervisedRouterTrainModule(
             model=model,
             device=device,
+            dataset=dataset,  # Pass dataset for metadata access
             **kwargs,
+            **extra_kwargs,
         )
 
 
