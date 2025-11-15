@@ -6,7 +6,8 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlmo-4x7B-Supervised-RT \
+   --launch.priority=urgent -- PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:\$PYTHONPATH \
+   python /weka/oe-training-default/sanjaya/FlexOlmo/src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlmo-4x7B-Supervised-RT \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --trainer.max_duration.value=100 \
