@@ -10,6 +10,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlMo-4x7B-Supervised-RT \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
+   --dataset.include_instance_metadata=true \
    --trainer.max_duration.value=100 \
    --trainer.max_duration.unit=tokens \
    --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code \
