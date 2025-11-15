@@ -1,15 +1,13 @@
 #!/bin/bash
 # Beaker launch script for supervised router training (adjust values as needed)
 
-export PYTHONPATH="/weka/oe-training-default/sanjaya/FlexOlmo/src:${PYTHONPATH}"
-
+PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:$PYTHONPATH \
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_nodes=1 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent -- \
-   python /weka/oe-training-default/sanjaya/FlexOlmo/src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlMo-4x7B-Supervised-RT \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlMo-4x7B-Supervised-RT \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --trainer.max_duration.value=100 \
