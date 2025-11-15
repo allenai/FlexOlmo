@@ -37,7 +37,7 @@ class ExpertLabelDataLoaderWrapper:
         use_domain_labels: bool = True,
         dataset=None,
         strict_metadata: bool = False,
-        max_missing_metadata_batches: int = 10,
+        max_missing_metadata_batches: int = 1,
     ):
         """
         Args:

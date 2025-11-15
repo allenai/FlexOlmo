@@ -91,6 +91,14 @@ def _ensure_router_metadata(dataset_config) -> None:
 
     add_source_name_metadata(dataset_config, dataset_config.source_mixture_config)
 
+    new_metadata = getattr(dataset_config, "metadata", None)
+    if not new_metadata:
+        raise RuntimeError(
+            "add_source_name_metadata() did not produce per-instance metadata. "
+            "Double-check that your mix file contains per-domain entries and rerun "
+            "the metadata build step described in SUPERVISED_ROUTER_TRAINING_GUIDE.md."
+        )
+
 
 def _train(
     config: ExperimentConfig, *, checkpoint: Optional[str] = None, use_last_lr: bool = False
@@ -144,9 +152,10 @@ def _train(
                 example_meta,
             )
         else:
-            log.warning(
-                "Dataset object does not expose metadata after preparation; "
-                "ExpertLabelDataLoaderWrapper will enforce metadata presence at batch-time."
+            raise RuntimeError(
+                "Supervised router training requires dataset metadata but the constructed dataset "
+                "did not expose it. Ensure that add_source_name_metadata() ran successfully on the "
+                "server (see SUPERVISED_ROUTER_TRAINING_GUIDE.md Step 1/2)."
             )
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
     
