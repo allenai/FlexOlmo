@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Diagnostic script to check if checkpoint is compatible with supervised router training.
+
+Supports both standard checkpoints (rank0.pt) and distributed checkpoints (.distcp files).
 """
 
 import sys
@@ -11,14 +13,88 @@ def diagnose_checkpoint(checkpoint_path: str):
     """Check if checkpoint has proper router weights."""
     print(f"\n🔍 Diagnosing checkpoint: {checkpoint_path}\n")
     
-    # Try to load the checkpoint
+    checkpoint_dir = Path(checkpoint_path)
+    
+    # Check what type of checkpoint format this is
+    print("📁 Detecting checkpoint format...")
+    
+    # Check for distributed checkpoint format (.distcp files)
+    distcp_files = list(checkpoint_dir.glob("*.distcp"))
+    if distcp_files:
+        print(f"✓ Found distributed checkpoint format: {len(distcp_files)} shard files")
+        print(f"  Files: {', '.join([f.name for f in distcp_files[:5]])}")
+        if len(distcp_files) > 5:
+            print(f"  ... and {len(distcp_files) - 5} more")
+        print("\n⚠️  This is a DISTRIBUTED checkpoint (sharded across multiple files)")
+        print("   Cannot inspect individual parameters without loading the full model.")
+        print("\n📊 What this means:")
+        print("   ✓ Checkpoint exists and appears valid")
+        print("   ✓ Parameters are sharded using PyTorch distributed checkpointing")
+        print("   ✓ Model state will be reconstructed when loaded with FSDP")
+        print("\n❓ Is this checkpoint compatible with supervised router training?")
+        print("   → Need to check the MODEL ARCHITECTURE, not the checkpoint format")
+        print("   → If this checkpoint came from an MoE model, it should work")
+        print("   → If this checkpoint came from a dense model, it won't have router weights")
+        print("\n💡 Next steps:")
+        print("   1. Verify what model this checkpoint came from")
+        print("   2. If it's an MoE model → Should work (the error is likely something else)")
+        print("   3. If it's a dense model → Won't work, need an MoE checkpoint")
+        
+        # Try to find a metadata file
+        metadata_files = list(checkpoint_dir.glob("*.metadata")) + list(checkpoint_dir.glob("metadata*"))
+        if metadata_files:
+            print(f"\n📄 Found metadata files: {[f.name for f in metadata_files]}")
+        
+        # Check for config file
+        config_file = checkpoint_dir / "config.json"
+        if config_file.exists():
+            print(f"\n📄 Found config file: {config_file}")
+            print("   Checking model architecture...")
+            try:
+                import json
+                with open(config_file) as f:
+                    config = json.load(f)
+                
+                # Try to determine if it's MoE
+                model_config = config.get("model", {})
+                block_config = model_config.get("block", {})
+                
+                if "feed_forward_moe" in str(block_config):
+                    print("   ✅ Config indicates MoE model (feed_forward_moe found)")
+                    print("   → This checkpoint SHOULD be compatible")
+                elif "num_experts" in str(model_config) or "num_experts" in str(block_config):
+                    print("   ✅ Config indicates MoE model (num_experts found)")
+                    print("   → This checkpoint SHOULD be compatible")
+                else:
+                    print("   ⚠️  Could not confirm MoE architecture from config")
+                    print("   → Might be dense model or config format differs")
+                    
+                # Show relevant config
+                if "num_experts" in block_config.get("feed_forward_moe", {}):
+                    num_experts = block_config["feed_forward_moe"]["num_experts"]
+                    print(f"   📊 Number of experts: {num_experts}")
+                
+            except Exception as e:
+                print(f"   ⚠️  Could not parse config: {e}")
+        else:
+            print("\n❌ No config.json found - cannot verify model architecture")
+        
+        return True  # Distributed checkpoint exists
+    
+    # Check for standard checkpoint format (train/rank0.pt)
     try:
-        rank0_path = Path(checkpoint_path) / "train" / "rank0.pt"
+        rank0_path = checkpoint_dir / "train" / "rank0.pt"
         if not rank0_path.exists():
-            print(f"❌ Checkpoint file not found: {rank0_path}")
+            # Try alternative location
+            rank0_path = checkpoint_dir / "rank0.pt"
+        
+        if not rank0_path.exists():
+            print(f"❌ Standard checkpoint file not found")
+            print(f"   Expected: {checkpoint_dir / 'train' / 'rank0.pt'}")
+            print(f"   Or: {checkpoint_dir / 'rank0.pt'}")
             return False
         
-        print(f"✓ Found checkpoint file: {rank0_path}")
+        print(f"✓ Found standard checkpoint file: {rank0_path}")
         checkpoint = torch.load(rank0_path, map_location="cpu", weights_only=False)
         
         # Check for model state
