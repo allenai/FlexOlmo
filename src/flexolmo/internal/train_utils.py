@@ -94,8 +94,27 @@ def _train(
     if isinstance(train_module, SupervisedRouterTrainModule) and train_module.use_domain_labels:
         if hasattr(data_loader, 'collator') and data_loader.collator is not None:
             log.info(f"Wrapping existing collator for expert label injection: {type(data_loader.collator).__name__}")
-            data_loader.collator = ExpertLabelCollatorWrapper(data_loader.collator)  # type: ignore[assignment]
+            wrapped_collator = ExpertLabelCollatorWrapper(data_loader.collator)
+            data_loader.collator = wrapped_collator  # type: ignore[assignment]
             log.info("Successfully wrapped collator with ExpertLabelCollatorWrapper")
+            
+            # CRITICAL: Also check for internal collator references
+            # NumpyFSLDataLoader might store collator under different attributes
+            internal_attrs_wrapped = 0
+            for attr_name in dir(data_loader):
+                if 'collat' in attr_name.lower() and not attr_name.startswith('__'):
+                    if hasattr(data_loader, attr_name):
+                        old_val = getattr(data_loader, attr_name)
+                        if old_val is not None and old_val != wrapped_collator:
+                            try:
+                                setattr(data_loader, attr_name, wrapped_collator)
+                                log.info(f"Wrapped data loader attribute: {attr_name}")
+                                internal_attrs_wrapped += 1
+                            except Exception as e:
+                                log.debug(f"Could not wrap {attr_name}: {e}")
+            
+            if internal_attrs_wrapped > 0:
+                log.info(f"Wrapped {internal_attrs_wrapped} internal collator references")
         else:
             log.error("Data loader doesn't have a collator to wrap!")
             log.error("Metadata/expert labels will use fallback!")
@@ -116,32 +135,55 @@ def _train(
         # CRITICAL FIX: Initialize any parameters that weren't in the checkpoint
         # This handles cases where the checkpoint uses a different router type
         # (e.g., standard router vs router with expert_bias)
-        if get_local_rank() == 0:
-            log.info("Checking for uninitialized parameters after checkpoint load...")
-            uninitialized_params = []
-            for name, param in model.named_parameters():
-                try:
-                    if param.device.type == "meta":
-                        uninitialized_params.append(f"{name}: still on meta device")
-                    elif param.numel() > 0:  # Skip empty tensors
-                        storage_size = (
-                            param.untyped_storage().nbytes()
-                            if hasattr(param, "untyped_storage")
-                            else param.storage().nbytes()
-                        )
-                        expected_size = param.numel() * param.element_size()
-                        if storage_size == 0:
-                            uninitialized_params.append(f"{name}: zero storage (expected {expected_size} bytes)")
-                except Exception as e:
-                    uninitialized_params.append(f"{name}: error checking ({e})")
-            
-            if uninitialized_params:
-                log.warning(f"Found {len(uninitialized_params)} uninitialized parameters:")
-                for param_info in uninitialized_params[:10]:  # Show first 10
-                    log.warning(f"  - {param_info}")
-                if len(uninitialized_params) > 10:
-                    log.warning(f"  ... and {len(uninitialized_params) - 10} more")
-                log.warning("These parameters may cause 'storage of size 0' errors during backward pass!")
+        log.info("Checking for uninitialized parameters after checkpoint load...")
+        uninitialized_params = []
+        fixed_params = []
+        
+        for name, param in model.named_parameters():
+            try:
+                # Check if parameter is uninitialized
+                needs_init = False
+                if param.device.type == "meta":
+                    uninitialized_params.append(f"{name}: still on meta device")
+                    needs_init = True
+                elif param.numel() > 0:  # Skip empty tensors
+                    storage_size = (
+                        param.untyped_storage().nbytes()
+                        if hasattr(param, "untyped_storage")
+                        else param.storage().nbytes()
+                    )
+                    expected_size = param.numel() * param.element_size()
+                    if storage_size == 0:
+                        uninitialized_params.append(f"{name}: zero storage (expected {expected_size} bytes)")
+                        needs_init = True
+                
+                # Initialize if needed (typically expert_bias or other custom parameters)
+                if needs_init and param.numel() > 0:
+                    # Move to proper device and initialize
+                    with torch.no_grad():
+                        # Create new tensor with proper storage on device
+                        new_param = torch.empty_like(param, device=device)
+                        # Initialize with small random values
+                        torch.nn.init.trunc_normal_(new_param, std=0.002, a=-3 * 0.002, b=0)
+                        # Replace the parameter data
+                        param.data = new_param
+                        fixed_params.append(name)
+                        log.info(f"Initialized parameter: {name} (shape={param.shape}, device={param.device})")
+                        
+            except Exception as e:
+                uninitialized_params.append(f"{name}: error checking/fixing ({e})")
+        
+        if uninitialized_params:
+            log.warning(f"Found {len(uninitialized_params)} uninitialized parameters")
+            for param_info in uninitialized_params[:10]:
+                log.warning(f"  - {param_info}")
+            if len(uninitialized_params) > 10:
+                log.warning(f"  ... and {len(uninitialized_params) - 10} more")
+        
+        if fixed_params:
+            log.info(f"✅ Successfully initialized {len(fixed_params)} missing parameters:")
+            for param_name in fixed_params:
+                log.info(f"  - {param_name}")
 
         if get_local_rank() == 0:
             print("Updated config:")
