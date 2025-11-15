@@ -108,67 +108,28 @@ def _train(
     cast(WandBCallback, trainer.callbacks["wandb"]).config = config_dict
     cast(ConfigSaverCallback, trainer.callbacks["config_saver"]).config = config_dict
 
+    # Load checkpoint if specified (either via parameter or via trainer.load_path in config)
+    checkpoint_loaded = False
     if checkpoint is not None:  # anneal or finetune
         # Try loading a checkpoint from the save folder, otherwise start from the pretraining checkpoint.
         if not trainer.maybe_load_checkpoint(trainer.save_folder):
             trainer.load_checkpoint(checkpoint, load_trainer_state=False)
-        
-        # CRITICAL FIX: Initialize any parameters that weren't in the checkpoint
-        # This handles cases where the checkpoint uses a different router type
-        # (e.g., standard router vs router with expert_bias)
-        log.info("Checking for uninitialized parameters after checkpoint load...")
-        uninitialized_params = []
-        fixed_params = []
-        
-        for name, param in model.named_parameters():
-            try:
-                # Check if parameter is uninitialized
-                needs_init = False
-                if param.device.type == "meta":
-                    uninitialized_params.append(f"{name}: still on meta device")
-                    needs_init = True
-                elif param.numel() > 0:  # Skip empty tensors
-                    storage_size = (
-                        param.untyped_storage().nbytes()
-                        if hasattr(param, "untyped_storage")
-                        else param.storage().nbytes()
-                    )
-                    expected_size = param.numel() * param.element_size()
-                    if storage_size == 0:
-                        uninitialized_params.append(f"{name}: zero storage (expected {expected_size} bytes)")
-                        needs_init = True
-                
-                # Initialize if needed (typically expert_bias or other custom parameters)
-                if needs_init and param.numel() > 0:
-                    # Move to proper device and initialize
-                    with torch.no_grad():
-                        # Create new tensor with proper storage on device
-                        new_param = torch.empty_like(param, device=device)
-                        # Initialize with small random values
-                        torch.nn.init.trunc_normal_(new_param, std=0.002, a=-3 * 0.002, b=0)
-                        # Replace the parameter data
-                        param.data = new_param
-                        fixed_params.append(name)
-                        log.info(f"Initialized parameter: {name} (shape={param.shape}, device={param.device})")
-                        
-            except Exception as e:
-                uninitialized_params.append(f"{name}: error checking/fixing ({e})")
-        
-        if uninitialized_params:
-            log.warning(f"Found {len(uninitialized_params)} uninitialized parameters")
-            for param_info in uninitialized_params[:10]:
-                log.warning(f"  - {param_info}")
-            if len(uninitialized_params) > 10:
-                log.warning(f"  ... and {len(uninitialized_params) - 10} more")
-        
-        if fixed_params:
-            log.info(f"✅ Successfully initialized {len(fixed_params)} missing parameters:")
-            for param_name in fixed_params:
-                log.info(f"  - {param_name}")
+        checkpoint_loaded = True
+    elif hasattr(trainer, 'load_path') and trainer.load_path is not None:
+        # Checkpoint specified via config (e.g., --trainer.load_path=...)
+        # Trainer will load it automatically, but we need to trigger auto-init after
+        checkpoint_loaded = True
+    
+    # NOTE: When using --trainer.load_path, the checkpoint is loaded INSIDE trainer.fit()
+    # So we can't auto-initialize here. The initialization must happen in the model's
+    # reset_parameters() method instead (which we've already fixed in router.py)
+    # Just log that we're aware of the checkpoint
+    if checkpoint_loaded:
+        log.info(f"Will load checkpoint during training (load_path configured)")
 
-        if get_local_rank() == 0:
-            print("Updated config:")
-            print(config)
+    if get_local_rank() == 0 and checkpoint is not None:
+        print("Updated config:")
+        print(config)
 
     # Train.
     trainer.fit()

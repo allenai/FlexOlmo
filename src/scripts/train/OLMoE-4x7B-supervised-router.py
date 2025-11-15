@@ -145,6 +145,9 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     # Add source_name metadata so it appears in batches via batch["metadata"]
     dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
     
+    # Note: include_instance_metadata is already set by add_source_name_metadata()
+    # We rely on instance_indices being available in batches (olmo-core default behavior)
+    
     return dataset_config
 
 
