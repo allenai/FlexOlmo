@@ -47,59 +47,6 @@ def get_last_lr(checkpoint: str) -> float:
     return last_lr
 
 
-def _ensure_router_metadata(dataset_config) -> None:
-    """
-    Make sure the dataset config that feeds supervised router training contains
-    the per-instance metadata required for expert label injection.
-    """
-    from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
-    from flexolmo.data.mixes import get_mixture_dataset_config_by_domain
-
-    metadata = getattr(dataset_config, "metadata", None)
-    include_instance_metadata = getattr(dataset_config, "include_instance_metadata", False)
-
-    if metadata and include_instance_metadata:
-        log.info(
-            "Supervised router training: dataset already has metadata (%s entries)",
-            len(metadata),
-        )
-        return
-
-    log.warning(
-        "Supervised router training requires source metadata, but dataset config is missing it. "
-        "Rebuilding SourceMixtureDatasetConfig and injecting source_name metadata now."
-    )
-
-    mix_base_dir = getattr(dataset_config, "mix_base_dir", None)
-    if dataset_config.source_mixture_config is None:
-        dataset_mix = getattr(dataset_config, "mix", None)
-        if dataset_mix is None:
-            raise RuntimeError(
-                "Router training dataset must define either mix or source_mixture_config "
-                "so we can derive source metadata (see SUPERVISED_ROUTER_TRAINING_GUIDE.md)."
-            )
-        if mix_base_dir is None:
-            raise RuntimeError(
-                "dataset.mix_base_dir must be set to build router metadata. "
-                "Override --dataset.mix_base_dir=<path> when launching training."
-            )
-        dataset_config.source_mixture_config = get_mixture_dataset_config_by_domain(
-            dataset_config,
-            validate_files=True,
-        )
-        dataset_config.mix = None
-
-    add_source_name_metadata(dataset_config, dataset_config.source_mixture_config)
-
-    new_metadata = getattr(dataset_config, "metadata", None)
-    if not new_metadata:
-        raise RuntimeError(
-            "add_source_name_metadata() did not produce per-instance metadata. "
-            "Double-check that your mix file contains per-domain entries and rerun "
-            "the metadata build step described in SUPERVISED_ROUTER_TRAINING_GUIDE.md."
-        )
-
-
 def _train(
     config: ExperimentConfig, *, checkpoint: Optional[str] = None, use_last_lr: bool = False
 ):
@@ -137,26 +84,7 @@ def _train(
             else:
                 log.info(f"Param '{name}' will be trainable")
 
-    if isinstance(train_module, SupervisedRouterTrainModule):
-        _ensure_router_metadata(config.dataset)
-
     dataset = config.dataset.build()
-
-    if isinstance(train_module, SupervisedRouterTrainModule):
-        dataset_metadata = getattr(dataset, "metadata", None)
-        if dataset_metadata:
-            example_meta = dataset_metadata[0] if isinstance(dataset_metadata, list) else dataset_metadata
-            log.info(
-                "Supervised router dataset ready: metadata entries=%s, first entry=%s",
-                len(dataset_metadata) if isinstance(dataset_metadata, list) else "unknown",
-                example_meta,
-            )
-        else:
-            raise RuntimeError(
-                "Supervised router training requires dataset metadata but the constructed dataset "
-                "did not expose it. Ensure that add_source_name_metadata() ran successfully on the "
-                "server (see SUPERVISED_ROUTER_TRAINING_GUIDE.md Step 1/2)."
-            )
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
     
     # Wrap data loader with expert label injection if using supervised router training
@@ -167,11 +95,8 @@ def _train(
             use_domain_labels=train_module.use_domain_labels,
             dataset=dataset,
         )  # type: ignore
-        if hasattr(data_loader, "strict_metadata"):
-            data_loader.strict_metadata = True
-            data_loader.max_missing_metadata_batches = 5
     
-    trainer = config.trainer.build(train_module, data_loader)  # type: ignore[arg-type]
+    trainer = config.trainer.build(train_module, data_loader)
 
     # Record the config to W&B/Comet and each checkpoint dir.
     config_dict = config.as_config_dict()

@@ -31,14 +31,7 @@ class ExpertLabelDataLoaderWrapper:
     - From batch metadata
     """
     
-    def __init__(
-        self,
-        data_loader,
-        use_domain_labels: bool = True,
-        dataset=None,
-        strict_metadata: bool = False,
-        max_missing_metadata_batches: int = 1,
-    ):
+    def __init__(self, data_loader, use_domain_labels: bool = True, dataset=None):
         """
         Args:
             data_loader: The underlying data loader to wrap
@@ -48,9 +41,7 @@ class ExpertLabelDataLoaderWrapper:
         self.data_loader = data_loader
         self.use_domain_labels = use_domain_labels
         self.dataset = dataset
-        self.strict_metadata = strict_metadata
-        self.max_missing_metadata_batches = max_missing_metadata_batches
-        self._missing_metadata_batches = 0
+        self._iterator = None
         
         # Try to get dataset from data_loader if not provided
         if self.dataset is None and hasattr(data_loader, 'dataset'):
@@ -60,23 +51,51 @@ class ExpertLabelDataLoaderWrapper:
         self._source_mapping = None
         self._build_source_mapping()
         
+        log.info(f"ExpertLabelDataLoaderWrapper initialized: use_domain_labels={use_domain_labels}, has_dataset={self.dataset is not None}")
+        
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over batches and inject expert labels."""
         log.info("ExpertLabelDataLoaderWrapper: Starting iteration, will inject expert labels into batches")
+        log.info(f"ExpertLabelDataLoaderWrapper: Dataset has metadata: {hasattr(self.dataset, 'metadata') if self.dataset else 'N/A'}")
+        if self.dataset and hasattr(self.dataset, 'metadata'):
+            log.info(f"ExpertLabelDataLoaderWrapper: Dataset metadata count: {len(self.dataset.metadata)}")
+            if len(self.dataset.metadata) > 0:
+                log.info(f"ExpertLabelDataLoaderWrapper: First metadata entry: {self.dataset.metadata[0]}")
+        
         for batch_idx, batch in enumerate(self.data_loader):
             if batch_idx == 0:
                 log.info(f"ExpertLabelDataLoaderWrapper: Processing first batch. Batch keys before injection: {list(batch.keys())}")
+                log.info(f"ExpertLabelDataLoaderWrapper: Batch type: {type(batch)}")
+                log.info(f"ExpertLabelDataLoaderWrapper: Has 'metadata' key: {'metadata' in batch}")
+                if 'metadata' in batch:
+                    metadata = batch['metadata']
+                    log.info(f"ExpertLabelDataLoaderWrapper: Metadata type: {type(metadata)}, length: {len(metadata) if isinstance(metadata, (list, tuple)) else 'N/A'}")
+                    if isinstance(metadata, (list, tuple)) and len(metadata) > 0:
+                        log.info(f"ExpertLabelDataLoaderWrapper: First metadata entry: {metadata[0]}")
+                        
             batch = self._inject_expert_labels(batch)
+            
             if batch_idx == 0:
                 log.info(f"ExpertLabelDataLoaderWrapper: After injection. Batch keys: {list(batch.keys())}, Has expert_labels: {'expert_labels' in batch}")
+                if 'expert_labels' in batch:
+                    log.info(f"ExpertLabelDataLoaderWrapper: Expert labels shape: {batch['expert_labels'].shape}")
             yield batch
     
     def __len__(self) -> int:
         """Return length of underlying data loader."""
         return len(self.data_loader)
     
+    def __next__(self):
+        """Support direct iteration via next()."""
+        if self._iterator is None:
+            self._iterator = iter(self)
+        return next(self._iterator)
+    
     def __getattr__(self, name):
         """Delegate all other attributes to the underlying data loader."""
+        # Prevent infinite recursion for our own attributes
+        if name in ['data_loader', 'use_domain_labels', 'dataset', '_source_mapping', '_iterator']:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         return getattr(self.data_loader, name)
     
     def _build_source_mapping(self):
@@ -274,14 +293,6 @@ class ExpertLabelDataLoaderWrapper:
                     if isinstance(instance_indices, torch.Tensor):
                         instance_indices = instance_indices.cpu().tolist()[:5]  # First 5 for logging
                     log.warning(f"  Instance indices (first 5): {instance_indices}")
-                self._missing_metadata_batches += 1
-                if self.strict_metadata and self._missing_metadata_batches >= self.max_missing_metadata_batches:
-                    raise RuntimeError(
-                        "ExpertLabelDataLoaderWrapper: failed to extract domain labels from "
-                        f"{self._missing_metadata_batches} consecutive batches. "
-                        "Ensure dataset metadata is built via add_source_name_metadata() "
-                        "as explained in SUPERVISED_ROUTER_TRAINING_GUIDE.md."
-                    )
             else:
                 log.debug(
                     f"use_domain_labels=False, using default general expert labels. "
@@ -293,12 +304,7 @@ class ExpertLabelDataLoaderWrapper:
         return batch
 
 
-def wrap_data_loader_with_expert_labels(
-    data_loader,
-    use_domain_labels: bool = True,
-    dataset=None,
-    strict_metadata: bool = False,
-):
+def wrap_data_loader_with_expert_labels(data_loader, use_domain_labels: bool = True, dataset=None):
     """
     Convenience function to wrap a data loader with expert label injection.
     
@@ -310,10 +316,5 @@ def wrap_data_loader_with_expert_labels(
     Returns:
         ExpertLabelDataLoaderWrapper instance
     """
-    return ExpertLabelDataLoaderWrapper(
-        data_loader,
-        use_domain_labels=use_domain_labels,
-        dataset=dataset,
-        strict_metadata=strict_metadata,
-    )
+    return ExpertLabelDataLoaderWrapper(data_loader, use_domain_labels=use_domain_labels, dataset=dataset)
 

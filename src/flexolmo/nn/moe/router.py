@@ -174,9 +174,6 @@ class MoERouterWithExpertBias(MoERouter):
 
         # shape: (batch_size * seq_len, num_experts)
         logits = self.get_expert_logits(x).view(-1, self.num_experts)
-        # FSDP can return tensors that alias zero-sized sharded storage; clone into a fresh
-        # contiguous buffer so downstream gradients have a valid backing tensor.
-        logits = logits.contiguous().clone()
 
         # from ipdb import set_trace as bp
         # bp()
@@ -211,7 +208,7 @@ class MoERouterWithExpertBias(MoERouter):
             # shape: (num_experts,)
             # NOTE: if we wanted to keep the batch dimension here like for sequence-level load balancing
             # loss, we could use `opts.batched_histc`.
-            batch_size_per_expert = histc(expert_indices, num_classes=self.num_experts)
+            batch_size_per_expert = histc(expert_indices, num_experts=self.num_experts)
             self._accumulate_batch_size_per_expert(batch_size_per_expert)
 
         return logits, scores, expert_weights, expert_indices, batch_size_per_expert

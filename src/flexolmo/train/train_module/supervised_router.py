@@ -341,6 +341,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 router_loss: Optional[torch.Tensor] = None
                 should_capture_router_logits = (micro_expert_labels is not None) or self.router_loss_only
                 
+                # Flag to skip CE/Z loss computation when only training router
+                skip_lm_loss = self.router_loss_only and should_capture_router_logits
+                
                 if should_capture_router_logits:
                     router_loss_terms: List[torch.Tensor] = []
                     
