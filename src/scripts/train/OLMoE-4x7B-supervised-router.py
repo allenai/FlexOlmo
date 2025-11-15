@@ -68,7 +68,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
     return TransformerConfig.olmoe_nx7b(  # type: ignore
         vocab_size=common.tokenizer.padded_vocab_size(),
         num_experts=4,
-        top_k=3,  # Use top_k=3 since expert 3 is masked
+        top_k=4,  # Use all 4 experts
         lb_loss_weight=0,  # Disable load balancing loss (using supervised loss instead)
         z_loss_weight=0.001,
         freeze_params=[

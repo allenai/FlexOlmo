@@ -16,7 +16,7 @@ from olmo_core.utils import get_default_device, seed_all
 
 from flexolmo.internal.common import ExperimentConfig
 from flexolmo.internal.model_utils import *  # noqa
-from flexolmo.data.expert_label_injector import wrap_data_loader_with_expert_labels
+from flexolmo.data.collate import collate_with_expert_labels
 from flexolmo.train.train_module.supervised_router import SupervisedRouterTrainModule
 
 log = logging.getLogger(__name__)
@@ -85,18 +85,23 @@ def _train(
                 log.info(f"Param '{name}' will be trainable")
 
     dataset = config.dataset.build()
+    
+    # Build data loader
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
     
-    # Wrap data loader with expert label injection if using supervised router training
-    if isinstance(train_module, SupervisedRouterTrainModule):
-        log.info("Wrapping data loader with expert label injection for supervised router training")
-        data_loader = wrap_data_loader_with_expert_labels(
-            data_loader,
-            use_domain_labels=train_module.use_domain_labels,
-            dataset=dataset,
-        )
+    # Use custom collate function for supervised router training
+    # This preserves metadata and injects expert labels during batching
+    if isinstance(train_module, SupervisedRouterTrainModule) and train_module.use_domain_labels:
+        log.info("Using custom collate function to inject expert labels from metadata")
+        # Patch the collate_fn on the data loader
+        if hasattr(data_loader, 'collate_fn'):
+            data_loader.collate_fn = collate_with_expert_labels
+            log.info("Successfully set custom collate_fn on data loader")
+        else:
+            log.warning("Data loader doesn't have collate_fn attribute - metadata may not be preserved")
+            log.warning(f"Data loader type: {type(data_loader)}, attributes: {[a for a in dir(data_loader) if not a.startswith('_')]}")
     
-    trainer = config.trainer.build(train_module, data_loader)  # type: ignore[arg-type]
+    trainer = config.trainer.build(train_module, data_loader)
 
     # Record the config to W&B/Comet and each checkpoint dir.
     config_dict = config.as_config_dict()
