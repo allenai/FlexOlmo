@@ -93,13 +93,17 @@ def _train(
     # This preserves metadata and injects expert labels during batching
     if isinstance(train_module, SupervisedRouterTrainModule) and train_module.use_domain_labels:
         log.info("Using custom collate function to inject expert labels from metadata")
-        # Patch the collate_fn on the data loader
-        if hasattr(data_loader, 'collate_fn'):
+        # Patch the collator on the data loader (olmo-core uses 'collator' not 'collate_fn')
+        if hasattr(data_loader, 'collator'):
+            data_loader.collator = collate_with_expert_labels
+            log.info("Successfully set custom collator on data loader")
+        elif hasattr(data_loader, 'collate_fn'):
             data_loader.collate_fn = collate_with_expert_labels
             log.info("Successfully set custom collate_fn on data loader")
         else:
-            log.warning("Data loader doesn't have collate_fn attribute - metadata may not be preserved")
-            log.warning(f"Data loader type: {type(data_loader)}, attributes: {[a for a in dir(data_loader) if not a.startswith('_')]}")
+            log.error("Data loader doesn't have 'collator' or 'collate_fn' attribute!")
+            log.error(f"Data loader type: {type(data_loader)}")
+            log.error("Metadata will NOT be preserved - expert labels will use fallback!")
     
     trainer = config.trainer.build(train_module, data_loader)
 
