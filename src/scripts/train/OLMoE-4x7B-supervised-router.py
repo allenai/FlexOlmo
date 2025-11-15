@@ -57,8 +57,6 @@ from flexolmo.internal.train_utils import train
 from flexolmo.train.train_module.supervised_router import (
     SupervisedRouterTrainModuleConfig,
 )
-from flexolmo.data.collate import collate_with_expert_labels
-from olmo_core.data import NumpyDataLoaderConfig
 
 SEQUENCE_LENGTH = 4096
 
@@ -150,14 +148,6 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     return dataset_config
 
 
-def build_data_loader_config(common: CommonComponents) -> NumpyDataLoaderConfig:
-    """Build data loader config with custom collator for supervised router training."""
-    data_loader_config = common.data_loader
-    # Set custom collator to preserve metadata and inject expert labels
-    data_loader_config.collator = collate_with_expert_labels  # type: ignore[attr-defined]
-    return data_loader_config
-
-
 def build_trainer_config(common: CommonComponents) -> TrainerConfig:
     """Build trainer config."""
     trainer_config = common.trainer
@@ -202,7 +192,6 @@ if __name__ == "__main__":
             freeze_embeddings=False,
             model_config_builder=build_model_config,
             dataset_config_builder=build_dataset_config,
-            data_loader_config_builder=build_data_loader_config,
             trainer_config_builder=build_trainer_config,
             train_module_config_builder=build_train_module_config,
         )

@@ -17,6 +17,7 @@ from olmo_core.utils import get_default_device, seed_all
 from flexolmo.internal.common import ExperimentConfig
 from flexolmo.internal.model_utils import *  # noqa
 from flexolmo.train.train_module.supervised_router import SupervisedRouterTrainModule
+from flexolmo.data.wrapped_collator import ExpertLabelCollatorWrapper
 
 log = logging.getLogger(__name__)
 
@@ -85,19 +86,19 @@ def _train(
 
     dataset = config.dataset.build()
     
-    # Build data loader (collator is set in the config if using supervised router training)
+    # Build data loader
     data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
     
-    # Log collator status for debugging
-    if isinstance(train_module, SupervisedRouterTrainModule):
-        if hasattr(config.data_loader, 'collator') and config.data_loader.collator is not None:  # type: ignore[attr-defined]
-            collator_name = getattr(config.data_loader.collator, '__name__', str(config.data_loader.collator))  # type: ignore[attr-defined]
-            log.info(f"Data loader config has custom collator: {collator_name}")
+    # Wrap the collator for supervised router training
+    # We must wrap the existing collator (not replace) to preserve padding/batching behavior
+    if isinstance(train_module, SupervisedRouterTrainModule) and train_module.use_domain_labels:
         if hasattr(data_loader, 'collator') and data_loader.collator is not None:
-            collator_name = getattr(data_loader.collator, '__name__', str(data_loader.collator))
-            log.info(f"Data loader instance has collator: {collator_name}")
+            log.info(f"Wrapping existing collator for expert label injection: {type(data_loader.collator).__name__}")
+            data_loader.collator = ExpertLabelCollatorWrapper(data_loader.collator)  # type: ignore[assignment]
+            log.info("Successfully wrapped collator with ExpertLabelCollatorWrapper")
         else:
-            log.warning("Data loader instance doesn't have collator set - metadata may be dropped!")
+            log.error("Data loader doesn't have a collator to wrap!")
+            log.error("Metadata/expert labels will use fallback!")
     
     trainer = config.trainer.build(train_module, data_loader)
 
