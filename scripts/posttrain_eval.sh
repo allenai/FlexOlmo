@@ -3,9 +3,10 @@
 
 # CKPT=/weka/oe-adapt-default/sanjaya/flexolmo/checkpoints/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr/test-if-rlvr-flex-olmo__1__1754720424_checkpoints/step_350
 # CKPT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-hf
-CKPT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf
+# CKPT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf
 # CKPT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf
-MODEL_NAME=flex_olmo_2x7b_code_base
+CKPT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias/step95250-hf
+MODEL_NAME=flex_olmo_2x7b_code_anneal
 
 python scripts/submit_eval_jobs.py \
     --model_name $MODEL_NAME \

@@ -1,7 +1,8 @@
 MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368
-MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base
-MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
-gantry run --cluster ai2/jupiter -y --budget ai2/oceo --workspace ai2/flex2 \
+# MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base
+# MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
+MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias/step95250
+gantry run --cluster ai2/saturn -y --budget ai2/oceo --workspace ai2/flex2 \
         --install "curl -LsSf https://astral.sh/uv/install.sh | sh && /root/.local/bin/uv sync --all-extras" \
         --weka=oe-adapt-default:/weka/oe-adapt-default \
         --weka=oe-training-default:/weka/oe-training-default \
