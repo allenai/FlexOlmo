@@ -127,45 +127,72 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         Extract expert labels from batch.
         
         Methods (in priority order):
-        1. batch["expert_labels"] - Direct labels
-        2. batch instance_indices + dataset.metadata mapping  ← NEW: Simple lookup!
-        3. batch["domain_labels"] - Fallback
+        1. batch["expert_labels"] - Direct labels (tensor)
+        2. batch["expert_label"] - Per-item labels from dataset wrapper (list of tensors)
+        3. batch["domain_labels"] - Domain names to convert
         
         Returns:
             Expert labels tensor of shape (batch_size, 4) or None
         """
-        # Method 1: Direct expert labels in batch
+        # Method 1: Direct expert labels tensor in batch
         if "expert_labels" in batch:
             expert_labels = batch["expert_labels"]
             if isinstance(expert_labels, torch.Tensor):
                 return expert_labels.to(self.device)
         
-        # Method 2: NEW - Use instance indices to lookup metadata from dataset
-        # This is the SIMPLE approach that bypasses all collator complexity!
-        if self._instance_to_source and "instance_indices" in batch:
-            instance_indices = batch["instance_indices"]
-            if isinstance(instance_indices, torch.Tensor):
-                instance_indices = instance_indices.cpu().tolist()
+        # Method 2: Use 'index' field (DataCollator preserves this!)
+        # This is likely what we should use instead of instance_indices
+        if self._instance_to_source and "index" in batch:
+            index_data = batch["index"]
+            if isinstance(index_data, torch.Tensor):
+                indices = index_data.cpu().tolist()
+            elif isinstance(index_data, (list, tuple)):
+                indices = list(index_data)
+            else:
+                indices = None
             
-            if instance_indices and len(instance_indices) == batch_size:
+            if indices and len(indices) == batch_size:
                 expert_labels_list = []
                 domain_labels = []
                 
-                for idx in instance_indices:
+                for idx in indices:
                     source_name = self._instance_to_source.get(idx, 'general')
                     expert_label = get_expert_label_tensor(source_name)
                     expert_labels_list.append(expert_label)
                     domain_labels.append(source_name)
                 
                 if expert_labels_list:
-                    log.debug(f"Extracted expert labels from instance indices: {domain_labels[:3]}...")
+                    log.info(f"✅ Extracted expert labels from batch['index']: {domain_labels[:3]}...")
                     return torch.stack(expert_labels_list, dim=0).to(self.device)
+        
+        # Method 3: Per-item expert labels from dataset wrapper (if collator preserves it)
+        # When DatasetWithExpertLabels is used, each item has 'expert_label'
+        if "expert_label" in batch:
+            expert_label_data = batch["expert_label"]
+            # Could be a stacked tensor or a list of tensors
+            if isinstance(expert_label_data, torch.Tensor):
+                if expert_label_data.shape[0] == batch_size:
+                    log.info(f"✅ Extracted expert labels from batch['expert_label'] (tensor)")
+                    return expert_label_data.to(self.device)
+            elif isinstance(expert_label_data, (list, tuple)):
+                if len(expert_label_data) == batch_size:
+                    expert_labels = torch.stack(expert_label_data, dim=0)
+                    log.info(f"✅ Extracted expert labels from batch['expert_label'] (list)")
+                    return expert_labels.to(self.device)
         
         # Method 3: Domain labels that we convert to expert labels (fallback)
         if self.use_domain_labels and "domain_labels" in batch:
             domain_labels = batch["domain_labels"]
             if isinstance(domain_labels, (list, tuple)):
                 expert_labels_list = [get_expert_label_tensor(str(d)) for d in domain_labels]
+                return torch.stack(expert_labels_list, dim=0).to(self.device)
+        
+        # Method 4: Domain label (singular) from dataset wrapper
+        if "domain_label" in batch:
+            domain_label_data = batch["domain_label"]
+            if isinstance(domain_label_data, (list, tuple)) and len(domain_label_data) == batch_size:
+                expert_labels_list = [get_expert_label_tensor(str(d)) for d in domain_label_data]
+                log.debug(f"Extracted expert labels from batch['domain_label']")
                 return torch.stack(expert_labels_list, dim=0).to(self.device)
         
         return None
@@ -188,89 +215,34 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         Returns:
             Router loss (scalar tensor)
         """
-        # Handle different router_logits shapes
-        # CRITICAL: Ensure router_logits is fully materialized before any operations
-        # FSDP may return tensors with storage issues that cause problems during backward
+        # Handle different router_logits shapes - SIMPLIFIED (no aggressive materialization)
         if isinstance(router_logits, DTensor):
             router_logits = get_full_tensor(router_logits)
         
-        # Debug storage characteristics to diagnose zero-storage gradients
-        try:
-            storage_size = (
-                router_logits.untyped_storage().nbytes()
-                if hasattr(router_logits, "untyped_storage")
-                else router_logits.storage().nbytes()
-            )
-        except Exception:
-            storage_size = None
-        log.debug(
-            "Router logits storage info: shape=%s, dtype=%s, storage_bytes=%s, stride=%s, req_grad=%s, is_leaf=%s",
-            tuple(router_logits.shape),
-            router_logits.dtype,
-            storage_size,
-            tuple(router_logits.stride()),
-            router_logits.requires_grad,
-            router_logits.is_leaf,
-        )
-        
-        # Force materialization by adding 0 (preserves gradients, forces storage allocation)
-        router_logits = (router_logits + 0.0).contiguous()
-        
         if router_logits.dim() == 3:
             # (num_layers, batch_size * seq_len, num_experts)
-            # Average across layers for simplicity (or sum, depending on preference)
-            # For FSDP, we need to ensure the mean operation creates a properly materialized tensor
-            # Use sum and divide instead of mean to avoid potential view issues
-            router_logits = router_logits.sum(dim=0) / router_logits.shape[0]  # (batch_size * seq_len, num_experts)
-            # Force materialization again after reduction
-            router_logits = (router_logits + 0.0).contiguous()
+            # Average across layers
+            router_logits = router_logits.mean(dim=0)  # (batch_size * seq_len, num_experts)
         elif router_logits.dim() != 2:
             raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
         
         batch_size = expert_labels.shape[0]
         seq_len = router_logits.shape[0] // batch_size
         
-        # Ensure expert_labels is on the same device as router_logits and is contiguous
+        # Move expert_labels to same device
         expert_labels = expert_labels.to(router_logits.device)
         
-        # CRITICAL: Materialize expert_labels to ensure proper storage
-        # This prevents storage allocation issues during backward pass
-        expert_labels = (expert_labels + 0.0).contiguous()
-        
-        # Expand expert_labels to match sequence length
+        # Expand expert_labels to match all tokens in sequence
         # expert_labels: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
-        # Use repeat and ensure contiguous to avoid view issues with FSDP
-        expert_labels_expanded = expert_labels.unsqueeze(1).repeat(1, seq_len, 1)  # (batch_size, seq_len, num_experts)
-        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1])  # (batch_size * seq_len, num_experts)
+        expert_labels_expanded = expert_labels.unsqueeze(1).expand(-1, seq_len, -1)  # Use expand (not repeat)
+        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1])
         
-        # CRITICAL: Materialize expanded labels to ensure proper storage
-        expert_labels_expanded = (expert_labels_expanded + 0.0).contiguous()
-
-        # ---- Defensive casting / cloning (storage safety) --------------------
-        # We have occasionally observed obscure \"setStorage: ... storage of size 0\" runtime
-        # errors during backward when the input to `F.cross_entropy` is a bf16 tensor coming
-        # from FSDP-sharded views.  Empirically, cloning the logits onto a fresh Float32
-        # storage eliminates the issue while having negligible memory impact (the tensor is
-        # immediately reduced to a scalar loss).  We therefore clone/cast the logits right
-        # before the loss computation.
-        router_logits_safe = router_logits.to(torch.float32).clone()
+        # Convert one-hot to class indices
+        expert_indices = expert_labels_expanded.argmax(dim=-1).long()  # (batch_size * seq_len,)
         
-        # ----------------------------------------------------------------------
-        # Compute cross-entropy loss
-        # router_logits: (batch_size * seq_len, num_experts)
-        # expert_labels_expanded: (batch_size * seq_len, num_experts)
-        # Convert one-hot to class indices for cross_entropy
-        expert_indices = expert_labels_expanded.argmax(dim=-1)  # (batch_size * seq_len,)
-        
-        # Ensure expert_indices is contiguous and on the same device as router_logits_safe
-        expert_indices = expert_indices.to(router_logits_safe.device).contiguous()
-        
-        # For FSDP compatibility, clone expert_indices to ensure proper storage
-        # This is safe since expert_indices are target labels and don't need gradients
-        expert_indices = expert_indices.clone().detach().long()
-        
+        # Compute cross-entropy loss - NO cloning, keep in computation graph
         router_loss = F.cross_entropy(
-            router_logits_safe,
+            router_logits,  # Use original logits, not cloned
             expert_indices,
             reduction="sum",
         ) / num_tokens
@@ -290,28 +262,29 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             log.info(f"  Batch keys: {list(batch.keys())}")
             log.info(f"  Batch size: {batch_size}")
             log.info(f"  Has expert_labels: {'expert_labels' in batch}")
+            log.info(f"  Has expert_label: {'expert_label' in batch}")
+            log.info(f"  Has domain_label: {'domain_label' in batch}")
             log.info(f"  Has metadata: {'metadata' in batch}")
             log.info(f"  Has instance_indices: {'instance_indices' in batch}")
+            log.info(f"  Has index: {'index' in batch}")  # DataCollator preserves this!
             log.info(f"  Have instance_to_source mapping: {len(self._instance_to_source) > 0 if hasattr(self, '_instance_to_source') else False}")
             
-            if 'instance_indices' in batch:
-                indices = batch['instance_indices']
-                log.info(f"  Instance indices type: {type(indices)}, shape/len: {indices.shape if hasattr(indices, 'shape') else len(indices)}")
-                if isinstance(indices, torch.Tensor):
-                    sample_indices = indices.cpu().tolist()[:3]
-                else:
-                    sample_indices = list(indices)[:3]
-                log.info(f"  First 3 instance indices: {sample_indices}")
-                # Try to look up their sources
-                if hasattr(self, '_instance_to_source') and self._instance_to_source:
-                    sample_sources = [self._instance_to_source.get(idx, 'UNKNOWN') for idx in sample_indices]
-                    log.info(f"  Their sources: {sample_sources}")
+            # Show what expert_label looks like if present
+            if 'expert_label' in batch:
+                expert_label_data = batch['expert_label']
+                log.info(f"  expert_label type: {type(expert_label_data)}, shape/len: {expert_label_data.shape if hasattr(expert_label_data, 'shape') else len(expert_label_data) if hasattr(expert_label_data, '__len__') else 'N/A'}")
+                if isinstance(expert_label_data, torch.Tensor) and len(expert_label_data) > 0:
+                    log.info(f"  First expert_label: {expert_label_data[0]}")
             
-            if 'metadata' in batch:
-                metadata = batch['metadata']
-                log.info(f"  Metadata type: {type(metadata)}, length: {len(metadata) if isinstance(metadata, (list, tuple)) else 'N/A'}")
-                if isinstance(metadata, (list, tuple)) and len(metadata) > 0:
-                    log.info(f"  First metadata entry: {metadata[0]}")
+            if 'index' in batch:
+                index_data = batch['index']
+                log.info(f"  Index type: {type(index_data)}, shape/len: {index_data.shape if hasattr(index_data, 'shape') else len(index_data) if hasattr(index_data, '__len__') else 'N/A'}")
+                if isinstance(index_data, torch.Tensor) and len(index_data) > 0:
+                    sample_indices = index_data.cpu().tolist()[:3]
+                    log.info(f"  First 3 indices: {sample_indices}")
+                    if hasattr(self, '_instance_to_source') and self._instance_to_source:
+                        sample_sources = [self._instance_to_source.get(idx, 'UNKNOWN') for idx in sample_indices]
+                        log.info(f"  Their sources: {sample_sources}")
         
         # Extract expert labels if present
         expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
@@ -591,14 +564,11 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         **model_kwargs,
                     )
 
-                # Accumulate supervised router loss if available
+                # Accumulate supervised router loss if available (for logging)
                 if router_loss is not None:
                     router_batch_loss += get_local_tensor(router_loss.detach())
-                    router_loss = (router_loss + 0.0).contiguous()
                 
-                # Combine losses
-                # Critical: loss must always be part of the computation graph (never a leaf tensor)
-                # This is essential for torch.compile to work correctly during backward pass
+                # Combine losses - KEEP IN COMPUTATION GRAPH (no .contiguous()!)
                 if self.router_loss_only:
                     # Router-only training: must have router_loss
                     if router_loss is None:
@@ -606,13 +576,10 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             f"router_loss_only=True but router_loss is None. "
                             f"expert_labels available: {micro_expert_labels is not None}"
                         )
-                    # router_loss comes from cross_entropy with router_logits, so it's in the graph
-                    # Use multiplication (not in-place) to ensure it stays in graph
+                    # Use router loss directly (already in computation graph from F.cross_entropy)
                     loss = router_loss * self.router_loss_weight
-                    # Ensure final loss is materialized
-                    loss = (loss + 0.0).contiguous()
                 else:
-                    # Standard training: start with CE loss (always in graph)
+                    # Standard training: start with CE loss
                     loss = ce_loss
                     if z_loss is not None:
                         loss = loss + z_loss
