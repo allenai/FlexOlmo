@@ -121,6 +121,31 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     log.info(f"  First block MoE-related attributes: {moe_related}")
             except Exception as e:
                 log.warning(f"  Could not inspect model blocks: {e}")
+    
+    def _prepare_batch(self, batch: Dict[str, Any]):
+        """
+        Override parent's _prepare_batch to preserve metadata and index fields.
+        
+        The parent's _prepare_inputs() strips all fields except input_ids, labels, etc.
+        We need to preserve metadata/index so we can extract expert labels.
+        """
+        # Preserve metadata and index BEFORE calling parent
+        preserved_metadata = batch.get('metadata')
+        preserved_index = batch.get('index')
+        preserved_expert_labels = batch.get('expert_labels')
+        
+        # Call parent to get standard preprocessing
+        input_ids, labels, model_kwargs = super()._prepare_batch(batch)
+        
+        # Add preserved fields back to model_kwargs
+        if preserved_metadata is not None:
+            model_kwargs['metadata'] = preserved_metadata
+        if preserved_index is not None:
+            model_kwargs['index'] = preserved_index
+        if preserved_expert_labels is not None:
+            model_kwargs['expert_labels'] = preserved_expert_labels
+        
+        return input_ids, labels, model_kwargs
 
     def _extract_expert_labels_from_batch(self, batch: Dict[str, Any], batch_size: int) -> Optional[torch.Tensor]:
         """

@@ -80,7 +80,27 @@ def _train(
     train_module_kwargs = {}
     if hasattr(config.train_module, '__dict__'):
         config_dict = config.train_module.as_dict(exclude_none=True, recurse=False)
+        log.info(f"Checking train_module config for supervised router...")
+        log.info(f"  Config type: {type(config.train_module).__name__}")
+        log.info(f"  Has router_loss_weight: {'router_loss_weight' in config_dict}")
+        log.info(f"  Has router_loss_only: {'router_loss_only' in config_dict}")
+        log.info(f"  Config keys: {list(config_dict.keys())[:10]}")
+        
         if 'router_loss_weight' in config_dict or 'router_loss_only' in config_dict:
+            # CRITICAL: Patch dataset to include 'index' in items
+            # DataCollator can only preserve 'index' if items actually have it!
+            import types
+            original_getitem = dataset.__getitem__
+            
+            def getitem_with_index(self, idx):
+                item = original_getitem(idx)
+                if isinstance(item, dict):
+                    item['index'] = idx  # Add index field!
+                return item
+            
+            dataset.__getitem__ = types.MethodType(getitem_with_index, dataset)
+            log.info("✅ Patched dataset.__getitem__() to include 'index' field in items")
+            
             train_module_kwargs['dataset'] = dataset
             log.info("Passing dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
     
