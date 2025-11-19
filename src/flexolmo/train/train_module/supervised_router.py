@@ -121,8 +121,78 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     log.info(f"  First block MoE-related attributes: {moe_related}")
             except Exception as e:
                 log.warning(f"  Could not inspect model blocks: {e}")
+        
+        # CRITICAL: Patch Transformer._prepare_inputs() to preserve metadata/index fields
+        # The default _prepare_inputs() strips all fields except input_ids, attention_mask, etc.
+        # We need to preserve metadata/index/expert_labels so they're available throughout the forward pass
+        self._patch_transformer_prepare_inputs()
     
-    def _prepare_batch(self, batch: Dict[str, Any]):
+    def _patch_transformer_prepare_inputs(self):
+        """
+        Patch Transformer._prepare_inputs() to preserve metadata/index/expert_labels fields.
+        
+        This method wraps the original _prepare_inputs() to preserve fields that are needed
+        for supervised router training but would otherwise be stripped by the default implementation.
+        """
+        # Get the actual model (unwrap if FSDP wrapped)
+        model_to_patch = self.model
+        if hasattr(self.model, '_fsdp_wrapped_module'):
+            model_to_patch = self.model._fsdp_wrapped_module
+        elif hasattr(self.model, 'module'):
+            model_to_patch = self.model.module
+        elif hasattr(self.model, '_orig_mod'):
+            model_to_patch = self.model._orig_mod
+        
+        # Check if _prepare_inputs exists (it should for Transformer models)
+        if not hasattr(model_to_patch, '_prepare_inputs'):
+            log.warning(
+                f"Model {type(model_to_patch).__name__} does not have _prepare_inputs method. "
+                f"Cannot patch to preserve metadata/index fields."
+            )
+            return
+        
+        # Save the original method
+        original_prepare_inputs = model_to_patch._prepare_inputs  # type: ignore[attr-defined]
+        
+        def patched_prepare_inputs(input_ids, **kwargs):  # type: ignore[misc]
+            """
+            Wrapped _prepare_inputs that preserves metadata/index/expert_labels.
+            
+            The original _prepare_inputs strips fields, so we preserve them before calling
+            the original, then add them back to the returned kwargs.
+            """
+            # Preserve fields we need before calling original
+            preserved_fields = {}
+            for field in ['metadata', 'index', 'expert_labels']:
+                if field in kwargs:
+                    preserved_fields[field] = kwargs[field]
+            
+            # Call original _prepare_inputs (it will strip our fields)
+            result = original_prepare_inputs(input_ids, **kwargs)  # type: ignore[misc]
+            
+            # Handle different return types - could be dict or tuple
+            if isinstance(result, dict):
+                # If it's a dict, add preserved fields back
+                result.update(preserved_fields)
+                return result
+            elif isinstance(result, (tuple, list)):
+                # If it's a tuple/list, assume last element is kwargs dict
+                # This is a common pattern in olmo-core
+                if len(result) > 0 and isinstance(result[-1], dict):
+                    result_list = list(result)
+                    result_list[-1].update(preserved_fields)  # type: ignore[union-attr]
+                    return tuple(result_list) if isinstance(result, tuple) else result_list
+                return result
+            else:
+                # Unknown return type, return as-is (preserved fields will be lost)
+                log.warning(f"Unexpected return type from _prepare_inputs: {type(result)}")
+                return result
+        
+        # Apply the patch (runtime patching - type checker can't verify this)
+        model_to_patch._prepare_inputs = patched_prepare_inputs  # type: ignore[assignment]
+        log.info("✅ Patched Transformer._prepare_inputs() to preserve metadata/index/expert_labels fields")
+    
+    def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
         """
         Override parent's _prepare_batch to preserve metadata and index fields.
         
@@ -163,7 +233,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if "expert_labels" in batch:
             expert_labels = batch["expert_labels"]
             if isinstance(expert_labels, torch.Tensor):
-                return expert_labels.to(self.device)
+                return expert_labels.to(self.device).contiguous()
         
         # Method 2: Use 'index' field (DataCollator preserves this!)
         # This is likely what we should use instead of instance_indices
@@ -188,7 +258,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 
                 if expert_labels_list:
                     log.info(f"✅ Extracted expert labels from batch['index']: {domain_labels[:3]}...")
-                    return torch.stack(expert_labels_list, dim=0).to(self.device)
+                    return torch.stack(expert_labels_list, dim=0).to(self.device).contiguous()
         
         # Method 3: Per-item expert labels from dataset wrapper (if collator preserves it)
         # When DatasetWithExpertLabels is used, each item has 'expert_label'
@@ -198,19 +268,19 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             if isinstance(expert_label_data, torch.Tensor):
                 if expert_label_data.shape[0] == batch_size:
                     log.info(f"✅ Extracted expert labels from batch['expert_label'] (tensor)")
-                    return expert_label_data.to(self.device)
+                    return expert_label_data.to(self.device).contiguous()
             elif isinstance(expert_label_data, (list, tuple)):
                 if len(expert_label_data) == batch_size:
                     expert_labels = torch.stack(expert_label_data, dim=0)
                     log.info(f"✅ Extracted expert labels from batch['expert_label'] (list)")
-                    return expert_labels.to(self.device)
+                    return expert_labels.to(self.device).contiguous()
         
         # Method 3: Domain labels that we convert to expert labels (fallback)
         if self.use_domain_labels and "domain_labels" in batch:
             domain_labels = batch["domain_labels"]
             if isinstance(domain_labels, (list, tuple)):
                 expert_labels_list = [get_expert_label_tensor(str(d)) for d in domain_labels]
-                return torch.stack(expert_labels_list, dim=0).to(self.device)
+                return torch.stack(expert_labels_list, dim=0).to(self.device).contiguous()
         
         # Method 4: Domain label (singular) from dataset wrapper
         if "domain_label" in batch:
@@ -218,7 +288,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             if isinstance(domain_label_data, (list, tuple)) and len(domain_label_data) == batch_size:
                 expert_labels_list = [get_expert_label_tensor(str(d)) for d in domain_label_data]
                 log.debug(f"Extracted expert labels from batch['domain_label']")
-                return torch.stack(expert_labels_list, dim=0).to(self.device)
+                return torch.stack(expert_labels_list, dim=0).to(self.device).contiguous()
         
         return None
 
@@ -254,13 +324,15 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         batch_size = expert_labels.shape[0]
         seq_len = router_logits.shape[0] // batch_size
         
-        # Move expert_labels to same device
-        expert_labels = expert_labels.to(router_logits.device)
+        # Move expert_labels to same device and ensure it's contiguous
+        expert_labels = expert_labels.to(router_logits.device).contiguous()
         
         # Expand expert_labels to match all tokens in sequence
         # expert_labels: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
-        expert_labels_expanded = expert_labels.unsqueeze(1).expand(-1, seq_len, -1)  # Use expand (not repeat)
-        expert_labels_expanded = expert_labels_expanded.reshape(-1, expert_labels.shape[-1])
+        # Use expand then contiguous() to avoid storage issues with views
+        expert_labels_expanded = expert_labels.unsqueeze(1).expand(-1, seq_len, -1)
+        # Ensure contiguous before reshape to avoid storage size 0 errors
+        expert_labels_expanded = expert_labels_expanded.contiguous().reshape(-1, expert_labels.shape[-1])
         
         # Convert one-hot to class indices
         expert_indices = expert_labels_expanded.argmax(dim=-1).long()  # (batch_size * seq_len,)
@@ -333,6 +405,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         
         if expert_labels is not None:
             expert_labels = move_to_device(expert_labels, self.device)
+            # Ensure expert_labels is contiguous to avoid storage issues
+            if not expert_labels.is_contiguous():
+                expert_labels = expert_labels.contiguous()
 
         # Generate labels for language modeling
         if "labels" not in batch:
@@ -379,7 +454,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     micro_batch_size = input_ids.shape[0]
                     start_idx = micro_batch_idx * micro_batch_size
                     end_idx = start_idx + micro_batch_size
-                    micro_expert_labels = expert_labels[start_idx:end_idx]
+                    micro_expert_labels = expert_labels[start_idx:end_idx].contiguous()
                 
                 # If router_loss_only=True, we must have expert labels (should be set above, but double-check)
                 if self.router_loss_only and micro_expert_labels is None:
