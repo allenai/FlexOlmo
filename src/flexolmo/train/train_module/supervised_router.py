@@ -6,7 +6,6 @@ are provided and used to train the router via cross-entropy loss on router logit
 """
 
 import logging
-import types
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, cast
 
@@ -123,86 +122,19 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             except Exception as e:
                 log.warning(f"  Could not inspect model blocks: {e}")
         
-        # CRITICAL: Patch Transformer._prepare_inputs() to preserve metadata/index fields
-        # The default _prepare_inputs() strips all fields except input_ids, attention_mask, etc.
-        # We need to preserve metadata/index/expert_labels so they're available throughout the forward pass
-        self._patch_transformer_prepare_inputs()
-    
-    def _patch_transformer_prepare_inputs(self):
-        """
-        Patch Transformer._prepare_inputs() to preserve metadata/index/expert_labels fields.
-        
-        This method wraps the original _prepare_inputs() to preserve fields that are needed
-        for supervised router training but would otherwise be stripped by the default implementation.
-        """
-        # Get the actual model (unwrap if FSDP wrapped)
-        model_to_patch = self.model
-        if hasattr(self.model, '_fsdp_wrapped_module'):
-            model_to_patch = self.model._fsdp_wrapped_module
-        elif hasattr(self.model, 'module'):
-            model_to_patch = self.model.module
-        elif hasattr(self.model, '_orig_mod'):
-            model_to_patch = self.model._orig_mod
-        
-        # Check if _prepare_inputs exists (it should for Transformer models)
-        if not hasattr(model_to_patch, '_prepare_inputs'):
-            log.warning(
-                f"Model {type(model_to_patch).__name__} does not have _prepare_inputs method. "
-                f"Cannot patch to preserve metadata/index fields."
-            )
-            return
-        
-        # Save the original method
-        original_prepare_inputs = model_to_patch._prepare_inputs  # type: ignore[attr-defined]
-        
-        def patched_prepare_inputs(self, input_ids, **kwargs):  # type: ignore[misc]
-            """
-            Wrapped _prepare_inputs that preserves metadata/index/expert_labels.
-            
-            The original _prepare_inputs strips fields, so we preserve them before calling
-            the original, then add them back to the returned kwargs.
-            
-            Note: This function takes 'self' as first arg because it replaces an instance method.
-            """
-            # Preserve fields we need before calling original
-            preserved_fields = {}
-            for field in ['metadata', 'index', 'expert_labels']:
-                if field in kwargs:
-                    preserved_fields[field] = kwargs[field]
-            
-            # Call original _prepare_inputs (it will strip our fields)
-            # original_prepare_inputs is already bound to self, so we can call it directly
-            result = original_prepare_inputs(input_ids, **kwargs)  # type: ignore[misc]
-            
-            # Handle different return types - could be dict or tuple
-            if isinstance(result, dict):
-                # If it's a dict, add preserved fields back
-                result.update(preserved_fields)
-                return result
-            elif isinstance(result, (tuple, list)):
-                # If it's a tuple/list, assume last element is kwargs dict
-                # This is a common pattern in olmo-core
-                if len(result) > 0 and isinstance(result[-1], dict):
-                    result_list = list(result)
-                    result_list[-1].update(preserved_fields)  # type: ignore[union-attr]
-                    return tuple(result_list) if isinstance(result, tuple) else result_list
-                return result
-            else:
-                # Unknown return type, return as-is (preserved fields will be lost)
-                log.warning(f"Unexpected return type from _prepare_inputs: {type(result)}")
-                return result
-        
-        # Bind the function to the instance as a method
-        # Apply the patch (runtime patching - type checker can't verify this)
-        model_to_patch._prepare_inputs = types.MethodType(patched_prepare_inputs, model_to_patch)  # type: ignore[assignment]
-        log.info("✅ Patched Transformer._prepare_inputs() to preserve metadata/index/expert_labels fields")
+        # NOTE: olmo-core now preserves metadata/index/expert_labels in _prepare_inputs()
+        # (commit 2484e3943583f4a3a12cde07ee6dea930cb72104)
+        # These fields are extracted from kwargs and added to block_kwargs, making them
+        # available throughout the forward pass for supervised router training.
+        log.info("✅ Using olmo-core version that preserves metadata/index/expert_labels in _prepare_inputs()")
     
     def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
         """
         Override parent's _prepare_batch to preserve metadata and index fields.
         
-        The parent's _prepare_inputs() strips all fields except input_ids, labels, etc.
-        We need to preserve metadata/index so we can extract expert labels.
+        This ensures metadata/index/expert_labels are passed to model_kwargs, which
+        are then preserved by olmo-core's Transformer._prepare_inputs() and made available
+        throughout the forward pass for supervised router training.
         """
         # Preserve metadata and index BEFORE calling parent
         preserved_metadata = batch.get('metadata')
