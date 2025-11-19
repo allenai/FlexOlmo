@@ -106,8 +106,10 @@ def _train(
                         log.info(f"  Dataset.metadata length: {len(self.metadata) if self.metadata else 0}")
                     log.info(f"  idx < len(metadata): {hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata)}")
                 
-                # If item is a tensor, wrap it in a dict
+                # Always create a new dict to ensure index/metadata are added properly
+                # (avoiding in-place modification which might not work with cached/frozen dicts)
                 if isinstance(item, torch.Tensor):
+                    # Item is a tensor - wrap it
                     item_dict = {'input_ids': item, 'index': idx}
                     # Add metadata if available in dataset.metadata
                     if hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
@@ -115,23 +117,19 @@ def _train(
                         if not hasattr(self, '_debug_logged_metadata'):
                             self._debug_logged_metadata = True
                             log.info(f"✅ Added metadata to item: {item_dict['metadata']}")
-                    else:
-                        if not hasattr(self, '_debug_logged_no_metadata'):
-                            self._debug_logged_no_metadata = True
-                            log.warning(f"⚠️  Dataset metadata not available - items will not have metadata field")
                     item = item_dict
                 elif isinstance(item, dict):
-                    item['index'] = idx  # Add index field!
+                    # Item is already a dict - create a new dict with index added
+                    # (don't modify in place in case original is cached/frozen)
+                    item_dict = {**item, 'index': idx}
                     # Ensure metadata is present if available
-                    if 'metadata' not in item and hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
-                        item['metadata'] = self.metadata[idx]
+                    if 'metadata' not in item_dict and hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
+                        item_dict['metadata'] = self.metadata[idx]
+                    item = item_dict
                 else:
-                    # Unknown type - try to add index anyway
-                    log.warning(f"Unknown item type from dataset: {type(item)}, attempting to add index")
-                    if not isinstance(item, dict):
-                        item = {'input_ids': item, 'index': idx}
-                    else:
-                        item['index'] = idx
+                    # Unknown type - wrap in dict
+                    log.warning(f"Unknown item type from dataset: {type(item)}, wrapping in dict")
+                    item = {'input_ids': item, 'index': idx}
                 
                 # Debug what we're returning
                 if not hasattr(self, '_debug_logged_return'):
