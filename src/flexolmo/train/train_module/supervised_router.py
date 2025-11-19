@@ -6,6 +6,7 @@ are provided and used to train the router via cross-entropy loss on router logit
 """
 
 import logging
+import types
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, cast
 
@@ -154,12 +155,14 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         # Save the original method
         original_prepare_inputs = model_to_patch._prepare_inputs  # type: ignore[attr-defined]
         
-        def patched_prepare_inputs(input_ids, **kwargs):  # type: ignore[misc]
+        def patched_prepare_inputs(self, input_ids, **kwargs):  # type: ignore[misc]
             """
             Wrapped _prepare_inputs that preserves metadata/index/expert_labels.
             
             The original _prepare_inputs strips fields, so we preserve them before calling
             the original, then add them back to the returned kwargs.
+            
+            Note: This function takes 'self' as first arg because it replaces an instance method.
             """
             # Preserve fields we need before calling original
             preserved_fields = {}
@@ -168,6 +171,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     preserved_fields[field] = kwargs[field]
             
             # Call original _prepare_inputs (it will strip our fields)
+            # original_prepare_inputs is already bound to self, so we can call it directly
             result = original_prepare_inputs(input_ids, **kwargs)  # type: ignore[misc]
             
             # Handle different return types - could be dict or tuple
@@ -188,8 +192,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 log.warning(f"Unexpected return type from _prepare_inputs: {type(result)}")
                 return result
         
+        # Bind the function to the instance as a method
         # Apply the patch (runtime patching - type checker can't verify this)
-        model_to_patch._prepare_inputs = patched_prepare_inputs  # type: ignore[assignment]
+        model_to_patch._prepare_inputs = types.MethodType(patched_prepare_inputs, model_to_patch)  # type: ignore[assignment]
         log.info("✅ Patched Transformer._prepare_inputs() to preserve metadata/index/expert_labels fields")
     
     def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
