@@ -558,7 +558,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         log.debug(f"Registered {len(hooks)} router hooks on {blocks_checked} blocks")
                     
                     # Forward pass
-                    output_dict, ce_loss, z_loss = self.model_forward(
+                    model_forward_result = self.model_forward(
                         input_ids,
                         labels=labels,
                         ignore_index=self.label_ignore_index,
@@ -568,6 +568,18 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         return_logits=False,
                         **model_kwargs,
                     )
+                    # Handle different return types from model_forward
+                    if isinstance(model_forward_result, tuple):
+                        if len(model_forward_result) == 3:
+                            output_dict, ce_loss, z_loss = model_forward_result  # type: ignore[misc]
+                        elif len(model_forward_result) == 4:
+                            output_dict, ce_loss, z_loss, _ = model_forward_result  # type: ignore[misc]
+                        else:
+                            # Fallback: assume first 3 are what we need
+                            output_dict, ce_loss, z_loss = model_forward_result[:3]  # type: ignore[misc]
+                    else:
+                        # Not a tuple - might be LMOutputWithLoss or similar
+                        raise TypeError(f"Unexpected return type from model_forward: {type(model_forward_result)}")
                     
                     # Remove hooks
                     for hook in hooks:
@@ -590,7 +602,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         )
                 else:
                     # Standard forward pass without router logits
-                    output_dict, ce_loss, z_loss = self.model_forward(
+                    model_forward_result = self.model_forward(
                         input_ids,
                         labels=labels,
                         ignore_index=self.label_ignore_index,
@@ -600,6 +612,18 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         return_logits=False,
                         **model_kwargs,
                     )
+                    # Handle different return types from model_forward
+                    if isinstance(model_forward_result, tuple):
+                        if len(model_forward_result) == 3:
+                            output_dict, ce_loss, z_loss = model_forward_result  # type: ignore[misc]
+                        elif len(model_forward_result) == 4:
+                            output_dict, ce_loss, z_loss, _ = model_forward_result  # type: ignore[misc]
+                        else:
+                            # Fallback: assume first 3 are what we need
+                            output_dict, ce_loss, z_loss = model_forward_result[:3]  # type: ignore[misc]
+                    else:
+                        # Not a tuple - might be LMOutputWithLoss or similar
+                        raise TypeError(f"Unexpected return type from model_forward: {type(model_forward_result)}")
 
                 # Accumulate supervised router loss if available (for logging)
                 if router_loss is not None:

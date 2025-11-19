@@ -87,19 +87,36 @@ def _train(
         log.info(f"  Config keys: {list(config_dict.keys())[:10]}")
         
         if 'router_loss_weight' in config_dict or 'router_loss_only' in config_dict:
-            # CRITICAL: Patch dataset to include 'index' in items
-            # DataCollator can only preserve 'index' if items actually have it!
+            # CRITICAL: Patch dataset to include 'index' and 'metadata' in items
+            # DataCollator can only preserve these fields if items actually have them!
             import types
             original_getitem = dataset.__getitem__
             
             def getitem_with_index(self, idx):
                 item = original_getitem(idx)
-                if isinstance(item, dict):
+                # If item is a tensor, wrap it in a dict
+                if isinstance(item, torch.Tensor):
+                    item_dict = {'input_ids': item, 'index': idx}
+                    # Add metadata if available in dataset.metadata
+                    if hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
+                        item_dict['metadata'] = self.metadata[idx]
+                    item = item_dict
+                elif isinstance(item, dict):
                     item['index'] = idx  # Add index field!
+                    # Ensure metadata is present if available
+                    if 'metadata' not in item and hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
+                        item['metadata'] = self.metadata[idx]
+                else:
+                    # Unknown type - try to add index anyway
+                    log.warning(f"Unknown item type from dataset: {type(item)}, attempting to add index")
+                    if not isinstance(item, dict):
+                        item = {'input_ids': item, 'index': idx}
+                    else:
+                        item['index'] = idx
                 return item
             
             dataset.__getitem__ = types.MethodType(getitem_with_index, dataset)
-            log.info("✅ Patched dataset.__getitem__() to include 'index' field in items")
+            log.info("✅ Patched dataset.__getitem__() to include 'index' and 'metadata' fields in items")
             
             train_module_kwargs['dataset'] = dataset
             log.info("Passing dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
