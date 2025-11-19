@@ -94,12 +94,31 @@ def _train(
             
             def getitem_with_index(self, idx):
                 item = original_getitem(idx)
+                
+                # Debug logging on first call
+                if not hasattr(self, '_debug_logged'):
+                    self._debug_logged = True
+                    log.info(f"🔍 Dataset.__getitem__ debug (idx={idx}):")
+                    log.info(f"  Original item type: {type(item)}")
+                    log.info(f"  Dataset has metadata attr: {hasattr(self, 'metadata')}")
+                    if hasattr(self, 'metadata'):
+                        log.info(f"  Dataset.metadata is None: {self.metadata is None}")
+                        log.info(f"  Dataset.metadata length: {len(self.metadata) if self.metadata else 0}")
+                    log.info(f"  idx < len(metadata): {hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata)}")
+                
                 # If item is a tensor, wrap it in a dict
                 if isinstance(item, torch.Tensor):
                     item_dict = {'input_ids': item, 'index': idx}
                     # Add metadata if available in dataset.metadata
                     if hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
                         item_dict['metadata'] = self.metadata[idx]
+                        if not hasattr(self, '_debug_logged_metadata'):
+                            self._debug_logged_metadata = True
+                            log.info(f"✅ Added metadata to item: {item_dict['metadata']}")
+                    else:
+                        if not hasattr(self, '_debug_logged_no_metadata'):
+                            self._debug_logged_no_metadata = True
+                            log.warning(f"⚠️  Dataset metadata not available - items will not have metadata field")
                     item = item_dict
                 elif isinstance(item, dict):
                     item['index'] = idx  # Add index field!
@@ -113,6 +132,12 @@ def _train(
                         item = {'input_ids': item, 'index': idx}
                     else:
                         item['index'] = idx
+                
+                # Debug what we're returning
+                if not hasattr(self, '_debug_logged_return'):
+                    self._debug_logged_return = True
+                    log.info(f"🔍 Returning item with keys: {list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}")
+                
                 return item
             
             dataset.__getitem__ = types.MethodType(getitem_with_index, dataset)
