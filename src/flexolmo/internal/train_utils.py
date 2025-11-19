@@ -93,6 +93,12 @@ def _train(
             original_getitem = dataset.__getitem__
             
             def getitem_with_index(self, idx):
+                # Log that we're being called
+                if not hasattr(self, '_patch_call_count'):
+                    self._patch_call_count = 0
+                    log.info(f"🎯 PATCHED __getitem__ IS BEING CALLED!")
+                self._patch_call_count += 1
+                
                 item = original_getitem(idx)
                 
                 # Debug logging on first call
@@ -100,11 +106,13 @@ def _train(
                     self._debug_logged = True
                     log.info(f"🔍 Dataset.__getitem__ debug (idx={idx}):")
                     log.info(f"  Original item type: {type(item)}")
+                    log.info(f"  Original item is dict: {isinstance(item, dict)}")
+                    if isinstance(item, dict):
+                        log.info(f"  Original item keys: {list(item.keys())}")
                     log.info(f"  Dataset has metadata attr: {hasattr(self, 'metadata')}")
                     if hasattr(self, 'metadata'):
                         log.info(f"  Dataset.metadata is None: {self.metadata is None}")
                         log.info(f"  Dataset.metadata length: {len(self.metadata) if self.metadata else 0}")
-                    log.info(f"  idx < len(metadata): {hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata)}")
                 
                 # Always create a new dict to ensure index/metadata are added properly
                 # (avoiding in-place modification which might not work with cached/frozen dicts)
@@ -114,32 +122,42 @@ def _train(
                     # Add metadata if available in dataset.metadata
                     if hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
                         item_dict['metadata'] = self.metadata[idx]
-                        if not hasattr(self, '_debug_logged_metadata'):
-                            self._debug_logged_metadata = True
-                            log.info(f"✅ Added metadata to item: {item_dict['metadata']}")
                     item = item_dict
+                    if not hasattr(self, '_debug_logged_tensor_path'):
+                        self._debug_logged_tensor_path = True
+                        log.info(f"📦 Tensor path: returning {list(item.keys())}")
                 elif isinstance(item, dict):
                     # Item is already a dict - create a new dict with index added
                     # (don't modify in place in case original is cached/frozen)
-                    item_dict = {**item, 'index': idx}
+                    item_dict = dict(item)  # Create explicit copy
+                    item_dict['index'] = idx  # Add index
                     # Ensure metadata is present if available
                     if 'metadata' not in item_dict and hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
                         item_dict['metadata'] = self.metadata[idx]
                     item = item_dict
+                    if not hasattr(self, '_debug_logged_dict_path'):
+                        self._debug_logged_dict_path = True
+                        log.info(f"📦 Dict path: input had {list(item.keys())}, returning {list(item_dict.keys())}")
                 else:
                     # Unknown type - wrap in dict
                     log.warning(f"Unknown item type from dataset: {type(item)}, wrapping in dict")
                     item = {'input_ids': item, 'index': idx}
                 
                 # Debug what we're returning
-                if not hasattr(self, '_debug_logged_return'):
-                    self._debug_logged_return = True
-                    log.info(f"🔍 Returning item with keys: {list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}")
+                if self._patch_call_count <= 2:
+                    log.info(f"🔍 Call {self._patch_call_count}: Returning item type={type(item)}, keys={list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}, has_index={'index' in item if isinstance(item, dict) else False}")
                 
                 return item
             
             dataset.__getitem__ = types.MethodType(getitem_with_index, dataset)
             log.info("✅ Patched dataset.__getitem__() to include 'index' and 'metadata' fields in items")
+            
+            # Verify the patch actually stuck
+            log.info(f"🔍 Verifying patch:")
+            log.info(f"  dataset.__getitem__ is our function: {dataset.__getitem__.__name__ == 'getitem_with_index'}")
+            log.info(f"  dataset.__getitem__: {dataset.__getitem__}")
+            log.info(f"  Original: {original_getitem}")
+            log.info(f"  Are they different: {dataset.__getitem__ != original_getitem}")
             
             # Test the patch immediately
             log.info(f"🔍 Testing patched dataset.__getitem__()...")
@@ -148,15 +166,25 @@ def _train(
             if hasattr(dataset, 'metadata'):
                 log.info(f"  Dataset.metadata length: {len(dataset.metadata) if dataset.metadata else 0}")  # type: ignore[attr-defined]
             
-            # Try to get one item to see what happens
+            # Try calling __getitem__ directly
+            log.info(f"🔍 Calling __getitem__ directly:")
             try:
-                test_item = dataset[0]
-                log.info(f"  Test item type: {type(test_item)}")
-                log.info(f"  Test item keys: {list(test_item.keys()) if isinstance(test_item, dict) else 'NOT A DICT'}")
-                log.info(f"  Test item has 'index': {'index' in test_item if isinstance(test_item, dict) else False}")
-                log.info(f"  Test item has 'metadata': {'metadata' in test_item if isinstance(test_item, dict) else False}")
+                direct_result = dataset.__getitem__(0)
+                log.info(f"  Direct call result type: {type(direct_result)}")
+                log.info(f"  Direct call result keys: {list(direct_result.keys()) if isinstance(direct_result, dict) else 'NOT DICT'}")
+                log.info(f"  Direct call has index: {'index' in direct_result if isinstance(direct_result, dict) else False}")
             except Exception as e:
-                log.warning(f"  Failed to get test item: {e}")
+                log.warning(f"  Failed direct __getitem__ call: {e}")
+            
+            # Try calling via subscript
+            log.info(f"🔍 Calling via subscript dataset[0]:")
+            try:
+                subscript_result = dataset[0]
+                log.info(f"  Subscript result type: {type(subscript_result)}")
+                log.info(f"  Subscript result keys: {list(subscript_result.keys()) if isinstance(subscript_result, dict) else 'NOT DICT'}")
+                log.info(f"  Subscript has index: {'index' in subscript_result if isinstance(subscript_result, dict) else False}")
+            except Exception as e:
+                log.warning(f"  Failed subscript call: {e}")
             
             train_module_kwargs['dataset'] = dataset
             log.info("Passing dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
