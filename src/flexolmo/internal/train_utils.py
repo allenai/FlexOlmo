@@ -143,6 +143,23 @@ def _train(
             dataset.__getitem__ = types.MethodType(getitem_with_index, dataset)
             log.info("✅ Patched dataset.__getitem__() to include 'index' and 'metadata' fields in items")
             
+            # Test the patch immediately
+            log.info(f"🔍 Testing patched dataset.__getitem__()...")
+            log.info(f"  Dataset type: {type(dataset)}")
+            log.info(f"  Dataset has metadata: {hasattr(dataset, 'metadata')}")
+            if hasattr(dataset, 'metadata'):
+                log.info(f"  Dataset.metadata length: {len(dataset.metadata) if dataset.metadata else 0}")  # type: ignore[attr-defined]
+            
+            # Try to get one item to see what happens
+            try:
+                test_item = dataset[0]
+                log.info(f"  Test item type: {type(test_item)}")
+                log.info(f"  Test item keys: {list(test_item.keys()) if isinstance(test_item, dict) else 'NOT A DICT'}")
+                log.info(f"  Test item has 'index': {'index' in test_item if isinstance(test_item, dict) else False}")
+                log.info(f"  Test item has 'metadata': {'metadata' in test_item if isinstance(test_item, dict) else False}")
+            except Exception as e:
+                log.warning(f"  Failed to get test item: {e}")
+            
             train_module_kwargs['dataset'] = dataset
             log.info("Passing dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
     
