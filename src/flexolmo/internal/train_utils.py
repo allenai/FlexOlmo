@@ -87,107 +87,61 @@ def _train(
         log.info(f"  Config keys: {list(config_dict.keys())[:10]}")
         
         if 'router_loss_weight' in config_dict or 'router_loss_only' in config_dict:
-            # CRITICAL: Patch dataset to include 'index' and 'metadata' in items
-            # DataCollator can only preserve these fields if items actually have them!
-            import types
-            original_getitem = dataset.__getitem__
+            # CRITICAL: Wrap dataset to include 'index' in items
+            # Monkey-patching doesn't work because NumpyFSLDatasetMixture overrides [] operator
             
-            def getitem_with_index(self, idx):
-                # Log that we're being called
-                if not hasattr(self, '_patch_call_count'):
-                    self._patch_call_count = 0
-                    log.info(f"🎯 PATCHED __getitem__ IS BEING CALLED!")
-                self._patch_call_count += 1
+            class DatasetWithIndex:
+                """Wrapper that adds 'index' field to dataset items."""
+                def __init__(self, wrapped_dataset):
+                    self.wrapped_dataset = wrapped_dataset
+                    # Expose important attributes from wrapped dataset
+                    self.metadata = getattr(wrapped_dataset, 'metadata', None)
+                    
+                def __getitem__(self, idx):
+                    item = self.wrapped_dataset[idx]
+                    
+                    # Always create a new dict to ensure index is added
+                    if isinstance(item, torch.Tensor):
+                        item_dict = {'input_ids': item, 'index': idx}
+                        if self.metadata and idx < len(self.metadata):
+                            item_dict['metadata'] = self.metadata[idx]
+                        return item_dict
+                    elif isinstance(item, dict):
+                        # Create new dict with index added
+                        item_dict = dict(item)
+                        item_dict['index'] = idx
+                        # Ensure metadata is present if available
+                        if 'metadata' not in item_dict and self.metadata and idx < len(self.metadata):
+                            item_dict['metadata'] = self.metadata[idx]
+                        return item_dict
+                    else:
+                        # Unknown type - wrap in dict
+                        return {'input_ids': item, 'index': idx}
                 
-                item = original_getitem(idx)
+                def __len__(self):
+                    return len(self.wrapped_dataset)
                 
-                # Debug logging on first call
-                if not hasattr(self, '_debug_logged'):
-                    self._debug_logged = True
-                    log.info(f"🔍 Dataset.__getitem__ debug (idx={idx}):")
-                    log.info(f"  Original item type: {type(item)}")
-                    log.info(f"  Original item is dict: {isinstance(item, dict)}")
-                    if isinstance(item, dict):
-                        log.info(f"  Original item keys: {list(item.keys())}")
-                    log.info(f"  Dataset has metadata attr: {hasattr(self, 'metadata')}")
-                    if hasattr(self, 'metadata'):
-                        log.info(f"  Dataset.metadata is None: {self.metadata is None}")
-                        log.info(f"  Dataset.metadata length: {len(self.metadata) if self.metadata else 0}")
-                
-                # Always create a new dict to ensure index/metadata are added properly
-                # (avoiding in-place modification which might not work with cached/frozen dicts)
-                if isinstance(item, torch.Tensor):
-                    # Item is a tensor - wrap it
-                    item_dict = {'input_ids': item, 'index': idx}
-                    # Add metadata if available in dataset.metadata
-                    if hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
-                        item_dict['metadata'] = self.metadata[idx]
-                    item = item_dict
-                    if not hasattr(self, '_debug_logged_tensor_path'):
-                        self._debug_logged_tensor_path = True
-                        log.info(f"📦 Tensor path: returning {list(item.keys())}")
-                elif isinstance(item, dict):
-                    # Item is already a dict - create a new dict with index added
-                    # (don't modify in place in case original is cached/frozen)
-                    item_dict = dict(item)  # Create explicit copy
-                    item_dict['index'] = idx  # Add index
-                    # Ensure metadata is present if available
-                    if 'metadata' not in item_dict and hasattr(self, 'metadata') and self.metadata and idx < len(self.metadata):
-                        item_dict['metadata'] = self.metadata[idx]
-                    item = item_dict
-                    if not hasattr(self, '_debug_logged_dict_path'):
-                        self._debug_logged_dict_path = True
-                        log.info(f"📦 Dict path: input had {list(item.keys())}, returning {list(item_dict.keys())}")
-                else:
-                    # Unknown type - wrap in dict
-                    log.warning(f"Unknown item type from dataset: {type(item)}, wrapping in dict")
-                    item = {'input_ids': item, 'index': idx}
-                
-                # Debug what we're returning
-                if self._patch_call_count <= 2:
-                    log.info(f"🔍 Call {self._patch_call_count}: Returning item type={type(item)}, keys={list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}, has_index={'index' in item if isinstance(item, dict) else False}")
-                
-                return item
+                def __getattr__(self, name):
+                    # Delegate all other attributes to wrapped dataset
+                    return getattr(self.wrapped_dataset, name)
             
-            dataset.__getitem__ = types.MethodType(getitem_with_index, dataset)
-            log.info("✅ Patched dataset.__getitem__() to include 'index' and 'metadata' fields in items")
+            # Wrap the dataset
+            dataset = DatasetWithIndex(dataset)  # type: ignore[assignment]
+            log.info("✅ Wrapped dataset to include 'index' field in items")
             
-            # Verify the patch actually stuck
-            log.info(f"🔍 Verifying patch:")
-            log.info(f"  dataset.__getitem__ is our function: {dataset.__getitem__.__name__ == 'getitem_with_index'}")
-            log.info(f"  dataset.__getitem__: {dataset.__getitem__}")
-            log.info(f"  Original: {original_getitem}")
-            log.info(f"  Are they different: {dataset.__getitem__ != original_getitem}")
-            
-            # Test the patch immediately
-            log.info(f"🔍 Testing patched dataset.__getitem__()...")
-            log.info(f"  Dataset type: {type(dataset)}")
-            log.info(f"  Dataset has metadata: {hasattr(dataset, 'metadata')}")
-            if hasattr(dataset, 'metadata'):
-                log.info(f"  Dataset.metadata length: {len(dataset.metadata) if dataset.metadata else 0}")  # type: ignore[attr-defined]
-            
-            # Try calling __getitem__ directly
-            log.info(f"🔍 Calling __getitem__ directly:")
+            # Test the wrapper
+            log.info(f"🔍 Testing wrapped dataset[0]:")
             try:
-                direct_result = dataset.__getitem__(0)
-                log.info(f"  Direct call result type: {type(direct_result)}")
-                log.info(f"  Direct call result keys: {list(direct_result.keys()) if isinstance(direct_result, dict) else 'NOT DICT'}")
-                log.info(f"  Direct call has index: {'index' in direct_result if isinstance(direct_result, dict) else False}")
+                test_item = dataset[0]
+                log.info(f"  Item type: {type(test_item)}")
+                log.info(f"  Item keys: {list(test_item.keys()) if isinstance(test_item, dict) else 'NOT DICT'}")
+                log.info(f"  Has 'index': {'index' in test_item if isinstance(test_item, dict) else False}")
+                log.info(f"  Has 'metadata': {'metadata' in test_item if isinstance(test_item, dict) else False}")
             except Exception as e:
-                log.warning(f"  Failed direct __getitem__ call: {e}")
+                log.warning(f"  Failed to get test item: {e}")
             
-            # Try calling via subscript
-            log.info(f"🔍 Calling via subscript dataset[0]:")
-            try:
-                subscript_result = dataset[0]
-                log.info(f"  Subscript result type: {type(subscript_result)}")
-                log.info(f"  Subscript result keys: {list(subscript_result.keys()) if isinstance(subscript_result, dict) else 'NOT DICT'}")
-                log.info(f"  Subscript has index: {'index' in subscript_result if isinstance(subscript_result, dict) else False}")
-            except Exception as e:
-                log.warning(f"  Failed subscript call: {e}")
-            
-            train_module_kwargs['dataset'] = dataset
-            log.info("Passing dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
+            train_module_kwargs['dataset'] = dataset  # type: ignore[dict-item]
+            log.info("Passing wrapped dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
     
     train_module = config.train_module.build(model, device=device, **train_module_kwargs)
 
@@ -201,8 +155,8 @@ def _train(
             else:
                 log.info(f"Param '{name}' will be trainable")
 
-    # Build data loader (dataset already built above)
-    data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)
+    # Build data loader (dataset already built above, possibly wrapped for router training)
+    data_loader = config.data_loader.build(dataset, dp_process_group=train_module.dp_process_group)  # type: ignore[arg-type]
     
     trainer = config.trainer.build(train_module, data_loader)
 
