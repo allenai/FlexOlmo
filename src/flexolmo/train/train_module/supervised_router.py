@@ -122,11 +122,11 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             except Exception as e:
                 log.warning(f"  Could not inspect model blocks: {e}")
         
-        # NOTE: olmo-core now preserves metadata/index/expert_labels in _prepare_inputs()
-        # (commit 2484e3943583f4a3a12cde07ee6dea930cb72104)
-        # These fields are extracted from kwargs and added to block_kwargs, making them
-        # available throughout the forward pass for supervised router training.
-        log.info("✅ Using olmo-core version that preserves metadata/index/expert_labels in _prepare_inputs()")
+        # NOTE: olmo-core now has two changes for supervised router training:
+        # 1. Dataset.__getitem__() includes 'index' field (commit 71e621140a8331b5621d67444b1fb5930a07acdc)
+        # 2. Transformer._prepare_inputs() preserves metadata/index/expert_labels (commit 2484e39...)
+        # These ensure index/metadata flow through: Dataset → Collator → Model → Forward pass
+        log.info("✅ Using olmo-core with dataset 'index' field and _prepare_inputs() preservation")
     
     def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
         """

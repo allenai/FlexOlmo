@@ -87,61 +87,25 @@ def _train(
         log.info(f"  Config keys: {list(config_dict.keys())[:10]}")
         
         if 'router_loss_weight' in config_dict or 'router_loss_only' in config_dict:
-            # CRITICAL: Wrap dataset to include 'index' in items
-            # Monkey-patching doesn't work because NumpyFSLDatasetMixture overrides [] operator
+            # NOTE: olmo-core now adds 'index' to items automatically when include_instance_metadata=True
+            # (commit 71e621140a8331b5621d67444b1fb5930a07acdc)
+            # No dataset wrapping needed - items will have 'index' field by default
             
-            class DatasetWithIndex:
-                """Wrapper that adds 'index' field to dataset items."""
-                def __init__(self, wrapped_dataset):
-                    self.wrapped_dataset = wrapped_dataset
-                    # Expose important attributes from wrapped dataset
-                    self.metadata = getattr(wrapped_dataset, 'metadata', None)
-                    
-                def __getitem__(self, idx):
-                    item = self.wrapped_dataset[idx]
-                    
-                    # Always create a new dict to ensure index is added
-                    if isinstance(item, torch.Tensor):
-                        item_dict = {'input_ids': item, 'index': idx}
-                        if self.metadata and idx < len(self.metadata):
-                            item_dict['metadata'] = self.metadata[idx]
-                        return item_dict
-                    elif isinstance(item, dict):
-                        # Create new dict with index added
-                        item_dict = dict(item)
-                        item_dict['index'] = idx
-                        # Ensure metadata is present if available
-                        if 'metadata' not in item_dict and self.metadata and idx < len(self.metadata):
-                            item_dict['metadata'] = self.metadata[idx]
-                        return item_dict
-                    else:
-                        # Unknown type - wrap in dict
-                        return {'input_ids': item, 'index': idx}
-                
-                def __len__(self):
-                    return len(self.wrapped_dataset)
-                
-                def __getattr__(self, name):
-                    # Delegate all other attributes to wrapped dataset
-                    return getattr(self.wrapped_dataset, name)
-            
-            # Wrap the dataset
-            dataset = DatasetWithIndex(dataset)  # type: ignore[assignment]
-            log.info("✅ Wrapped dataset to include 'index' field in items")
-            
-            # Test the wrapper
-            log.info(f"🔍 Testing wrapped dataset[0]:")
+            # Test that dataset items have index
+            log.info(f"🔍 Verifying dataset items have 'index' field:")
             try:
                 test_item = dataset[0]
                 log.info(f"  Item type: {type(test_item)}")
                 log.info(f"  Item keys: {list(test_item.keys()) if isinstance(test_item, dict) else 'NOT DICT'}")
                 log.info(f"  Has 'index': {'index' in test_item if isinstance(test_item, dict) else False}")
                 log.info(f"  Has 'metadata': {'metadata' in test_item if isinstance(test_item, dict) else False}")
+                if isinstance(test_item, dict) and 'index' not in test_item:
+                    log.error("❌ Dataset items don't have 'index' field! Check that olmo-core commit 71e62114... is installed.")
             except Exception as e:
                 log.warning(f"  Failed to get test item: {e}")
             
-            train_module_kwargs['dataset'] = dataset  # type: ignore[dict-item]
-            log.info("Passing wrapped dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
+            train_module_kwargs['dataset'] = dataset
+            log.info("✅ Passing dataset to SupervisedRouterTrainModule for batch['index'] → metadata lookup")
     
     train_module = config.train_module.build(model, device=device, **train_module_kwargs)
 
