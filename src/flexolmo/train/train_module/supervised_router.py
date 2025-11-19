@@ -656,18 +656,28 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     z_batch_loss += get_local_tensor(z_loss.detach())
                     del z_loss
 
-                # Get auxiliary losses
-                auxiliary_losses = self.model.compute_auxiliary_losses(
-                    batch_num_tokens_for_loss, reset=True
-                )
-                for loss_name, loss_val in auxiliary_losses.items():
-                    loss += loss_val
-                    loss_val = get_local_tensor(loss_val.detach())
-                    if loss_name in auxiliary_batch_losses:
-                        auxiliary_batch_losses[loss_name] += loss_val
-                    else:
-                        auxiliary_batch_losses[loss_name] = loss_val
-                del auxiliary_losses
+                # Get auxiliary losses (handle FSDP-wrapped models)
+                # FSDP wrapping may hide methods, so we need to access the underlying module
+                model_for_aux = self.model
+                if hasattr(self.model, '_fsdp_wrapped_module'):
+                    model_for_aux = self.model._fsdp_wrapped_module  # type: ignore[attr-defined]
+                elif hasattr(self.model, 'module'):
+                    model_for_aux = self.model.module  # type: ignore[attr-defined]
+                elif hasattr(self.model, '_orig_mod'):
+                    model_for_aux = self.model._orig_mod  # type: ignore[attr-defined]
+                
+                if hasattr(model_for_aux, 'compute_auxiliary_losses'):
+                    auxiliary_losses = model_for_aux.compute_auxiliary_losses(  # type: ignore[attr-defined]
+                        batch_num_tokens_for_loss, reset=True
+                    )
+                    for loss_name, loss_val in auxiliary_losses.items():
+                        loss += loss_val
+                        loss_val = get_local_tensor(loss_val.detach())
+                        if loss_name in auxiliary_batch_losses:
+                            auxiliary_batch_losses[loss_name] += loss_val
+                        else:
+                            auxiliary_batch_losses[loss_name] = loss_val
+                    del auxiliary_losses
 
                 # Backward pass
                 loss.backward()
@@ -675,8 +685,19 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         del batch
 
         if dry_run:
-            self.model.reset_auxiliary_losses()
-            self.model.reset_auxiliary_metrics()
+            # Handle FSDP-wrapped models
+            model_for_aux = self.model
+            if hasattr(self.model, '_fsdp_wrapped_module'):
+                model_for_aux = self.model._fsdp_wrapped_module  # type: ignore[attr-defined]
+            elif hasattr(self.model, 'module'):
+                model_for_aux = self.model.module  # type: ignore[attr-defined]
+            elif hasattr(self.model, '_orig_mod'):
+                model_for_aux = self.model._orig_mod  # type: ignore[attr-defined]
+            
+            if hasattr(model_for_aux, 'reset_auxiliary_losses'):
+                model_for_aux.reset_auxiliary_losses()  # type: ignore[attr-defined]
+            if hasattr(model_for_aux, 'reset_auxiliary_metrics'):
+                model_for_aux.reset_auxiliary_metrics()  # type: ignore[attr-defined]
             return
 
         # Record metrics
@@ -704,16 +725,25 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 namespace="train",
             )
 
-        # Additional metrics
-        for metric_name, (metric_val, reduction) in self.model.compute_auxiliary_metrics(
-            batch_num_tokens_for_loss,
-            reset=True,
-        ).items():
-            self.record_metric(
-                metric_name,
-                metric_val,
-                reduction,
-                namespace="train",
-            )
+        # Additional metrics (handle FSDP-wrapped models)
+        model_for_aux = self.model
+        if hasattr(self.model, '_fsdp_wrapped_module'):
+            model_for_aux = self.model._fsdp_wrapped_module  # type: ignore[attr-defined]
+        elif hasattr(self.model, 'module'):
+            model_for_aux = self.model.module  # type: ignore[attr-defined]
+        elif hasattr(self.model, '_orig_mod'):
+            model_for_aux = self.model._orig_mod  # type: ignore[attr-defined]
+        
+        if hasattr(model_for_aux, 'compute_auxiliary_metrics'):
+            for metric_name, (metric_val, reduction) in model_for_aux.compute_auxiliary_metrics(  # type: ignore[attr-defined]
+                batch_num_tokens_for_loss,
+                reset=True,
+            ).items():
+                self.record_metric(
+                    metric_name,
+                    metric_val,
+                    reduction,
+                    namespace="train",
+                )
         if isinstance(self.optim, SkipStepOptimizer):
             self.optim.latest_loss = ce_batch_loss if not self.router_loss_only else router_batch_loss
