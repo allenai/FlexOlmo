@@ -265,14 +265,24 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         expert_labels = expert_labels.to(router_logits.device).contiguous()
         
         # Expand expert_labels to match all tokens in sequence
-        # expert_labels: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
-        # Use expand then contiguous() to avoid storage issues with views
-        expert_labels_expanded = expert_labels.unsqueeze(1).expand(-1, seq_len, -1)
-        # Ensure contiguous before reshape to avoid storage size 0 errors
-        expert_labels_expanded = expert_labels_expanded.contiguous().reshape(-1, expert_labels.shape[-1])
-        
-        # Convert one-hot to class indices
-        expert_indices = expert_labels_expanded.argmax(dim=-1).long()  # (batch_size * seq_len,)
+        # Instead of using `expand` (which can create tensors with unusual strides and
+        # trigger "storage size 0" errors after `.contiguous()` in some PyTorch
+        # builds), repeat the *class indices* along the sequence dimension. This keeps
+        # the underlying storage layout simple and robust across versions.
+
+        # Step 1. Convert one-hot labels to class indices – shape: `(batch_size,)`.
+        expert_indices_per_item = expert_labels.argmax(dim=-1).long()
+
+        # Step 2. Repeat each item-level label `seq_len` times so we have one label per
+        # token.  The resulting tensor has shape `(batch_size * seq_len,)`.
+        expert_indices = expert_indices_per_item.repeat_interleave(seq_len)
+
+        # Sanity check (cheap, only on first call) – make sure the tensor is the
+        # expected size to avoid silent shape mismatches later on.
+        if expert_indices.numel() != batch_size * seq_len:
+            raise RuntimeError(
+                f"Unexpected expert_indices size {expert_indices.shape}, expected {(batch_size * seq_len,)}"
+            )
         
         # Compute cross-entropy loss - NO cloning, keep in computation graph
         router_loss = F.cross_entropy(
