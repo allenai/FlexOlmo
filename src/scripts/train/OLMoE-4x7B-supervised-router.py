@@ -84,7 +84,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
 def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrainModuleConfig:
     """Build training module config with supervised router training."""
     return SupervisedRouterTrainModuleConfig(
-        rank_microbatch_size=1 * 4096,
+        rank_microbatch_size=16 * 4096,  # Increased: hook-based recomputation + micro-batching = tensor view issues
         max_sequence_length=common.dataset.effective_sequence_length,
         optim=AdamWConfig(
             lr=2e-3,  # Higher LR for router training
