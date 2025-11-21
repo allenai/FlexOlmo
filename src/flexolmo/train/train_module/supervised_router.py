@@ -163,13 +163,67 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if not hasattr(self, '_first_batch_logged'):
             self._first_batch_logged = True
             log.info(f"First batch: keys={list(batch.keys())}, has_expert_labels={'expert_labels' in batch}")
+            log.info(f"  Batch has 'metadata': {'metadata' in batch}")
+            log.info(f"  Batch has 'index': {'index' in batch}")
+            if 'metadata' in batch and batch['metadata']:
+                log.info(f"  First metadata entry: {batch['metadata'][0] if isinstance(batch['metadata'], list) else batch['metadata']}")
+            elif 'metadata' not in batch:
+                log.error(
+                    "❌ CRITICAL: Batch doesn't have 'metadata' field! "
+                    "This means dataset items don't have metadata. "
+                    "Check that dataset config has include_instance_metadata=True and metadata is set."
+                )
         
         expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
         
         if expert_labels is None:
             if self.router_loss_only:
-                raise RuntimeError("router_loss_only=True but 'expert_labels' missing from batch")
-            log.debug("No expert labels found, skipping router loss")
+                if dry_run:
+                    # For dry-run, create dummy expert_labels (default to Expert 1 - General)
+                    # This allows the dry-run to test forward/backward pass structure
+                    log.warning(
+                        "router_loss_only=True but 'expert_labels' missing from dry-run batch. "
+                        "Creating dummy expert_labels (Expert 1) for dry-run."
+                    )
+                    # Try to get num_experts from model blocks or config
+                    num_experts = 4  # Default
+                    try:
+                        # Try to get from first MoE block
+                        for block in getattr(self.model, 'blocks', {}).values():
+                            if hasattr(block, 'feed_forward_moe') and hasattr(block.feed_forward_moe, 'router'):
+                                router = block.feed_forward_moe.router
+                                if hasattr(router, 'num_experts'):
+                                    num_experts = router.num_experts
+                                    break
+                                elif hasattr(block.feed_forward_moe, 'num_experts'):
+                                    num_experts = block.feed_forward_moe.num_experts
+                                    break
+                    except Exception:
+                        pass  # Use default of 4
+                    
+                    expert_labels = torch.zeros(batch_size, num_experts, dtype=torch.float32)
+                    expert_labels[:, 1] = 1.0  # Set Expert 1 (General) as default
+                else:
+                    # Real batch without expert_labels - this means metadata isn't flowing through
+                    error_msg = (
+                        "router_loss_only=True but 'expert_labels' missing from batch. "
+                        "\n\nThis usually means one of these issues:"
+                        "\n1. Dataset config doesn't have include_instance_metadata=True"
+                        "\n2. Dataset config doesn't have metadata set (missing source_name)"
+                        "\n3. DataCollator isn't receiving items with metadata"
+                        "\n4. source_mixture_config wasn't created correctly"
+                    )
+                    if 'metadata' not in batch:
+                        error_msg += "\n\n❌ Batch has NO 'metadata' field - dataset items don't have metadata!"
+                    elif batch.get('metadata') and isinstance(batch['metadata'], list):
+                        first_meta = batch['metadata'][0] if batch['metadata'] else None
+                        if first_meta and 'source_name' not in first_meta:
+                            error_msg += f"\n\n❌ Metadata exists but missing 'source_name' field. Metadata keys: {list(first_meta.keys())}"
+                        elif not first_meta:
+                            error_msg += "\n\n❌ Metadata list is empty!"
+                    raise RuntimeError(error_msg)
+            else:
+                log.debug("No expert labels found, skipping router loss")
         
         if expert_labels is not None:
             expert_labels = move_to_device(expert_labels, self.device)
