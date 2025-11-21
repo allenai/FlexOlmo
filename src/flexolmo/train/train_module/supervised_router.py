@@ -314,7 +314,11 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             if not isinstance(input, tuple) or len(input) == 0:
                                 return
                             
-                            x = input[0]
+                            # CRITICAL: Clone input to get independent storage
+                            # input[0] is an intermediate activation that may be a view
+                            # Cloning ensures we have our own storage that won't be deallocated
+                            x = input[0].clone()
+                            
                             # Router already applies jitter in forward, but we need raw logits before softmax
                             # Apply jitter and get logits
                             if hasattr(module, 'jitter'):
