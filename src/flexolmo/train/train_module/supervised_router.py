@@ -308,7 +308,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     def router_pre_hook(module, input):
                         """Capture the input before jitter is applied."""
                         if isinstance(input, tuple) and len(input) > 0:
-                            router_inputs[module] = input[0]
+                            # Clone to avoid storage issues - input could be a view from model internals
+                            router_inputs[module] = input[0].clone() if isinstance(input[0], torch.Tensor) else input[0]
                     
                     def router_hook(module, input, output):
                         if micro_expert_labels is None:
