@@ -166,7 +166,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         seq_len = router_logits.shape[0] // batch_size
         
         # Convert one-hot to indices and expand to per-token labels
-        expert_indices = expert_labels.argmax(dim=-1).long().repeat_interleave(seq_len)
+        # Clone to ensure we have our own storage (repeat_interleave may create views)
+        expert_indices = expert_labels.argmax(dim=-1).long().repeat_interleave(seq_len).clone()
         
         if expert_indices.numel() != batch_size * seq_len:
             raise RuntimeError(
@@ -325,10 +326,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             if hasattr(module, 'get_expert_logits'):
                                 router_logits = module.get_expert_logits(x_jittered).float()
                                 
+                                # Clone to ensure we have our own storage (critical for backward pass)
+                                # reshape() creates views which can cause "storage of size 0" errors
+                                router_logits = router_logits.clone()
+                                
                                 # Ensure logits are part of the computation graph
                                 if not router_logits.requires_grad:
-                                    # This shouldn't happen, but ensure gradients flow through
-                                    router_logits = router_logits.clone().requires_grad_(True)
+                                    router_logits = router_logits.requires_grad_(True)
                                 
                                 # Reshape to (batch_size * seq_len, num_experts) for loss computation
                                 if router_logits.dim() == 3:
@@ -340,7 +344,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 else:
                                     raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
                                 
-                                # Ensure tensor is contiguous
+                                # Ensure tensor is contiguous (after clone, this should be a no-op)
                                 router_logits_flat = router_logits_flat.contiguous()
                                 
                                 loss_term = self._compute_router_loss(
