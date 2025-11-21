@@ -157,63 +157,6 @@ class MoERouterWithExpertBias(MoERouter):
         # from ipdb import set_trace as bp
         # bp()
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Given the input ``x`` of shape ``(*, d_model)``, compute the experts assignment.
-
-        :returns: The unnormalized scores (logits) of shape ``(N, num_experts)``,
-            the normalized scores of shape ``(N, num_experts)``,
-            the expert weights of shape ``(N, top_k)``,
-            the expert indices of shape ``(N, top_k)``,
-            and the number of items routed to each expert, with shape ``(num_experts,)``.
-        """
-        # shape: (batch_size, seq_len, d_model)
-        x = self.jitter(x)
-
-        # shape: (batch_size * seq_len, num_experts)
-        logits = self.get_expert_logits(x).view(-1, self.num_experts)
-
-        # from ipdb import set_trace as bp
-        # bp()
-        constrained_bias = torch.minimum(
-            self.expert_bias, torch.tensor(0.0, device=self.expert_bias.device)
-        )
-        logits[:, 1:] += constrained_bias.T
-
-        # previous
-        # constrained_bias = torch.minimum(self.expert2_bias, torch.tensor(0.0, device=self.expert2_bias.device))
-        # logits[:, 1] += constrained_bias
-
-        scores = logits.softmax(dim=-1)
-        # shape: (batch_size * seq_len, top_k)
-        expert_weights, expert_indices = self.get_top_k(scores)
-
-        if self.normalize_expert_weights is not None:
-            expert_weights = expert_weights.div(
-                torch.norm(
-                    expert_weights,
-                    p=self.normalize_expert_weights,
-                    dim=-1,
-                    keepdim=True,
-                )
-            )
-
-        if self.uniform_expert_assignment:
-            expert_indices = _uniform_expert_assignment(expert_indices, self.num_experts)
-
-        with torch.no_grad():
-            # Histogram the expert ids to identify the number of items/tokens routed to each expert.
-            # shape: (num_experts,)
-            # NOTE: if we wanted to keep the batch dimension here like for sequence-level load balancing
-            # loss, we could use `opts.batched_histc`.
-            batch_size_per_expert = histc(expert_indices, num_classes=self.num_experts)
-            self._accumulate_batch_size_per_expert(batch_size_per_expert)
-
-        return logits, scores, expert_weights, expert_indices, batch_size_per_expert
-
-
 class MoELinearRouterWithExpertBias(MoERouterWithExpertBias):
     """
     A simple, learned, linear router.
@@ -248,7 +191,14 @@ class MoELinearRouterWithExpertBias(MoERouterWithExpertBias):
         return f"in_features={self.d_model}, num_experts={self.num_experts}"
 
     def get_expert_logits(self, x: torch.Tensor) -> torch.Tensor:
-        return F.linear(x, get_local_tensor(self.weight).view(self.num_experts, self.d_model))
+        logits = F.linear(x, get_local_tensor(self.weight).view(self.num_experts, self.d_model))
+        original_shape = logits.shape
+        logits_flat = logits.view(-1, self.num_experts)
+        constrained_bias = torch.minimum(
+            self.expert_bias, torch.tensor(0.0, device=self.expert_bias.device)
+        )
+        logits_flat[:, 1:] += constrained_bias.T
+        return logits_flat.view(original_shape)
 
     def apply_tp(self, tp_mesh: DeviceMesh, float8_enabled: bool = False):
         del float8_enabled

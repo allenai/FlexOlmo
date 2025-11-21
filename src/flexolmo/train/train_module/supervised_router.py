@@ -309,38 +309,43 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                             return
                         
                         try:
-                            # Router forward returns: (expert_weights, expert_indices, batch_size_per_expert, aux_loss)
-                            # We need to recompute logits from the input
-                            if not isinstance(input, tuple) or len(input) == 0:
-                                return
-                            
-                            # CRITICAL: Clone input to get independent storage
-                            # input[0] is an intermediate activation that may be a view
-                            # Cloning ensures we have our own storage that won't be deallocated
-                            x = input[0].clone()
-                            
-                            # Router already applies jitter in forward, but we need raw logits before softmax
-                            # Apply jitter and get logits
-                            if hasattr(module, 'jitter'):
-                                x = module.jitter(x)
-                            
-                            if hasattr(module, 'get_expert_logits'):
-                                # Compute logits - keep in computation graph for gradients
+                            router_logits: Optional[torch.Tensor] = None
+
+                            pop_logits = getattr(module, "pop_router_logits", None)
+                            if callable(pop_logits):
+                                router_logits = cast(Optional[torch.Tensor], pop_logits())
+
+                            if router_logits is None and hasattr(module, "get_expert_logits"):
+                                # Fallback path (e.g., for modules that don't expose cached logits)
+                                if not isinstance(input, tuple) or len(input) == 0:
+                                    return
+                                x = input[0]
+                                if not isinstance(x, torch.Tensor):
+                                    return
+                                x = x.clone()
+                                if hasattr(module, "jitter"):
+                                    x = module.jitter(x)
                                 router_logits = module.get_expert_logits(x).float()
-                                
-                                # Reshape to (batch_size * seq_len, num_experts) for loss computation
-                                if router_logits.dim() == 3:
-                                    batch_size, seq_len, num_experts = router_logits.shape
-                                    router_logits_flat = router_logits.reshape(-1, num_experts).contiguous()
-                                elif router_logits.dim() == 2:
-                                    router_logits_flat = router_logits.contiguous()
-                                else:
-                                    raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
-                                
-                                loss_term = self._compute_router_loss(
-                                    router_logits_flat, micro_expert_labels, batch_num_tokens_for_loss
+
+                            if router_logits is None:
+                                log.error(
+                                    f"Router {module.__class__.__name__} did not provide logits for supervised loss"
                                 )
-                                router_loss_terms.append(loss_term)
+                                return
+
+                            # Reshape to (batch_size * seq_len, num_experts) for loss computation
+                            if router_logits.dim() == 3:
+                                batch_size, seq_len, num_experts = router_logits.shape
+                                router_logits_flat = router_logits.reshape(-1, num_experts).contiguous()
+                            elif router_logits.dim() == 2:
+                                router_logits_flat = router_logits.contiguous()
+                            else:
+                                raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
+
+                            loss_term = self._compute_router_loss(
+                                router_logits_flat, micro_expert_labels, batch_num_tokens_for_loss
+                            )
+                            router_loss_terms.append(loss_term)
                         except Exception as exc:
                             log.error(f"Failed to compute router loss for {module}: {exc}", exc_info=True)
                     
@@ -496,10 +501,12 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
 
         model_for_aux = _unwrap_fsdp_model(self.model)
         if hasattr(model_for_aux, 'compute_auxiliary_metrics'):
-            for metric_name, (metric_val, reduction) in model_for_aux.compute_auxiliary_metrics(  # type: ignore[attr-defined]
+            compute_metrics_fn = getattr(model_for_aux, 'compute_auxiliary_metrics')
+            metrics = compute_metrics_fn(
                 batch_num_tokens_for_loss,
                 reset=True,
-            ).items():
+            )
+            for metric_name, (metric_val, reduction) in metrics.items():
                 self.record_metric(
                     metric_name,
                     metric_val,
