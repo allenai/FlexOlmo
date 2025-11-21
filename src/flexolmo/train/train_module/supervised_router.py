@@ -114,7 +114,6 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     )
                 return expert_labels.to(self.device).contiguous()
         
-        # Don't log error here - let train_batch handle logging based on dry_run flag
         return None
 
     def _compute_router_loss(
@@ -162,18 +161,17 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         
         if not hasattr(self, '_first_batch_logged'):
             self._first_batch_logged = True
-            log.info(f"First batch: keys={list(batch.keys())}, has_expert_labels={'expert_labels' in batch}")
-            log.info(f"  Batch has 'metadata': {'metadata' in batch}")
-            log.info(f"  Batch has 'index': {'index' in batch}")
-            if 'metadata' in batch and batch['metadata']:
-                log.info(f"  First metadata entry: {batch['metadata'][0] if isinstance(batch['metadata'], list) else batch['metadata']}")
-            elif 'metadata' not in batch:
-                if dry_run:
-                    log.info(
-                        "ℹ️  Dry-run batch doesn't have 'metadata' field (expected - dry-run uses mock batch). "
-                        "Real training batches should have metadata if dataset is configured correctly."
-                    )
-                else:
+            if dry_run:
+                log.info("Dry-run batch: keys={}, has_expert_labels={} (expected - mock batch)".format(
+                    list(batch.keys()), 'expert_labels' in batch
+                ))
+            else:
+                log.info(f"First batch: keys={list(batch.keys())}, has_expert_labels={'expert_labels' in batch}")
+                log.info(f"  Batch has 'metadata': {'metadata' in batch}")
+                log.info(f"  Batch has 'index': {'index' in batch}")
+                if 'metadata' in batch and batch['metadata']:
+                    log.info(f"  First metadata entry: {batch['metadata'][0] if isinstance(batch['metadata'], list) else batch['metadata']}")
+                elif 'metadata' not in batch:
                     log.error(
                         "❌ CRITICAL: Batch doesn't have 'metadata' field! "
                         "This means dataset items don't have metadata. "
@@ -182,37 +180,16 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         
         expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
         
+        # Handle dry-run batches (Trainer automatically runs dry run before training)
+        # Dry run uses mock batch without metadata/expert_labels - skip router loss for dry run only
         if expert_labels is None:
             if self.router_loss_only:
                 if dry_run:
-                    # For dry-run, create dummy expert_labels (default to Expert 1 - General)
-                    # This allows the dry-run to test forward/backward pass structure
-                    log.warning(
-                        "router_loss_only=True but 'expert_labels' missing from dry-run batch. "
-                        "Creating dummy expert_labels (Expert 1) for dry-run."
-                    )
-                    # Try to get num_experts from model blocks or config
-                    num_experts = 4  # Default
-                    try:
-                        # Try to get from first MoE block
-                        for block in getattr(self.model, 'blocks', {}).values():
-                            if hasattr(block, 'feed_forward_moe') and hasattr(block.feed_forward_moe, 'router'):
-                                router = block.feed_forward_moe.router
-                                if hasattr(router, 'num_experts'):
-                                    num_experts = router.num_experts
-                                    break
-                                elif hasattr(block.feed_forward_moe, 'num_experts'):
-                                    num_experts = block.feed_forward_moe.num_experts
-                                    break
-                    except Exception:
-                        pass  # Use default of 4
-                    
-                    # Create dummy expert_labels on the correct device and make them contiguous
-                    expert_labels = torch.zeros(batch_size, num_experts, dtype=torch.float32, device=self.device)
-                    expert_labels[:, 1] = 1.0  # Set Expert 1 (General) as default
-                    expert_labels = expert_labels.contiguous()
+                    # Dry run batch doesn't have expert_labels (expected) - skip router loss for dry run
+                    log.info("Dry-run batch: skipping router loss (mock batch has no expert_labels). Real batches will have expert_labels.")
+                    expert_labels = None  # Will skip router loss computation
                 else:
-                    # Real batch without expert_labels - this means metadata isn't flowing through
+                    # Real batch without expert_labels - this is an error
                     error_msg = (
                         "router_loss_only=True but 'expert_labels' missing from batch. "
                         "\n\nThis usually means one of these issues:"
@@ -243,7 +220,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             batch["labels"] = get_labels(batch, label_ignore_index=self.label_ignore_index)
 
         # Record masked instances
-        if (instance_mask := batch.get("instance_mask")) is not None and not dry_run:
+        if (instance_mask := batch.get("instance_mask")) is not None:
             self.record_metric(
                 "train/masked instances (%)", (~instance_mask).float().mean(), ReduceType.mean
             )
@@ -284,14 +261,21 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     micro_expert_labels = expert_labels[start_idx:start_idx + micro_batch_size].contiguous()
                 
                 if self.router_loss_only and micro_expert_labels is None:
-                    raise RuntimeError(f"router_loss_only=True but missing expert_labels for micro_batch {micro_batch_idx}")
+                    if dry_run:
+                        # Dry run batch - skip router loss, will use ce_loss for backward pass
+                        log.debug("Dry-run: skipping router loss computation (no expert_labels in mock batch)")
+                    else:
+                        raise RuntimeError(f"router_loss_only=True but missing expert_labels for micro_batch {micro_batch_idx}")
 
                 router_loss: Optional[torch.Tensor] = None
-                should_capture_router_logits = (micro_expert_labels is not None) or self.router_loss_only
+                # Skip router logits capture if dry_run with router_loss_only but no expert_labels
+                should_capture_router_logits = (
+                    (micro_expert_labels is not None) or 
+                    (self.router_loss_only and not (dry_run and micro_expert_labels is None))
+                )
                 
                 if should_capture_router_logits:
                     router_loss_terms: List[torch.Tensor] = []
-                    router_hook_errors: List[str] = []
                     
                     def router_hook(module, input, output):
                         if isinstance(output, tuple) and len(output) >= 1 and isinstance(output[0], torch.Tensor):
@@ -303,13 +287,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 )
                                 router_loss_terms.append(loss_term)
                             except Exception as exc:
-                                error_msg = f"Failed to compute router loss for {module}: {exc}"
-                                if dry_run:
-                                    # During dry run, just log warnings instead of failing
-                                    log.debug(f"Dry run: {error_msg}")
-                                    router_hook_errors.append(error_msg)
-                                else:
-                                    log.warning(error_msg)
+                                log.warning(f"Failed to compute router loss for {module}: {exc}")
                     
                     hooks = []
                     router_modules = [(n, m) for n, m in self.model.named_modules() 
@@ -357,9 +335,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         log.debug(f"Router loss from {len(router_loss_terms)} modules: {router_loss.item():.4f}")
                     elif self.router_loss_only:
                         if dry_run:
-                            # During dry run, create a dummy loss if router hooks failed
-                            log.debug("Dry run: router hooks failed to compute loss, creating dummy loss for backward pass")
-                            router_loss = move_to_device(torch.tensor(1.0, requires_grad=True), self.device)
+                            # Dry run batch - no router loss terms (expected if no expert_labels)
+                            log.debug("Dry-run: no router loss terms computed (expected for mock batch)")
+                            router_loss = None
                         else:
                             raise RuntimeError(
                                 "router_loss_only=True but no router loss terms computed. "
@@ -382,8 +360,14 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 
                 if self.router_loss_only:
                     if router_loss is None:
-                        raise RuntimeError("router_loss_only=True but router_loss is None")
-                    loss = router_loss * self.router_loss_weight
+                        if dry_run:
+                            # Dry run batch without expert_labels - use ce_loss for backward pass test
+                            log.debug("Dry-run: router_loss_only=True but no router_loss (expected), using ce_loss for backward pass")
+                            loss = ce_loss
+                        else:
+                            raise RuntimeError("router_loss_only=True but router_loss is None")
+                    else:
+                        loss = router_loss * self.router_loss_weight
                 else:
                     loss = ce_loss
                     if z_loss is not None:
@@ -417,6 +401,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 loss.backward()
 
         del batch
+
+        self.model.post_batch(dry_run=dry_run)
 
         if dry_run:
             model_for_aux = _unwrap_fsdp_model(self.model)
