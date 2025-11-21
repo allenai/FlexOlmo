@@ -97,6 +97,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
     def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
         """Preserve expert_labels, metadata, and index for supervised router training."""
         preserved = {k: batch.get(k) for k in ['metadata', 'index', 'expert_labels']}
+        # Clone expert_labels if it's a tensor to avoid storage issues with views from split_batch
+        if 'expert_labels' in preserved and isinstance(preserved['expert_labels'], torch.Tensor):
+            preserved['expert_labels'] = preserved['expert_labels'].clone()
         input_ids, labels, model_kwargs = super()._prepare_batch(batch)
         model_kwargs.update({k: v for k, v in preserved.items() if v is not None})
         return input_ids, labels, model_kwargs
@@ -249,12 +252,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             with self._train_microbatch_context(micro_batch_idx, num_micro_batches):
                 input_ids, labels, model_kwargs = self._prepare_batch(micro_batch)
 
-                # Extract expert_labels from the micro_batch (already split by split_batch)
+                # Extract expert_labels from model_kwargs (already cloned in _prepare_batch)
                 micro_expert_labels = None
-                if has_expert_labels and "expert_labels" in micro_batch:
-                    micro_expert_labels = micro_batch["expert_labels"]
+                if has_expert_labels and "expert_labels" in model_kwargs:
+                    micro_expert_labels = model_kwargs["expert_labels"]
                     if isinstance(micro_expert_labels, torch.Tensor):
-                        micro_expert_labels = move_to_device(micro_expert_labels, self.device).contiguous()
+                        # Move to device if needed
+                        micro_expert_labels = move_to_device(micro_expert_labels, self.device)
                 
                 if self.router_loss_only and micro_expert_labels is None:
                     if dry_run:
