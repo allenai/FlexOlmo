@@ -150,17 +150,20 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if isinstance(router_logits, DTensor):
             router_logits = get_full_tensor(router_logits)
         
+        # Clone to ensure we have our own storage (operations below may create views)
+        router_logits = router_logits.clone()
+        
         if router_logits.dim() == 3:
-            router_logits = router_logits.mean(dim=0)
+            router_logits = router_logits.mean(dim=0).clone()  # mean can return a view
         elif router_logits.dim() != 2:
             raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
  
-        # Fix orientation if needed
+        # Fix orientation if needed (transpose creates a view!)
         if router_logits.shape[1] != expert_labels.shape[1] and router_logits.shape[0] == expert_labels.shape[1]:
-            router_logits = router_logits.transpose(0, 1)
+            router_logits = router_logits.transpose(0, 1).clone()  # clone after transpose
 
         router_logits = router_logits.contiguous()
-        expert_labels = expert_labels.to(router_logits.device).contiguous()
+        expert_labels = expert_labels.to(router_logits.device).clone().contiguous()
         
         batch_size = expert_labels.shape[0]
         seq_len = router_logits.shape[0] // batch_size
@@ -268,9 +271,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             )
         micro_batches = split_batch(batch, self.rank_microbatch_size // seq_len)
         num_micro_batches = len(micro_batches)
+        
+        # Keep references to prevent garbage collection of view tensors during backward pass
+        # split_batch creates views, and these views must remain valid during backward()
+        _micro_batch_refs = list(micro_batches)
 
         # Train one micro-batch at a time
-        for micro_batch_idx, micro_batch in enumerate(micro_batches):
+        for micro_batch_idx, micro_batch in enumerate(_micro_batch_refs):
             with self._train_microbatch_context(micro_batch_idx, num_micro_batches):
                 input_ids, labels, model_kwargs = self._prepare_batch(micro_batch)
 
@@ -474,9 +481,11 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 # Backward pass
                 loss.backward()
 
-        del batch
-
         self.model.post_batch(dry_run=dry_run)
+        
+        # Don't explicitly delete batch/_micro_batch_refs - let Python GC handle it
+        # after the function returns. Explicit deletion can cause "storage of size 0" 
+        # errors if the computation graph still references view tensors.
 
         if dry_run:
             model_for_aux = _unwrap_fsdp_model(self.model)
