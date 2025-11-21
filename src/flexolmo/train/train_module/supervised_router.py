@@ -95,12 +95,33 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         log.info(f"SupervisedRouterTrainModule initialized (router_loss_only={router_loss_only})")
     
     def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
-        """Preserve expert_labels, metadata, and index for supervised router training."""
+        """Preserve expert_labels, metadata, and index for supervised router training.
+        
+        IMPORTANT: Clone all tensors to avoid storage issues with views from split_batch.
+        split_batch() creates views that share storage with the original batch. During
+        backward pass, these views can become invalid, causing "storage of size 0" errors.
+        """
         preserved = {k: batch.get(k) for k in ['metadata', 'index', 'expert_labels']}
-        # Clone expert_labels if it's a tensor to avoid storage issues with views from split_batch
+        # Clone expert_labels if it's a tensor and ensure it's on the right device
         if 'expert_labels' in preserved and isinstance(preserved['expert_labels'], torch.Tensor):
-            preserved['expert_labels'] = preserved['expert_labels'].clone()
+            preserved['expert_labels'] = move_to_device(
+                preserved['expert_labels'].clone(), self.device
+            )
+        
         input_ids, labels, model_kwargs = super()._prepare_batch(batch)
+        
+        # Clone input_ids and labels to ensure they have their own storage
+        # (split_batch creates views, which can cause issues during backward pass)
+        if isinstance(input_ids, torch.Tensor):
+            input_ids = move_to_device(input_ids.clone(), self.device)
+        if isinstance(labels, torch.Tensor):
+            labels = move_to_device(labels.clone(), self.device)
+        
+        # Clone any tensors in model_kwargs that might be views from split_batch
+        for key, value in model_kwargs.items():
+            if isinstance(value, torch.Tensor):
+                model_kwargs[key] = move_to_device(value.clone(), self.device)
+        
         model_kwargs.update({k: v for k, v in preserved.items() if v is not None})
         return input_ids, labels, model_kwargs
 
@@ -252,13 +273,10 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             with self._train_microbatch_context(micro_batch_idx, num_micro_batches):
                 input_ids, labels, model_kwargs = self._prepare_batch(micro_batch)
 
-                # Extract expert_labels from model_kwargs (already cloned in _prepare_batch)
+                # Extract expert_labels from model_kwargs (already cloned and moved to device in _prepare_batch)
                 micro_expert_labels = None
                 if has_expert_labels and "expert_labels" in model_kwargs:
                     micro_expert_labels = model_kwargs["expert_labels"]
-                    if isinstance(micro_expert_labels, torch.Tensor):
-                        # Move to device if needed
-                        micro_expert_labels = move_to_device(micro_expert_labels, self.device)
                 
                 if self.router_loss_only and micro_expert_labels is None:
                     if dry_run:
