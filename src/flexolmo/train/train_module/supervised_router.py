@@ -178,16 +178,16 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         "Check that dataset config has include_instance_metadata=True and metadata is set."
                     )
         
-        expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
+        # Check if batch has expert_labels for validation purposes
+        has_expert_labels = "expert_labels" in batch and batch["expert_labels"] is not None
         
         # Handle dry-run batches (Trainer automatically runs dry run before training)
         # Dry run uses mock batch without metadata/expert_labels - skip router loss for dry run only
-        if expert_labels is None:
+        if not has_expert_labels:
             if self.router_loss_only:
                 if dry_run:
                     # Dry run batch doesn't have expert_labels (expected) - skip router loss for dry run
                     log.info("Dry-run batch: skipping router loss (mock batch has no expert_labels). Real batches will have expert_labels.")
-                    expert_labels = None  # Will skip router loss computation
                 else:
                     # Real batch without expert_labels - this is an error
                     error_msg = (
@@ -209,11 +209,6 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     raise RuntimeError(error_msg)
             else:
                 log.debug("No expert labels found, skipping router loss")
-        
-        if expert_labels is not None:
-            expert_labels = move_to_device(expert_labels, self.device)
-            if not expert_labels.is_contiguous():
-                expert_labels = expert_labels.contiguous()
 
         # Generate labels for language modeling
         if "labels" not in batch:
@@ -254,11 +249,12 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             with self._train_microbatch_context(micro_batch_idx, num_micro_batches):
                 input_ids, labels, model_kwargs = self._prepare_batch(micro_batch)
 
+                # Extract expert_labels from the micro_batch (already split by split_batch)
                 micro_expert_labels = None
-                if expert_labels is not None:
-                    micro_batch_size = input_ids.shape[0]
-                    start_idx = micro_batch_idx * micro_batch_size
-                    micro_expert_labels = expert_labels[start_idx:start_idx + micro_batch_size].contiguous()
+                if has_expert_labels and "expert_labels" in micro_batch:
+                    micro_expert_labels = micro_batch["expert_labels"]
+                    if isinstance(micro_expert_labels, torch.Tensor):
+                        micro_expert_labels = move_to_device(micro_expert_labels, self.device).contiguous()
                 
                 if self.router_loss_only and micro_expert_labels is None:
                     if dry_run:
@@ -276,25 +272,76 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 
                 if should_capture_router_logits:
                     router_loss_terms: List[torch.Tensor] = []
+                    # Store input for pre-forward hook
+                    router_inputs: Dict[torch.nn.Module, torch.Tensor] = {}
+                    
+                    def router_pre_hook(module, input):
+                        """Capture the input before jitter is applied."""
+                        if isinstance(input, tuple) and len(input) > 0:
+                            router_inputs[module] = input[0]
                     
                     def router_hook(module, input, output):
-                        if isinstance(output, tuple) and len(output) >= 1 and isinstance(output[0], torch.Tensor):
-                            if micro_expert_labels is None:
+                        if micro_expert_labels is None:
+                            return
+                        try:
+                            # Get the input that was captured before jitter
+                            # We need to apply jitter ourselves to match what happened in forward
+                            if module not in router_inputs:
+                                log.warning(f"Router input not captured for {module}")
                                 return
-                            try:
+                            x = router_inputs[module]
+                            
+                            # Apply jitter if the router has it (matches router.forward logic)
+                            # Note: This may produce slightly different values due to randomness,
+                            # but it will be close enough for loss computation and is part of the graph
+                            if hasattr(module, 'jitter'):
+                                x_jittered = module.jitter(x)
+                            else:
+                                x_jittered = x
+                            
+                            # Get router logits: shape (batch_size, seq_len, num_experts)
+                            if hasattr(module, 'get_expert_logits'):
+                                router_logits = module.get_expert_logits(x_jittered).float()
+                                
+                                # Ensure logits are part of the computation graph
+                                if not router_logits.requires_grad:
+                                    # This shouldn't happen, but ensure gradients flow through
+                                    router_logits = router_logits.clone().requires_grad_(True)
+                                
+                                # Reshape to (batch_size * seq_len, num_experts) for loss computation
+                                if router_logits.dim() == 3:
+                                    batch_size, seq_len, num_experts = router_logits.shape
+                                    router_logits_flat = router_logits.reshape(-1, num_experts)
+                                elif router_logits.dim() == 2:
+                                    # Already flat: (batch_size * seq_len, num_experts)
+                                    router_logits_flat = router_logits
+                                else:
+                                    raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
+                                
+                                # Ensure tensor is contiguous
+                                router_logits_flat = router_logits_flat.contiguous()
+                                
                                 loss_term = self._compute_router_loss(
-                                    output[0], micro_expert_labels, batch_num_tokens_for_loss
+                                    router_logits_flat, micro_expert_labels, batch_num_tokens_for_loss
                                 )
                                 router_loss_terms.append(loss_term)
-                            except Exception as exc:
-                                log.warning(f"Failed to compute router loss for {module}: {exc}")
+                            else:
+                                log.warning(f"Router module {module} does not have get_expert_logits method")
+                        except Exception as exc:
+                            log.error(f"Failed to compute router loss for {module}: {exc}", exc_info=True)
+                            # Don't raise - let other hooks run
+                        finally:
+                            # Clean up stored input
+                            router_inputs.pop(module, None)
                     
                     hooks = []
+                    pre_hooks = []
                     router_modules = [(n, m) for n, m in self.model.named_modules() 
                                      if 'router' in n.lower() and hasattr(m, 'forward')]
                     
                     if router_modules:
                         for _, router_module in router_modules:
+                            pre_hooks.append(router_module.register_forward_pre_hook(router_pre_hook))
                             hooks.append(router_module.register_forward_hook(router_hook))
                     else:
                         # Fallback: search blocks for MoE routers
@@ -307,6 +354,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                     if moe_module is not None and hasattr(moe_module, 'router'):
                                         router = getattr(moe_module, 'router')
                                         if isinstance(router, torch.nn.Module):
+                                            pre_hooks.append(router.register_forward_pre_hook(router_pre_hook))
                                             hooks.append(router.register_forward_hook(router_hook))
                                             break
                     
@@ -327,7 +375,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     else:
                         raise TypeError(f"Unexpected return type: {type(model_forward_result)}")
                     
-                    for hook in hooks:
+                    for hook in hooks + pre_hooks:
                         hook.remove()
                     
                     if router_loss_terms:
