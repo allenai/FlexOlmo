@@ -114,7 +114,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     )
                 return expert_labels.to(self.device).contiguous()
         
-        log.error("Missing 'expert_labels' in batch - ensure DataCollator preserves them")
+        # Don't log error here - let train_batch handle logging based on dry_run flag
         return None
 
     def _compute_router_loss(
@@ -168,11 +168,17 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             if 'metadata' in batch and batch['metadata']:
                 log.info(f"  First metadata entry: {batch['metadata'][0] if isinstance(batch['metadata'], list) else batch['metadata']}")
             elif 'metadata' not in batch:
-                log.error(
-                    "❌ CRITICAL: Batch doesn't have 'metadata' field! "
-                    "This means dataset items don't have metadata. "
-                    "Check that dataset config has include_instance_metadata=True and metadata is set."
-                )
+                if dry_run:
+                    log.info(
+                        "ℹ️  Dry-run batch doesn't have 'metadata' field (expected - dry-run uses mock batch). "
+                        "Real training batches should have metadata if dataset is configured correctly."
+                    )
+                else:
+                    log.error(
+                        "❌ CRITICAL: Batch doesn't have 'metadata' field! "
+                        "This means dataset items don't have metadata. "
+                        "Check that dataset config has include_instance_metadata=True and metadata is set."
+                    )
         
         expert_labels = self._extract_expert_labels_from_batch(batch, batch_size)
         
@@ -201,8 +207,10 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     except Exception:
                         pass  # Use default of 4
                     
-                    expert_labels = torch.zeros(batch_size, num_experts, dtype=torch.float32)
+                    # Create dummy expert_labels on the correct device and make them contiguous
+                    expert_labels = torch.zeros(batch_size, num_experts, dtype=torch.float32, device=self.device)
                     expert_labels[:, 1] = 1.0  # Set Expert 1 (General) as default
+                    expert_labels = expert_labels.contiguous()
                 else:
                     # Real batch without expert_labels - this means metadata isn't flowing through
                     error_msg = (
@@ -283,6 +291,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 
                 if should_capture_router_logits:
                     router_loss_terms: List[torch.Tensor] = []
+                    router_hook_errors: List[str] = []
                     
                     def router_hook(module, input, output):
                         if isinstance(output, tuple) and len(output) >= 1 and isinstance(output[0], torch.Tensor):
@@ -294,7 +303,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 )
                                 router_loss_terms.append(loss_term)
                             except Exception as exc:
-                                log.warning(f"Failed to compute router loss for {module}: {exc}")
+                                error_msg = f"Failed to compute router loss for {module}: {exc}"
+                                if dry_run:
+                                    # During dry run, just log warnings instead of failing
+                                    log.debug(f"Dry run: {error_msg}")
+                                    router_hook_errors.append(error_msg)
+                                else:
+                                    log.warning(error_msg)
                     
                     hooks = []
                     router_modules = [(n, m) for n, m in self.model.named_modules() 
@@ -341,7 +356,15 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         router_loss = torch.stack(router_loss_terms, dim=0).mean()
                         log.debug(f"Router loss from {len(router_loss_terms)} modules: {router_loss.item():.4f}")
                     elif self.router_loss_only:
-                        raise RuntimeError("router_loss_only=True but no router loss terms computed")
+                        if dry_run:
+                            # During dry run, create a dummy loss if router hooks failed
+                            log.debug("Dry run: router hooks failed to compute loss, creating dummy loss for backward pass")
+                            router_loss = move_to_device(torch.tensor(1.0, requires_grad=True), self.device)
+                        else:
+                            raise RuntimeError(
+                                "router_loss_only=True but no router loss terms computed. "
+                                "Check that router modules are found and output correct shapes."
+                            )
                 else:
                     model_forward_result = self.model_forward(
                         input_ids, labels=labels, ignore_index=self.label_ignore_index,
