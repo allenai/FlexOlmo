@@ -47,7 +47,7 @@ from olmo_core.train.train_module import (
 )
 
 from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config
-from flexolmo.eval.evaluator_callback import DownstreamEvaluatorUpdatedCallbackConfig
+# from flexolmo.eval.evaluator_callback import DownstreamEvaluatorUpdatedCallbackConfig
 
 log = logging.getLogger(__name__)
 
