@@ -13,7 +13,6 @@ echo ""
 # echo "🚀 Launching Math-2x7B Mid Training..."
 # echo ""
 
-MATH_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base
 CODE_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
 # SANJAY_EXPERT=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/merged-2x7B-general-math
 # TEST_EXPERT=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/flex-experiments/experts/merged-2x7B-general-math-4
@@ -21,23 +20,24 @@ CODE_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base
 
 #    --launch.budget=ai2/oe-base \
 
-# uv python src/scripts/beaker/launch.py launch ai2/jupiter \
-#    --launch.num_nodes=8 \
-#    --launch.num_gpus=8 \
-#    --launch.budget=ai2/oceo \
-#    --launch.workspace=ai2/flex2 \
-#    --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-math-anneal \
-#    --trainer.callbacks.profiler.enabled=false \
-#    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
-#    --dataset.mix=mj_finemath4plus \
-#    --trainer.max_duration.value=50_000_000_000 \
-#    --trainer.max_duration.unit=tokens \
-#    --trainer.load_path=${MATH_EXPERT} \
-#    --model.block.feed_forward_moe.router.top_k=2 \
-#    --train_module.rank_microbatch_size=4096 \
-#    --train_module.scheduler.warmup_steps=2000 \
-#    --train_module.optim.lr=9e-4 \
-#    --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias
+MATH_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base
+uv run --active python src/scripts/beaker/launch.py launch ai2/jupiter \
+   --launch.num_nodes=8 \
+   --launch.num_gpus=8 \
+   --launch.budget=ai2/oceo \
+   --launch.workspace=ai2/flex2 \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py Flex-2x7B-math-anneal-frozen-router-5b \
+   --trainer.callbacks.profiler.enabled=false \
+   --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
+   --dataset.mix=mj_finemath4plus \
+   --trainer.max_duration.value=5_000_000_000 \
+   --trainer.max_duration.unit=tokens \
+   --trainer.load_path=${MATH_EXPERT} \
+   --model.block.feed_forward_moe.router.top_k=2 \
+   --train_module.rank_microbatch_size=4096 \
+   --train_module.scheduler.warmup_steps=2000 \
+   --train_module.optim.lr=9e-4 \
+   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-math-anneal-frozen-router-5b
 
 # Code-2x7B Mid Training
 echo "🚀 Launching Code-2x7B Mid Training..."
