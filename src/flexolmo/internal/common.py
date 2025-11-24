@@ -8,7 +8,7 @@ from olmo_core.data import (
     DataMix,
     NumpyDataLoaderConfig,
     NumpyDatasetConfig,
-    NumpyDatasetType,
+    # NumpyDatasetType,
     TokenizerConfig,
     VSLCurriculumConfig,
     VSLCurriculumType,
@@ -187,42 +187,42 @@ def build_common_components(
     if torch.cuda.is_available():
         callbacks["gpu_monitor"] = GPUMemoryMonitorCallback()
 
-    if include_default_evals:
-        callbacks["lm_evaluator"] = LMEvaluatorCallbackConfig(
-            eval_dataset=NumpyDatasetConfig.from_data_mix(
-                DataMix.v3_small_ppl_validation,
-                name=NumpyDatasetType.padded_fsl,
-                mix_base_dir=root_dir,
-                sequence_length=dataset_config.effective_sequence_length,
-                tokenizer=tokenizer_config,
-                work_dir=get_work_dir(root_dir),
-            ),
-            eval_interval=1000,
-        )
+    # if include_default_evals:
+    #     callbacks["lm_evaluator"] = LMEvaluatorCallbackConfig(
+    #         eval_dataset=NumpyDatasetConfig.from_data_mix(
+    #             DataMix.v3_small_ppl_validation,
+    #             name=NumpyDatasetType.padded_fsl,
+    #             mix_base_dir=root_dir,
+    #             sequence_length=dataset_config.effective_sequence_length,
+    #             tokenizer=tokenizer_config,
+    #             work_dir=get_work_dir(root_dir),
+    #         ),
+    #         eval_interval=1000,
+    #     )
 
-        tasks = [
-            "piqa",
-            "hellaswag",
-            "winogrande",
-            "openbook_qa",
-            "boolq",
-            "sciq",
-            "xsum",
-            "wildbench_math",
-            "wildbench_reasoning",
-            "wildbench_coding_debugging",
-            "wildbench_creative_writing",
-            "mmlu_stem_val_rc_5shot",
-            "mmlu_humanities_val_rc_5shot",
-            "mmlu_social_sciences_val_rc_5shot",
-            "mmlu_other_val_rc_5shot",
-        ]
+    #     tasks = [
+    #         "piqa",
+    #         "hellaswag",
+    #         "winogrande",
+    #         "openbook_qa",
+    #         "boolq",
+    #         "sciq",
+    #         "xsum",
+    #         "wildbench_math",
+    #         "wildbench_reasoning",
+    #         "wildbench_coding_debugging",
+    #         "wildbench_creative_writing",
+    #         "mmlu_stem_val_rc_5shot",
+    #         "mmlu_humanities_val_rc_5shot",
+    #         "mmlu_social_sciences_val_rc_5shot",
+    #         "mmlu_other_val_rc_5shot",
+    #     ]
 
-        callbacks["downstream_evaluator"] = DownstreamEvaluatorUpdatedCallbackConfig(
-            tasks=[task for task in tasks[:2] if "_mc" not in task and "_var" not in task],
-            tokenizer=tokenizer_config,
-            eval_interval=1_000,
-        )
+    #     callbacks["downstream_evaluator"] = DownstreamEvaluatorUpdatedCallbackConfig(
+    #         tasks=[task for task in tasks[:2] if "_mc" not in task and "_var" not in task],
+    #         tokenizer=tokenizer_config,
+    #         eval_interval=1_000,
+    #     )
 
     trainer_config = TrainerConfig(
         save_folder=get_save_dir(root_dir, run_name),
