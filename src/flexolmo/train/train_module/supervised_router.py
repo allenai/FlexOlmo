@@ -544,10 +544,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         model_for_aux = _unwrap_fsdp_model(self.model)
         if hasattr(model_for_aux, 'compute_auxiliary_metrics'):
             compute_metrics_fn = getattr(model_for_aux, 'compute_auxiliary_metrics')
-            metrics = compute_metrics_fn(
-                batch_num_tokens_for_loss,
-                reset=True,
-            )
+            metrics = compute_metrics_fn(reset=True)
             for metric_name, (metric_val, reduction) in metrics.items():
                 self.record_metric(
                     metric_name,
