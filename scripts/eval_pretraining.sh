@@ -41,7 +41,7 @@ TASKS=(
 
     # MMLU tasks
     mmlu:mc::olmes
-    mmlu_pro_mc::none
+    # mmlu_pro_mc::none
 
     # AGI eval
     agi_eval_english:1shot::olmes
