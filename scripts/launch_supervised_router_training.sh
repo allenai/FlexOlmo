@@ -13,8 +13,10 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --dataset.include_instance_metadata=true \
    --trainer.max_duration.value=100 \
    --trainer.max_duration.unit=tokens \
-   --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code \
-   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-small \
+   --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/merged-2x7B-general-code \
+   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-code-RT-supervised-small \
+   --model.block.feed_forward_moe.num_experts=2 \
+   --model.block.feed_forward_moe.router.top_k=2 \
    --train_module.rank_microbatch_size=4096 \
    --train_module.scheduler.warmup_steps=100 \
    --train_module.optim.lr=2e-3 \
