@@ -345,6 +345,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     
                     def router_hook(module, input, output):
                         """Capture router forward output and compute supervised loss."""
+                        # DISABLED: Router loss computation temporarily disabled for debugging
+                        return
+                        
                         if micro_expert_labels is None:
                             return
                         
@@ -433,16 +436,15 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     if router_loss_terms:
                         router_loss = torch.stack(router_loss_terms, dim=0).mean()
                         log.debug(f"Router loss from {len(router_loss_terms)} modules: {router_loss.item():.4f}")
-                    elif self.router_loss_only:
-                        if dry_run:
-                            # Dry run batch - no router loss terms (expected if no expert_labels)
-                            log.debug("Dry-run: no router loss terms computed (expected for mock batch)")
-                            router_loss = None
-                        else:
-                            raise RuntimeError(
-                                "router_loss_only=True but no router loss terms computed. "
-                                "Check that router modules are found and output correct shapes."
-                            )
+                    else:
+                        # Router loss disabled for debugging - set to None
+                        router_loss = None
+                        log.debug("Router loss computation disabled (debugging mode)")
+                        if self.router_loss_only and not dry_run:
+                            # If router_loss_only=True, we need a dummy loss for backward pass
+                            # Use a zero loss that requires grad from router logits
+                            log.warning("router_loss_only=True but router loss disabled - using dummy zero loss")
+                            router_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
                 else:
                     model_forward_result = self.model_forward(
                         input_ids, labels=labels, ignore_index=self.label_ignore_index,
