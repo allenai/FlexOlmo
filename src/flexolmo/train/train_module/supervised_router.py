@@ -43,26 +43,6 @@ class SupervisedMoERouter(MoERouter):
         self.router_loss_weight = router_loss_weight
         self._supervised_loss: Optional[torch.Tensor] = None
     
-    def _map_expert_labels_4_to_2(self, expert_labels: torch.Tensor) -> torch.Tensor:
-        """Map 4-expert labels to 2-expert labels."""
-        if expert_labels.shape[-1] == 2:
-            return expert_labels.clone()
-        
-        if expert_labels.shape[-1] != 4:
-            raise ValueError(f"Expected expert_labels with 2 or 4 experts, got {expert_labels.shape[-1]}")
-        
-        # Convert one-hot to indices first
-        expert_indices_4 = expert_labels.argmax(dim=-1).clone()
-        
-        # Map: 0->1, 1->0, 2->1, 3->0
-        mapping = torch.tensor([1, 0, 1, 0], device=expert_indices_4.device, dtype=torch.long)
-        expert_indices_2 = mapping[expert_indices_4].clone()
-        
-        # Convert back to one-hot for 2 experts
-        expert_labels_2 = F.one_hot(expert_indices_2, num_classes=2).float().clone().contiguous()
-        
-        return expert_labels_2
-    
     def forward(
         self,
         x: torch.Tensor,
@@ -122,17 +102,14 @@ class SupervisedMoERouter(MoERouter):
         router_logits = router_logits.clone().contiguous()
         expert_labels = expert_labels.clone().contiguous()
         
-        # Map expert labels if needed (4 experts -> 2 experts)
+        # Validate expert label dimensions match model
         num_model_experts = router_logits.shape[-1]
         if expert_labels.shape[-1] != num_model_experts:
-            if expert_labels.shape[-1] == 4 and num_model_experts == 2:
-                expert_labels = self._map_expert_labels_4_to_2(expert_labels)
-            else:
-                log.warning(
-                    f"Expert label dimension mismatch: labels have {expert_labels.shape[-1]} experts, "
-                    f"but model has {num_model_experts} experts. Skipping supervised loss."
-                )
-                return None
+            log.warning(
+                f"Expert label dimension mismatch: labels have {expert_labels.shape[-1]} experts, "
+                f"but model has {num_model_experts} experts. Skipping supervised loss."
+            )
+            return None
         
         # Ensure same device
         expert_labels = expert_labels.to(router_logits.device)
@@ -303,12 +280,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if isinstance(router_logits, DTensor):
             router_logits = get_full_tensor(router_logits)
         
-        # Map expert labels if needed (4 experts -> 2 experts)
+        # Validate expert label dimensions match model
         if expert_labels.shape[-1] != num_experts:
-            if expert_labels.shape[-1] == 4 and num_experts == 2:
-                expert_labels = self._map_expert_labels_4_to_2(expert_labels)
-            else:
-                return None
+            return None
         
         # Ensure same device (no clone - just move if needed)
         expert_labels = expert_labels.to(router_logits.device)
@@ -431,34 +405,6 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             return torch.stack(router_loss_terms, dim=0).mean()
         return None
 
-    def _map_expert_labels_4_to_2(self, expert_labels: torch.Tensor) -> torch.Tensor:
-        """Map 4-expert labels to 2-expert labels.
-        
-        Mapping for 2x7B model (General + Code/Math):
-        - Expert 0 (Math) -> Expert 1 (Code/Math)
-        - Expert 1 (General) -> Expert 0 (General)
-        - Expert 2 (Code) -> Expert 1 (Code/Math)
-        - Expert 3 (Academic) -> Expert 0 (General)
-        """
-        if expert_labels.shape[-1] == 2:
-            # Already 2 experts, no mapping needed
-            return expert_labels
-        
-        if expert_labels.shape[-1] != 4:
-            raise ValueError(f"Expected expert_labels with 2 or 4 experts, got {expert_labels.shape[-1]}")
-        
-        # Convert one-hot to indices first
-        expert_indices_4 = expert_labels.argmax(dim=-1)
-        
-        # Map: 0->1, 1->0, 2->1, 3->0
-        mapping = torch.tensor([1, 0, 1, 0], device=expert_indices_4.device, dtype=torch.long)
-        expert_indices_2 = mapping[expert_indices_4]
-        
-        # Convert back to one-hot for 2 experts
-        expert_labels_2 = F.one_hot(expert_indices_2, num_classes=2).float()
-        
-        return expert_labels_2
-
     def _compute_router_loss(
         self,
         router_logits: torch.Tensor,
@@ -477,17 +423,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         elif router_logits.dim() != 2:
             raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
  
-        # Map expert labels if needed (4 experts -> 2 experts)
+        # Validate expert label dimensions match model
         num_model_experts = router_logits.shape[-1]
         if expert_labels.shape[-1] != num_model_experts:
-            if expert_labels.shape[-1] == 4 and num_model_experts == 2:
-                expert_labels = self._map_expert_labels_4_to_2(expert_labels)
-                log.debug(f"Mapped expert labels from 4 to 2 experts")
-            else:
-                raise ValueError(
-                    f"Expert label dimension mismatch: labels have {expert_labels.shape[-1]} experts, "
-                    f"but model has {num_model_experts} experts"
-                )
+            raise ValueError(
+                f"Expert label dimension mismatch: labels have {expert_labels.shape[-1]} experts, "
+                f"but model has {num_model_experts} experts"
+            )
 
         # Fix orientation if needed (transpose creates a view!)
         if router_logits.shape[1] != expert_labels.shape[1] and router_logits.shape[0] == expert_labels.shape[1]:

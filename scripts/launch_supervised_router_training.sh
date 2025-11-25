@@ -13,16 +13,16 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --dataset.include_instance_metadata=true \
    --trainer.max_duration.value=100 \
    --trainer.max_duration.unit=tokens \
-   --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/merged-2x7B-general-code \
-   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-code-RT-supervised-small-no-hook-router-only \
-   --model.block.feed_forward_moe.num_experts=2 \
-   --model.block.feed_forward_moe.router.top_k=2 \
+   --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code \
+   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-small \
+   --model.block.feed_forward_moe.num_experts=4 \
+   --model.block.feed_forward_moe.router.top_k=4 \
    --train_module.rank_microbatch_size=4096 \
    --train_module.scheduler.warmup_steps=100 \
    --train_module.optim.lr=2e-3 \
    --train_module.router_loss_weight=1.0 \
    --train_module.router_loss_only=true \
    --train_module.dp_config.num_replicas=8 \
-   --train_module.ep_config.degree=1 \
+   --train_module.ep_config.degree=4 \
    --data_loader.global_batch_size=32768
 
