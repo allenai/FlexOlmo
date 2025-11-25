@@ -10,7 +10,10 @@ MODELS=(
     # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
     # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf"
     # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias/step95250-hf"
-    "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921-hf"
+    # "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-anneal-frozen-router-mixed-sft/step1062-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-anneal-NO-frozen-router-mixed-sft/step1062-hf"
+
 )
 BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
 # BASE_OUTPUT_DIR="s3://ai2-llm/jacobm/flexolmo/results"
@@ -120,7 +123,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
     echo "  Batch size: $batch_size"
     echo "  Job name: $job_name"
     
-    gantry run \
+    uv run gantry run \
         --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
         --weka oe-adapt-default:/weka/oe-adapt-default \
