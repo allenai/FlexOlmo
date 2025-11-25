@@ -684,9 +684,22 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     if self.router_loss_only:
                         if router_loss_from_aux is None:
                             if dry_run:
-                                log.debug("Dry-run: router_loss_only=True but no router_loss (expected), using ce_loss for backward pass")
-                                # For dry run, use ce_loss since it's part of computation graph
-                                loss = ce_loss
+                                log.debug("Dry-run: router_loss_only=True but no router_loss (expected), creating dummy loss from router params")
+                                # For dry run, create a dummy loss from router parameters to test computation graph
+                                # This is needed because ce_loss comes from frozen lm_head and doesn't require grad
+                                dummy_loss = None
+                                for name, param in self.model.named_parameters():
+                                    if "router" in name and param.requires_grad and param.numel() > 0:
+                                        # Create a dummy loss that requires grad from router parameters
+                                        # Use a tiny value (1e-10) so it's effectively zero but still requires grad
+                                        dummy_loss = (param * 1e-10).sum()
+                                        break  # Just need one parameter to create valid computation graph
+                                if dummy_loss is not None and dummy_loss.requires_grad:
+                                    loss = dummy_loss
+                                else:
+                                    # Fallback: skip backward for dry run if no router params found
+                                    log.warning("Dry-run: No router parameters found, skipping backward pass")
+                                    loss = None
                             else:
                                 raise RuntimeError("router_loss_only=True but router_loss not found in auxiliary losses")
                         else:
@@ -700,8 +713,9 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     z_batch_loss += get_local_tensor(z_loss.detach())
                     del z_loss
                 
-                # Backward pass
-                loss.backward()
+                # Backward pass (skip if loss is None, which can happen during dry run)
+                if loss is not None:
+                    loss.backward()
 
         self.model.post_batch(dry_run=dry_run)
         
