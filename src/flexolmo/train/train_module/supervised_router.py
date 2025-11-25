@@ -405,13 +405,15 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if z_batch_loss is not None:
             self.record_metric("Z loss", z_batch_loss, ReduceType.mean, namespace="train")
         
-        # Record the supervised router loss that we collected for logging
+        # Record the supervised router loss for tracking in wandb
         if isinstance(router_batch_loss, torch.Tensor):
             router_loss_val = router_batch_loss.item()
-            if router_loss_val > 0:
-                self.record_metric("Supervised Router Loss", router_batch_loss, ReduceType.mean, namespace="train")
-            elif self.trainer.global_step % 100 == 0:
-                log.warning(f"[Router Training] router_batch_loss is 0 (step={self.trainer.global_step})")
+            # Always record the router loss so we can see the curve in wandb
+            self.record_metric("router loss (supervised)", router_batch_loss, ReduceType.mean, namespace="train")
+            
+            # Log warning if loss is unexpectedly zero
+            if router_loss_val == 0 and self.trainer.global_step % 100 == 0:
+                log.warning(f"[Router Training] router_batch_loss is 0 at step {self.trainer.global_step}")
 
         model_for_aux = _unwrap_fsdp_model(self.model)
         if hasattr(model_for_aux, 'compute_auxiliary_metrics'):
