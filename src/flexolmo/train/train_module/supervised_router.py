@@ -650,19 +650,12 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 # Build total loss (before deleting ce_loss/z_loss)
                 if self.router_loss_only:
                     # Router loss is in auxiliary losses - will extract below
+                    # Initialize with zero, will be replaced with router_loss_from_aux if available
                     loss = move_to_device(torch.tensor(0.0), self.device)
                 else:
                     loss = ce_loss
                     if z_loss is not None:
                         loss = loss + z_loss
-                
-                # Update batch losses for logging
-                ce_batch_loss += get_local_tensor(ce_loss.detach())
-                del ce_loss
-                if z_batch_loss is not None:
-                    assert z_loss is not None
-                    z_batch_loss += get_local_tensor(z_loss.detach())
-                    del z_loss
                 
                 model_for_aux = _unwrap_fsdp_model(self.model)
                 if hasattr(model_for_aux, 'compute_auxiliary_losses'):
@@ -691,13 +684,21 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     if self.router_loss_only:
                         if router_loss_from_aux is None:
                             if dry_run:
-                                log.debug("Dry-run: router_loss_only=True but no router_loss (expected), using zero loss for backward pass")
-                                # For dry run, keep loss as zero tensor (backward will still work)
-                                pass
+                                log.debug("Dry-run: router_loss_only=True but no router_loss (expected), using ce_loss for backward pass")
+                                # For dry run, use ce_loss since it's part of computation graph
+                                loss = ce_loss
                             else:
                                 raise RuntimeError("router_loss_only=True but router_loss not found in auxiliary losses")
                         else:
                             loss = router_loss_from_aux
+                
+                # Update batch losses for logging (after we've determined final loss)
+                ce_batch_loss += get_local_tensor(ce_loss.detach())
+                del ce_loss
+                if z_batch_loss is not None:
+                    assert z_loss is not None
+                    z_batch_loss += get_local_tensor(z_loss.detach())
+                    del z_loss
                 
                 # Backward pass
                 loss.backward()
