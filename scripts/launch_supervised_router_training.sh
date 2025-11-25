@@ -14,7 +14,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --trainer.max_duration.value=5000000000 \
    --trainer.max_duration.unit=tokens \
    --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code \
-   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-7 \
+   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-8 \
    --model.block.feed_forward_moe.num_experts=4 \
    --model.block.feed_forward_moe.router.top_k=4 \
    --train_module.rank_microbatch_size=4096 \
@@ -24,5 +24,5 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --train_module.router_loss_only=true \
    --train_module.dp_config.num_replicas=16 \
    --train_module.ep_config.degree=4 \
-   --data_loader.global_batch_size=524288
+   --data_loader.global_batch_size=262144
 
