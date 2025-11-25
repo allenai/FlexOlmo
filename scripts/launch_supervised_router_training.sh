@@ -24,5 +24,5 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --train_module.router_loss_only=true \
    --train_module.dp_config.num_replicas=16 \
    --train_module.ep_config.degree=4 \
-   --data_loader.global_batch_size=32768
+   --data_loader.global_batch_size=262144
 
