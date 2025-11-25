@@ -96,7 +96,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
     def _patch_routers_for_supervised_loss(self):
         """Patch router forward methods to compute supervised loss during forward."""
         self._current_expert_labels: Optional[torch.Tensor] = None
-        self._router_supervised_losses: List[torch.Tensor] = []
+        self._router_supervised_losses: List[float] = []
         
         patched_count = 0
         for name, module in self.model.named_modules():
@@ -123,7 +123,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 if supervised_loss is not None:
                                     scaled_loss = train_module_self.router_loss_weight * supervised_loss
                                     aux_loss = scaled_loss if aux_loss is None else aux_loss + scaled_loss
-                                    train_module_self._router_supervised_losses.append(scaled_loss)
+                                    train_module_self._router_supervised_losses.append(get_local_tensor(scaled_loss.detach()).item())
                                     if not hasattr(train_module_self, '_logged_supervised_loss'):
                                         train_module_self._logged_supervised_loss = set()
                                     if router_name_inner not in train_module_self._logged_supervised_loss and train_module_self.trainer.global_step <= 1:
@@ -351,18 +351,29 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     if z_loss is not None:
                         loss = loss + z_loss
                 
-                # Collect supervised loss from routers (collected during forward)
+                # Collect supervised loss values for logging/metrics (losses already attached via attach_auxiliary_loss)
                 should_log = micro_batch_idx == 0 and (self.trainer.global_step <= 1 or self.trainer.global_step % 100 == 0)
                 if self._router_supervised_losses:
-                    router_loss_from_routers = sum(self._router_supervised_losses)
-                    router_loss_sum = sum(get_local_tensor(loss_val.detach()).item() if isinstance(loss_val, torch.Tensor) else 0.0 for loss_val in self._router_supervised_losses)
-                    if isinstance(router_loss_from_routers, torch.Tensor):
-                        router_batch_loss += get_local_tensor(router_loss_from_routers.detach())
-                        if should_log:
-                            log.info(f"[Router Training] Collected supervised loss from {len(self._router_supervised_losses)} routers: {router_loss_sum:.6f}")
-                        if self.router_loss_only:
-                            loss = router_loss_from_routers
+                    router_loss_sum = sum(self._router_supervised_losses)
+                    router_batch_loss += router_loss_sum
+                    if should_log:
+                        log.info(f"[Router Training] Collected supervised loss from {len(self._router_supervised_losses)} routers: {router_loss_sum:.6f}")
                     self._router_supervised_losses.clear()
+                
+                # For router_loss_only, backward will flow through attach_auxiliary_loss automatically
+                # We just need a dummy loss that requires grad to trigger backward
+                if self.router_loss_only and loss is None:
+                    if dry_run:
+                        dummy_loss = self._create_dummy_loss_for_dry_run()
+                        loss = dummy_loss if dummy_loss is not None and dummy_loss.requires_grad else None
+                    else:
+                        # Create a minimal dummy loss from router parameters to trigger backward
+                        # The actual supervised losses will flow through attach_auxiliary_loss
+                        dummy_loss = self._create_dummy_loss_for_dry_run()
+                        if dummy_loss is not None and dummy_loss.requires_grad:
+                            loss = dummy_loss
+                        else:
+                            raise RuntimeError("router_loss_only=True but no valid loss found")
                 
                 # Also collect auxiliary losses (router Z loss, load balancing, etc.)
                 model_for_aux = _unwrap_fsdp_model(self.model)
