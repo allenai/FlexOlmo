@@ -259,7 +259,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                     # Minimal log: verify supervised loss computed (once per router, first step only)
                                     if not hasattr(train_module_self, '_logged_supervised_loss'):
                                         train_module_self._logged_supervised_loss = set()
-                                    if name not in train_module_self._logged_supervised_loss and train_module_self.trainer.global_step < 1:
+                                    if name not in train_module_self._logged_supervised_loss and train_module_self.trainer.global_step <= 1:
                                         log.info(f"[Router Training] Computed supervised loss in '{name}': {scaled_loss.item():.6f}")
                                         train_module_self._logged_supervised_loss.add(name)
                         
@@ -611,6 +611,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         reset=True
                     )
                     
+                    # Diagnostic logging (step 1 or every 100 steps)
+                    if micro_batch_idx == 0 and (self.trainer.global_step <= 1 or self.trainer.global_step % 100 == 0):
+                        log.info(f"[Router Training] compute_auxiliary_losses returned {len(auxiliary_losses)} losses: {list(auxiliary_losses.keys())}")
+                        for loss_name, loss_val in auxiliary_losses.items():
+                            loss_val_local = get_local_tensor(loss_val.detach())
+                            log.info(f"  - {loss_name}: {loss_val_local.item():.6f}")
+                    
                     # Extract router loss from auxiliary losses
                     # When router_loss_only=True, all auxiliary losses should be router-related
                     router_loss_from_aux = None
@@ -642,19 +649,19 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     # (router_loss_only means only router losses should exist)
                     if self.router_loss_only and router_loss_from_aux is None and len(auxiliary_losses) > 0:
                         router_loss_from_aux = sum(auxiliary_losses.values())
-                        router_batch_loss = sum(get_local_tensor(loss_val.detach()) for loss_val in auxiliary_losses.values())
+                        router_batch_loss += sum(get_local_tensor(loss_val.detach()) for loss_val in auxiliary_losses.values())
                         # Log: verify extraction (first step or every 100 steps for debugging)
-                        if micro_batch_idx == 0 and (self.trainer.global_step < 1 or self.trainer.global_step % 100 == 0):
+                        if micro_batch_idx == 0 and (self.trainer.global_step <= 1 or self.trainer.global_step % 100 == 0):
                             loss_sum = sum(get_local_tensor(loss_val.detach()).item() for loss_val in auxiliary_losses.values())
                             log.info(f"[Router Training] Using sum of {len(auxiliary_losses)} auxiliary losses as router loss: {loss_sum:.6f} (names: {list(auxiliary_losses.keys())})")
                     elif self.router_loss_only and router_loss_from_aux is not None:
                         # Log: verify extraction (first step or every 100 steps for debugging)
-                        if micro_batch_idx == 0 and (self.trainer.global_step < 1 or self.trainer.global_step % 100 == 0):
+                        if micro_batch_idx == 0 and (self.trainer.global_step <= 1 or self.trainer.global_step % 100 == 0):
                             loss_val_local = get_local_tensor(router_loss_from_aux.detach())
                             log.info(f"[Router Training] Extracted router loss: {loss_val_local.item():.6f}")
                     elif self.router_loss_only and len(auxiliary_losses) == 0:
                         # Warning: no auxiliary losses found (log occasionally)
-                        if micro_batch_idx == 0 and (self.trainer.global_step < 1 or self.trainer.global_step % 100 == 0):
+                        if micro_batch_idx == 0 and (self.trainer.global_step <= 1 or self.trainer.global_step % 100 == 0):
                             log.warning(f"[Router Training] router_loss_only=True but NO auxiliary losses found!")
                     
                     del auxiliary_losses
