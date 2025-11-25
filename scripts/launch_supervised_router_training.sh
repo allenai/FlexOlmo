@@ -3,7 +3,7 @@
 
 PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:$PYTHONPATH \
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
-   --launch.num_nodes=1 \
+   --launch.num_nodes=8 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
@@ -22,7 +22,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --train_module.optim.lr=2e-3 \
    --train_module.router_loss_weight=1.0 \
    --train_module.router_loss_only=true \
-   --train_module.dp_config.num_replicas=2 \
+   --train_module.dp_config.num_replicas=16 \
    --train_module.ep_config.degree=4 \
    --data_loader.global_batch_size=32768
 
