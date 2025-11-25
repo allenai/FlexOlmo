@@ -650,8 +650,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 # Build total loss (before deleting ce_loss/z_loss)
                 if self.router_loss_only:
                     # Router loss is in auxiliary losses - will extract below
-                    # Initialize with zero, will be replaced with router_loss_from_aux if available
-                    loss = move_to_device(torch.tensor(0.0), self.device)
+                    # Initialize to None, will be set when we extract router_loss_from_aux
+                    loss = None
                 else:
                     loss = ce_loss
                     if z_loss is not None:
@@ -688,17 +688,49 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 # For dry run, create a dummy loss from router parameters to test computation graph
                                 # This is needed because ce_loss comes from frozen lm_head and doesn't require grad
                                 dummy_loss = None
-                                for name, param in self.model.named_parameters():
-                                    if "router" in name and param.requires_grad and param.numel() > 0:
-                                        # Create a dummy loss that requires grad from router parameters
-                                        # Use a tiny value (1e-10) so it's effectively zero but still requires grad
-                                        dummy_loss = (param * 1e-10).sum()
-                                        break  # Just need one parameter to create valid computation graph
+                                router_param_found = False
+                                
+                                # Try to get router logits from the forward pass first (cleaner approach)
+                                for name, module in self.model.named_modules():
+                                    if hasattr(module, '_latest_router_logits'):
+                                        router_logits = module._latest_router_logits
+                                        if router_logits is not None and isinstance(router_logits, torch.Tensor):
+                                            # Create a dummy loss from router logits (they're part of computation graph)
+                                            try:
+                                                if isinstance(router_logits, DTensor):
+                                                    router_logits = get_full_tensor(router_logits)
+                                                # Create a dummy loss: sum of logits * tiny constant
+                                                dummy_loss = router_logits.sum() * 1e-8
+                                                if dummy_loss.requires_grad:
+                                                    log.debug(f"Dry-run: Created dummy loss from router logits in '{name}'")
+                                                    break
+                                            except Exception as e:
+                                                log.debug(f"Dry-run: Failed to create dummy loss from router logits in '{name}': {e}")
+                                
+                                # Fallback: try to create dummy loss from router parameters
+                                if dummy_loss is None or not dummy_loss.requires_grad:
+                                    for name, param in self.model.named_parameters():
+                                        if "router" in name.lower():
+                                            router_param_found = True
+                                            if param.requires_grad and param.numel() > 0:
+                                                try:
+                                                    # Create a dummy loss that requires grad from router parameters
+                                                    dummy_loss = param.sum() * 1e-8
+                                                    if dummy_loss.requires_grad:
+                                                        log.debug(f"Dry-run: Created dummy loss from router param '{name}' (shape={param.shape})")
+                                                        break
+                                                except Exception as e:
+                                                    log.debug(f"Dry-run: Failed to create dummy loss from '{name}': {e}")
+                                                    continue
+                                
                                 if dummy_loss is not None and dummy_loss.requires_grad:
                                     loss = dummy_loss
                                 else:
-                                    # Fallback: skip backward for dry run if no router params found
-                                    log.warning("Dry-run: No router parameters found, skipping backward pass")
+                                    if not router_param_found:
+                                        log.warning("Dry-run: No router parameters found in model (checking for 'router' in name)")
+                                    else:
+                                        log.warning("Dry-run: Found router parameters but none have requires_grad=True or are empty")
+                                    # Fallback: skip backward for dry run if no valid router params found
                                     loss = None
                             else:
                                 raise RuntimeError("router_loss_only=True but router_loss not found in auxiliary losses")
