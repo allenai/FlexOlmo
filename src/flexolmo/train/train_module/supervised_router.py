@@ -256,6 +256,12 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 if supervised_loss is not None:
                                     scaled_loss = train_module_self.router_loss_weight * supervised_loss
                                     aux_loss = scaled_loss if aux_loss is None else aux_loss + scaled_loss
+                                    # Minimal log: verify supervised loss computed (once per router, first step only)
+                                    if not hasattr(train_module_self, '_logged_supervised_loss'):
+                                        train_module_self._logged_supervised_loss = set()
+                                    if name not in train_module_self._logged_supervised_loss and train_module_self.trainer.global_step < 1:
+                                        log.info(f"[Router Training] Computed supervised loss in '{name}': {scaled_loss.item():.6f}")
+                                        train_module_self._logged_supervised_loss.add(name)
                         
                         return expert_weights, expert_indices, batch_size_per_expert, aux_loss
                     
@@ -605,21 +611,46 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         reset=True
                     )
                     
-                    # Extract router loss from auxiliary losses if present
+                    # Extract router loss from auxiliary losses
+                    # When router_loss_only=True, all auxiliary losses should be router-related
                     router_loss_from_aux = None
+                    
                     for loss_name, loss_val in auxiliary_losses.items():
-                        if 'router' in loss_name.lower() or 'supervised' in loss_name.lower():
-                            router_loss_from_aux = loss_val
-                            router_batch_loss += get_local_tensor(loss_val.detach())
+                        loss_val_local = get_local_tensor(loss_val.detach())
                         
+                        # Check if this looks like a router/supervised loss
+                        if 'router' in loss_name.lower() or 'supervised' in loss_name.lower():
+                            if router_loss_from_aux is None:
+                                router_loss_from_aux = loss_val
+                                router_batch_loss += loss_val_local
+                            else:
+                                # Multiple router losses - sum them
+                                router_loss_from_aux = router_loss_from_aux + loss_val
+                                router_batch_loss += loss_val_local
+                        
+                        # Collect all auxiliary losses for potential use
                         if not self.router_loss_only:
                             loss += loss_val
                         
-                        loss_val = get_local_tensor(loss_val.detach())
+                        # Track for logging
                         if loss_name in auxiliary_batch_losses:
-                            auxiliary_batch_losses[loss_name] += loss_val
+                            auxiliary_batch_losses[loss_name] += loss_val_local
                         else:
-                            auxiliary_batch_losses[loss_name] = loss_val
+                            auxiliary_batch_losses[loss_name] = loss_val_local
+                    
+                    # If router_loss_only=True but no named router loss found, use ALL auxiliary losses
+                    # (router_loss_only means only router losses should exist)
+                    if self.router_loss_only and router_loss_from_aux is None and len(auxiliary_losses) > 0:
+                        router_loss_from_aux = sum(auxiliary_losses.values())
+                        router_batch_loss = sum(get_local_tensor(loss_val.detach()) for loss_val in auxiliary_losses.values())
+                        # Minimal log: verify extraction (first step only)
+                        if micro_batch_idx == 0 and self.trainer.global_step < 1:
+                            log.info(f"[Router Training] Using sum of {len(auxiliary_losses)} auxiliary losses as router loss")
+                    elif self.router_loss_only and router_loss_from_aux is not None and micro_batch_idx == 0 and self.trainer.global_step < 1:
+                        # Minimal log: verify extraction (first step only)
+                        loss_val_local = get_local_tensor(router_loss_from_aux.detach())
+                        log.info(f"[Router Training] Extracted router loss: {loss_val_local.item():.6f}")
+                    
                     del auxiliary_losses
                     
                     # For router_loss_only mode, use only router loss
@@ -688,8 +719,10 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     del z_loss
                 
                 # Backward pass (skip if loss is None, which can happen during dry run)
-                if loss is not None:
+                if loss is not None and isinstance(loss, torch.Tensor):
                     loss.backward()
+                elif micro_batch_idx == 0 and self.trainer.global_step < 1:
+                    log.warning(f"[Router Training] Skipping backward: loss is None or not a tensor")
 
         self.model.post_batch(dry_run=dry_run)
         
@@ -715,7 +748,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 ReduceType.mean,
                 namespace="train",
             )
-        if router_batch_loss.item() > 0:
+        if isinstance(router_batch_loss, torch.Tensor) and router_batch_loss.item() > 0:
             self.record_metric(
                 "Router loss",
                 router_batch_loss,
@@ -742,4 +775,12 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     namespace="train",
                 )
         if isinstance(self.optim, SkipStepOptimizer):
-            self.optim.latest_loss = ce_batch_loss if not self.router_loss_only else router_batch_loss
+            # latest_loss expects a Tensor, ensure we have one
+            if self.router_loss_only:
+                if isinstance(router_batch_loss, torch.Tensor):
+                    self.optim.latest_loss = router_batch_loss
+                else:
+                    # Fallback to ce_batch_loss if router_batch_loss is not a tensor
+                    self.optim.latest_loss = ce_batch_loss
+            else:
+                self.optim.latest_loss = ce_batch_loss
