@@ -8,7 +8,7 @@ flow through Transformer._prepare_inputs() to this module.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import torch
 import torch.distributed.checkpoint.state_dict as dist_cp_sd
@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from olmo_core.config import DType
 from olmo_core.data.utils import get_labels, split_batch
 from olmo_core.distributed.utils import get_full_tensor, get_local_tensor
+from olmo_core.nn.moe.router import MoERouter
 from olmo_core.nn.transformer import Transformer
 from olmo_core.optim import SkipStepOptimizer
 from olmo_core.train.common import ReduceType
@@ -27,6 +28,154 @@ from olmo_core.utils import move_to_device
 from torch.distributed.tensor import DTensor
 
 log = logging.getLogger(__name__)
+
+
+class SupervisedMoERouter(MoERouter):
+    """
+    MoE Router that computes supervised cross-entropy loss when expert_labels are provided.
+    
+    Extends MoERouter to accept expert_labels in forward() and compute supervised loss
+    as part of the auxiliary loss.
+    """
+    
+    def __init__(self, *args, router_loss_weight: float = 1.0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.router_loss_weight = router_loss_weight
+        self._supervised_loss: Optional[torch.Tensor] = None
+    
+    def _map_expert_labels_4_to_2(self, expert_labels: torch.Tensor) -> torch.Tensor:
+        """Map 4-expert labels to 2-expert labels."""
+        if expert_labels.shape[-1] == 2:
+            return expert_labels.clone()
+        
+        if expert_labels.shape[-1] != 4:
+            raise ValueError(f"Expected expert_labels with 2 or 4 experts, got {expert_labels.shape[-1]}")
+        
+        # Convert one-hot to indices first
+        expert_indices_4 = expert_labels.argmax(dim=-1).clone()
+        
+        # Map: 0->1, 1->0, 2->1, 3->0
+        mapping = torch.tensor([1, 0, 1, 0], device=expert_indices_4.device, dtype=torch.long)
+        expert_indices_2 = mapping[expert_indices_4].clone()
+        
+        # Convert back to one-hot for 2 experts
+        expert_labels_2 = F.one_hot(expert_indices_2, num_classes=2).float().clone().contiguous()
+        
+        return expert_labels_2
+    
+    def forward(
+        self,
+        x: torch.Tensor,
+        *,
+        loss_div_factor: Optional[Union[torch.Tensor, float]] = None,
+        expert_labels: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
+        """
+        Forward pass with optional supervised loss computation.
+        
+        Args:
+            x: Input tensor of shape (batch_size, seq_len, d_model)
+            loss_div_factor: Factor to divide loss by
+            expert_labels: Optional expert labels of shape (batch_size, num_experts) for supervised loss
+        
+        Returns:
+            Same as MoERouter.forward(), but aux_loss may include supervised loss.
+        """
+        # Call parent forward to get standard routing
+        expert_weights, expert_indices, batch_size_per_expert, aux_loss = super().forward(
+            x, loss_div_factor=loss_div_factor
+        )
+        
+        # Compute supervised loss if expert_labels provided
+        if expert_labels is not None and self.training and torch.is_grad_enabled():
+            # Get router logits (already computed in parent forward)
+            router_logits = self._latest_router_logits
+            if router_logits is not None and isinstance(router_logits, torch.Tensor):
+                supervised_loss = self._compute_supervised_loss(
+                    router_logits, expert_labels, loss_div_factor
+                )
+                
+                if supervised_loss is not None:
+                    self._supervised_loss = supervised_loss
+                    scaled_supervised_loss = self.router_loss_weight * supervised_loss
+                    
+                    # Add to auxiliary loss
+                    if aux_loss is None:
+                        aux_loss = scaled_supervised_loss
+                    else:
+                        aux_loss = aux_loss + scaled_supervised_loss
+        
+        return expert_weights, expert_indices, batch_size_per_expert, aux_loss
+    
+    def _compute_supervised_loss(
+        self,
+        router_logits: torch.Tensor,
+        expert_labels: torch.Tensor,
+        loss_div_factor: Optional[Union[torch.Tensor, float]] = None,
+    ) -> Optional[torch.Tensor]:
+        """Compute supervised cross-entropy loss for router."""
+        # Handle DTensor
+        if isinstance(router_logits, DTensor):
+            router_logits = get_full_tensor(router_logits)
+        
+        # Clone to ensure own storage
+        router_logits = router_logits.clone().contiguous()
+        expert_labels = expert_labels.clone().contiguous()
+        
+        # Map expert labels if needed (4 experts -> 2 experts)
+        num_model_experts = router_logits.shape[-1]
+        if expert_labels.shape[-1] != num_model_experts:
+            if expert_labels.shape[-1] == 4 and num_model_experts == 2:
+                expert_labels = self._map_expert_labels_4_to_2(expert_labels)
+            else:
+                log.warning(
+                    f"Expert label dimension mismatch: labels have {expert_labels.shape[-1]} experts, "
+                    f"but model has {num_model_experts} experts. Skipping supervised loss."
+                )
+                return None
+        
+        # Ensure same device
+        expert_labels = expert_labels.to(router_logits.device)
+        
+        # Reshape router_logits to (batch_size * seq_len, num_experts)
+        if router_logits.dim() == 3:
+            batch_size, seq_len, num_experts = router_logits.shape
+            router_logits_flat = router_logits.reshape(-1, num_experts).contiguous()
+        elif router_logits.dim() == 2:
+            router_logits_flat = router_logits.contiguous()
+            batch_size = expert_labels.shape[0]
+            seq_len = router_logits_flat.shape[0] // batch_size
+        else:
+            log.warning(f"Unexpected router_logits shape: {router_logits.shape}. Skipping supervised loss.")
+            return None
+        
+        # Convert one-hot expert_labels to indices and expand to per-token
+        expert_indices = expert_labels.argmax(dim=-1).long().clone()
+        expert_indices = expert_indices.repeat_interleave(seq_len).clone()
+        
+        # Compute cross-entropy loss
+        num_tokens = expert_indices.numel()
+        if num_tokens == 0:
+            return None
+        
+        router_loss = F.cross_entropy(router_logits_flat, expert_indices, reduction="sum")
+        
+        # Divide by loss_div_factor if provided
+        if loss_div_factor is not None:
+            if isinstance(loss_div_factor, torch.Tensor):
+                router_loss = router_loss / loss_div_factor
+            else:
+                router_loss = router_loss / float(loss_div_factor)
+        else:
+            router_loss = router_loss / num_tokens
+        
+        return router_loss
+    
+    def get_supervised_loss(self) -> Optional[torch.Tensor]:
+        """Get the most recent supervised loss."""
+        loss = self._supervised_loss
+        self._supervised_loss = None  # Clear after retrieval
+        return loss
 
 
 def _unwrap_fsdp_model(model):
@@ -92,7 +241,112 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         self.router_loss_weight = router_loss_weight
         self.router_loss_only = router_loss_only
         self.dataset = dataset
+        
+        # Patch routers to compute supervised loss during forward pass
+        # This is the cleanest approach - loss computed as part of computation graph
+        self._patch_routers_for_supervised_loss()
+        
         log.info(f"SupervisedRouterTrainModule initialized (router_loss_only={router_loss_only})")
+    
+    def _patch_routers_for_supervised_loss(self):
+        """Patch router forward methods to compute supervised loss during forward.
+        
+        Clean solution: Loss computed DURING forward when computation graph is valid.
+        No cloning needed - tensors are part of the graph and storage is guaranteed.
+        """
+        # Store current expert_labels in a thread-local or module-level variable
+        # that routers can access during forward
+        self._current_expert_labels: Optional[torch.Tensor] = None
+        
+        for name, module in self.model.named_modules():
+            if isinstance(module, MoERouter):
+                original_forward = module.forward
+                
+                def make_patched_forward(router, orig_fn, train_module_self):
+                    def patched_forward(x, *, loss_div_factor=None):
+                        # Call original forward
+                        result = orig_fn(x, loss_div_factor=loss_div_factor)
+                        expert_weights, expert_indices, batch_size_per_expert, aux_loss = result
+                        
+                        # Compute supervised loss DURING forward if expert_labels available
+                        expert_labels = train_module_self._current_expert_labels
+                        if expert_labels is not None and router.training and torch.is_grad_enabled():
+                            router_logits = router._latest_router_logits
+                            if router_logits is not None:
+                                supervised_loss = train_module_self._compute_supervised_loss_during_forward(
+                                    router_logits, expert_labels, loss_div_factor, router.num_experts
+                                )
+                                if supervised_loss is not None:
+                                    scaled_loss = train_module_self.router_loss_weight * supervised_loss
+                                    aux_loss = scaled_loss if aux_loss is None else aux_loss + scaled_loss
+                        
+                        return expert_weights, expert_indices, batch_size_per_expert, aux_loss
+                    
+                    return patched_forward
+                
+                module.forward = make_patched_forward(module, original_forward, self)
+                log.debug(f"Patched router {name} for supervised loss")
+    
+    def _compute_supervised_loss_during_forward(
+        self,
+        router_logits: torch.Tensor,
+        expert_labels: torch.Tensor,
+        loss_div_factor: Optional[Union[torch.Tensor, float]],
+        num_experts: int,
+    ) -> Optional[torch.Tensor]:
+        """Compute supervised loss during forward pass - no cloning needed, part of computation graph.
+        
+        This is called DURING the forward pass, so all tensors are part of the computation graph
+        and storage is guaranteed to be valid. No cloning needed!
+        """
+        # Handle DTensor - get full tensor but don't clone (we're in forward, graph is valid)
+        if isinstance(router_logits, DTensor):
+            router_logits = get_full_tensor(router_logits)
+        
+        # Map expert labels if needed (4 experts -> 2 experts)
+        if expert_labels.shape[-1] != num_experts:
+            if expert_labels.shape[-1] == 4 and num_experts == 2:
+                expert_labels = self._map_expert_labels_4_to_2(expert_labels)
+            else:
+                return None
+        
+        # Ensure same device (no clone - just move if needed)
+        expert_labels = expert_labels.to(router_logits.device)
+        
+        # Reshape router_logits to (batch_size * seq_len, num_experts)
+        # reshape() creates a view, but that's fine during forward - graph keeps it alive
+        if router_logits.dim() == 3:
+            batch_size, seq_len, num_experts = router_logits.shape
+            router_logits_flat = router_logits.reshape(-1, num_experts)
+        elif router_logits.dim() == 2:
+            router_logits_flat = router_logits
+            batch_size = expert_labels.shape[0]
+            seq_len = router_logits_flat.shape[0] // batch_size
+        else:
+            return None
+        
+        # Convert one-hot to indices and expand to per-token
+        # These operations create new tensors, so no storage issues
+        expert_indices = expert_labels.argmax(dim=-1).long()
+        expert_indices = expert_indices.repeat_interleave(seq_len)
+        
+        # Compute cross-entropy loss - this creates a new tensor, part of computation graph
+        num_tokens = expert_indices.numel()
+        if num_tokens == 0:
+            return None
+        
+        router_loss = F.cross_entropy(router_logits_flat, expert_indices, reduction="sum")
+        
+        # Divide by loss_div_factor if provided
+        if loss_div_factor is not None:
+            if isinstance(loss_div_factor, torch.Tensor):
+                router_loss = router_loss / loss_div_factor
+            else:
+                router_loss = router_loss / float(loss_div_factor)
+        else:
+            router_loss = router_loss / num_tokens
+        
+        return router_loss
     
     def _prepare_batch(self, batch: Dict[str, Any]):  # type: ignore[override]
         """Preserve expert_labels, metadata, and index for supervised router training.
@@ -138,6 +392,43 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     )
                 return expert_labels.to(self.device).contiguous()
         
+        return None
+
+    def _compute_router_loss_from_stored_logits(
+        self,
+        expert_labels: torch.Tensor,
+        num_tokens: torch.Tensor,
+    ) -> Optional[torch.Tensor]:
+        """Compute supervised router loss from logits stored in routers after forward pass.
+        
+        This approach avoids storage issues by:
+        1. Accessing logits AFTER forward pass completes (they're stored in _latest_router_logits)
+        2. Cloning immediately to ensure own storage
+        3. Computing loss from cloned tensors (which are still part of computation graph)
+        """
+        router_loss_terms: List[torch.Tensor] = []
+        
+        # Iterate through all routers and get their stored logits
+        for name, module in self.model.named_modules():
+            if isinstance(module, MoERouter):
+                router_logits = getattr(module, '_latest_router_logits', None)
+                if router_logits is not None and isinstance(router_logits, torch.Tensor):
+                    try:
+                        # CRITICAL: Clone immediately to ensure we have our own storage
+                        # This prevents storage invalidation issues during backward pass
+                        # clone() preserves gradients, so loss computation will still work correctly
+                        router_logits = router_logits.clone().contiguous()
+                        expert_labels_cloned = expert_labels.clone().contiguous()
+                        
+                        loss_term = self._compute_router_loss(
+                            router_logits, expert_labels_cloned, num_tokens
+                        )
+                        router_loss_terms.append(loss_term)
+                    except Exception as exc:
+                        log.error(f"Failed to compute router loss for {name}: {exc}", exc_info=True)
+        
+        if router_loss_terms:
+            return torch.stack(router_loss_terms, dim=0).mean()
         return None
 
     def _map_expert_labels_4_to_2(self, expert_labels: torch.Tensor) -> torch.Tensor:
@@ -333,172 +624,81 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     else:
                         raise RuntimeError(f"router_loss_only=True but missing expert_labels for micro_batch {micro_batch_idx}")
 
-                router_loss: Optional[torch.Tensor] = None
-                # Skip router logits capture if dry_run with router_loss_only but no expert_labels
-                should_capture_router_logits = (
-                    (micro_expert_labels is not None) or 
-                    (self.router_loss_only and not (dry_run and micro_expert_labels is None))
+                # Set expert_labels so routers can access during forward
+                # Routers are patched to compute supervised loss during forward pass
+                self._current_expert_labels = micro_expert_labels if has_expert_labels else None
+                
+                # Forward pass - routers compute supervised loss during forward and add to aux_loss
+                model_forward_result = self.model_forward(
+                    input_ids, labels=labels, ignore_index=self.label_ignore_index,
+                    loss_reduction="sum", z_loss_multiplier=self.z_loss_multiplier,
+                    loss_div_factor=batch_num_tokens_for_loss, return_logits=False,
+                    **model_kwargs,
                 )
                 
-                if should_capture_router_logits:
-                    router_loss_terms: List[torch.Tensor] = []
-                    
-                    def router_hook(module, input, output):
-                        """Capture router forward output and compute supervised loss."""
-                        # DISABLED: Router loss computation temporarily disabled for debugging
-                        return
-                        
-                        if micro_expert_labels is None:
-                            return
-                        
-                        try:
-                            router_logits: Optional[torch.Tensor] = None
-
-                            pop_logits = getattr(module, "pop_router_logits", None)
-                            if callable(pop_logits):
-                                router_logits = cast(Optional[torch.Tensor], pop_logits())
-
-                            if router_logits is None and hasattr(module, "get_expert_logits"):
-                                # Fallback path (e.g., for modules that don't expose cached logits)
-                                if not isinstance(input, tuple) or len(input) == 0:
-                                    return
-                                x = input[0]
-                                if not isinstance(x, torch.Tensor):
-                                    return
-                                x = x.clone()
-                                if hasattr(module, "jitter"):
-                                    x = module.jitter(x)
-                                router_logits = module.get_expert_logits(x).float()
-
-                            if router_logits is None:
-                                log.error(
-                                    f"Router {module.__class__.__name__} did not provide logits for supervised loss"
-                                )
-                                return
-
-                            # Reshape to (batch_size * seq_len, num_experts) for loss computation
-                            if router_logits.dim() == 3:
-                                batch_size, seq_len, num_experts = router_logits.shape
-                                router_logits_flat = router_logits.reshape(-1, num_experts).contiguous()
-                            elif router_logits.dim() == 2:
-                                router_logits_flat = router_logits.contiguous()
-                            else:
-                                raise ValueError(f"Unexpected router_logits shape: {router_logits.shape}")
-
-                            loss_term = self._compute_router_loss(
-                                router_logits_flat, micro_expert_labels, batch_num_tokens_for_loss
-                            )
-                            router_loss_terms.append(loss_term)
-                        except Exception as exc:
-                            log.error(f"Failed to compute router loss for {module}: {exc}", exc_info=True)
-                    
-                    hooks = []
-                    router_modules = [(n, m) for n, m in self.model.named_modules() 
-                                     if 'router' in n.lower() and hasattr(m, 'forward')]
-                    
-                    if router_modules:
-                        for _, router_module in router_modules:
-                            hooks.append(router_module.register_forward_hook(router_hook))
-                    else:
-                        # Fallback: search blocks for MoE routers
-                        for block in getattr(self.model, 'blocks', []):
-                            if not isinstance(block, torch.nn.Module):
-                                continue
-                            for attr in ['feed_forward_moe', 'block_sparse_moe', 'moe', 'feed_forward']:
-                                if hasattr(block, attr):
-                                    moe_module = getattr(block, attr)
-                                    if moe_module is not None and hasattr(moe_module, 'router'):
-                                        router = getattr(moe_module, 'router')
-                                        if isinstance(router, torch.nn.Module):
-                                            hooks.append(router.register_forward_hook(router_hook))
-                                            break
-                    
-                    if not hooks:
-                        log.error(f"No router modules found in model (type: {type(self.model)})")
-                    else:
-                        log.debug(f"Registered {len(hooks)} router hooks")
-                    
-                    model_forward_result = self.model_forward(
-                        input_ids, labels=labels, ignore_index=self.label_ignore_index,
-                        loss_reduction="sum", z_loss_multiplier=self.z_loss_multiplier,
-                        loss_div_factor=batch_num_tokens_for_loss, return_logits=False,
-                        **model_kwargs,
-                    )
-                    
-                    if isinstance(model_forward_result, tuple):
-                        output_dict, ce_loss, z_loss = model_forward_result[:3]  # type: ignore[misc]
-                    else:
-                        raise TypeError(f"Unexpected return type: {type(model_forward_result)}")
-                    
-                    for hook in hooks:
-                        hook.remove()
-                    
-                    if router_loss_terms:
-                        router_loss = torch.stack(router_loss_terms, dim=0).mean()
-                        log.debug(f"Router loss from {len(router_loss_terms)} modules: {router_loss.item():.4f}")
-                    else:
-                        # Router loss disabled for debugging - set to None
-                        router_loss = None
-                        log.debug("Router loss computation disabled (debugging mode)")
-                        if self.router_loss_only and not dry_run:
-                            # If router_loss_only=True, we need a dummy loss for backward pass
-                            # Use a zero loss that requires grad from router logits
-                            log.warning("router_loss_only=True but router loss disabled - using dummy zero loss")
-                            router_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
+                if isinstance(model_forward_result, tuple):
+                    output_dict, ce_loss, z_loss = model_forward_result[:3]  # type: ignore[misc]
                 else:
-                    model_forward_result = self.model_forward(
-                        input_ids, labels=labels, ignore_index=self.label_ignore_index,
-                        loss_reduction="sum", z_loss_multiplier=self.z_loss_multiplier,
-                        loss_div_factor=batch_num_tokens_for_loss, return_logits=False,
-                        **model_kwargs,
-                    )
-                    if isinstance(model_forward_result, tuple):
-                        output_dict, ce_loss, z_loss = model_forward_result[:3]  # type: ignore[misc]
-                    else:
-                        raise TypeError(f"Unexpected return type: {type(model_forward_result)}")
-
-                if router_loss is not None:
-                    router_batch_loss += get_local_tensor(router_loss.detach())
+                    raise TypeError(f"Unexpected return type: {type(model_forward_result)}")
                 
+                # Clear expert_labels after forward
+                self._current_expert_labels = None
+                
+                # Router loss is included in auxiliary losses via attach_auxiliary_loss
+                # We'll extract it from compute_auxiliary_losses below
+
+                # Build total loss (before deleting ce_loss/z_loss)
                 if self.router_loss_only:
-                    if router_loss is None:
-                        if dry_run:
-                            # Dry run batch without expert_labels - use ce_loss for backward pass test
-                            log.debug("Dry-run: router_loss_only=True but no router_loss (expected), using ce_loss for backward pass")
-                            loss = ce_loss
-                        else:
-                            raise RuntimeError("router_loss_only=True but router_loss is None")
-                    else:
-                        loss = router_loss * self.router_loss_weight
+                    # Router loss is in auxiliary losses - will extract below
+                    loss = move_to_device(torch.tensor(0.0), self.device)
                 else:
                     loss = ce_loss
                     if z_loss is not None:
                         loss = loss + z_loss
-                    if router_loss is not None:
-                        loss = loss + (router_loss * self.router_loss_weight)
-
-                # Update batch losses
+                
+                # Update batch losses for logging
                 ce_batch_loss += get_local_tensor(ce_loss.detach())
                 del ce_loss
                 if z_batch_loss is not None:
                     assert z_loss is not None
                     z_batch_loss += get_local_tensor(z_loss.detach())
                     del z_loss
-
+                
                 model_for_aux = _unwrap_fsdp_model(self.model)
                 if hasattr(model_for_aux, 'compute_auxiliary_losses'):
                     auxiliary_losses = model_for_aux.compute_auxiliary_losses(  # type: ignore[attr-defined]
-                        batch_num_tokens_for_loss, reset=True
+                        reset=True
                     )
+                    
+                    # Extract router loss from auxiliary losses if present
+                    router_loss_from_aux = None
                     for loss_name, loss_val in auxiliary_losses.items():
-                        loss += loss_val
+                        if 'router' in loss_name.lower() or 'supervised' in loss_name.lower():
+                            router_loss_from_aux = loss_val
+                            router_batch_loss += get_local_tensor(loss_val.detach())
+                        
+                        if not self.router_loss_only:
+                            loss += loss_val
+                        
                         loss_val = get_local_tensor(loss_val.detach())
                         if loss_name in auxiliary_batch_losses:
                             auxiliary_batch_losses[loss_name] += loss_val
                         else:
                             auxiliary_batch_losses[loss_name] = loss_val
                     del auxiliary_losses
-
+                    
+                    # For router_loss_only mode, use only router loss
+                    if self.router_loss_only:
+                        if router_loss_from_aux is None:
+                            if dry_run:
+                                log.debug("Dry-run: router_loss_only=True but no router_loss (expected), using zero loss for backward pass")
+                                # For dry run, keep loss as zero tensor (backward will still work)
+                                pass
+                            else:
+                                raise RuntimeError("router_loss_only=True but router_loss not found in auxiliary losses")
+                        else:
+                            loss = router_loss_from_aux
+                
                 # Backward pass
                 loss.backward()
 
