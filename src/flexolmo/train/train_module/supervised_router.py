@@ -5,7 +5,7 @@ Trains router via cross-entropy loss between router logits and ground truth expe
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import torch
 import torch.distributed.checkpoint.state_dict as dist_cp_sd
@@ -96,6 +96,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
     def _patch_routers_for_supervised_loss(self):
         """Patch router forward methods to compute supervised loss during forward."""
         self._current_expert_labels: Optional[torch.Tensor] = None
+        self._router_supervised_losses: List[torch.Tensor] = []
         
         patched_count = 0
         for name, module in self.model.named_modules():
@@ -122,7 +123,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                 if supervised_loss is not None:
                                     scaled_loss = train_module_self.router_loss_weight * supervised_loss
                                     aux_loss = scaled_loss if aux_loss is None else aux_loss + scaled_loss
-                                    router._supervised_loss_value = scaled_loss
+                                    train_module_self._router_supervised_losses.append(scaled_loss)
                                     if not hasattr(train_module_self, '_logged_supervised_loss'):
                                         train_module_self._logged_supervised_loss = set()
                                     if router_name_inner not in train_module_self._logged_supervised_loss and train_module_self.trainer.global_step <= 1:
@@ -350,27 +351,18 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                     if z_loss is not None:
                         loss = loss + z_loss
                 
-                # Collect supervised loss directly from routers (stored during forward)
-                router_loss_from_routers = None
-                router_loss_sum = 0.0
-                for name, module in self.model.named_modules():
-                    if isinstance(module, MoERouter) and hasattr(module, '_supervised_loss_value'):
-                        supervised_loss_val = getattr(module, '_supervised_loss_value', None)
-                        if supervised_loss_val is not None and isinstance(supervised_loss_val, torch.Tensor):
-                            if router_loss_from_routers is None:
-                                router_loss_from_routers = supervised_loss_val
-                            else:
-                                router_loss_from_routers = router_loss_from_routers + supervised_loss_val
-                            router_loss_sum += get_local_tensor(supervised_loss_val.detach()).item()
-                            delattr(module, '_supervised_loss_value')
-                
+                # Collect supervised loss from routers (collected during forward)
                 should_log = micro_batch_idx == 0 and (self.trainer.global_step <= 1 or self.trainer.global_step % 100 == 0)
-                if router_loss_from_routers is not None:
-                    router_batch_loss += get_local_tensor(router_loss_from_routers.detach())
-                    if should_log:
-                        log.info(f"[Router Training] Collected supervised loss from routers: {router_loss_sum:.6f}")
-                    if self.router_loss_only:
-                        loss = router_loss_from_routers
+                if self._router_supervised_losses:
+                    router_loss_from_routers = sum(self._router_supervised_losses)
+                    router_loss_sum = sum(get_local_tensor(loss_val.detach()).item() if isinstance(loss_val, torch.Tensor) else 0.0 for loss_val in self._router_supervised_losses)
+                    if isinstance(router_loss_from_routers, torch.Tensor):
+                        router_batch_loss += get_local_tensor(router_loss_from_routers.detach())
+                        if should_log:
+                            log.info(f"[Router Training] Collected supervised loss from {len(self._router_supervised_losses)} routers: {router_loss_sum:.6f}")
+                        if self.router_loss_only:
+                            loss = router_loss_from_routers
+                    self._router_supervised_losses.clear()
                 
                 # Also collect auxiliary losses (router Z loss, load balancing, etc.)
                 model_for_aux = _unwrap_fsdp_model(self.model)
