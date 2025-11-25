@@ -360,47 +360,25 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                         log.info(f"[Router Training] Collected supervised loss from {len(self._router_supervised_losses)} routers: {router_loss_sum:.6f}")
                     self._router_supervised_losses.clear()
                 
-                # Collect auxiliary losses (router Z loss, load balancing, supervised router loss, etc.)
-                model_for_aux = _unwrap_fsdp_model(self.model)
-                if hasattr(model_for_aux, 'compute_auxiliary_losses'):
-                    auxiliary_losses = model_for_aux.compute_auxiliary_losses(  # type: ignore[attr-defined]
-                        reset=True
-                    )
-                    
-                    if should_log:
-                        log.info(f"[Router Training] compute_auxiliary_losses returned {len(auxiliary_losses)} losses: {list(auxiliary_losses.keys())}")
-                        for loss_name, loss_val in auxiliary_losses.items():
-                            loss_val_local = get_local_tensor(loss_val.detach())
-                            log.info(f"  - {loss_name}: {loss_val_local.item():.6f}")
-                    
-                    for loss_name, loss_val in auxiliary_losses.items():
-                        loss_val_local = get_local_tensor(loss_val.detach())
-                        
-                        # Add auxiliary losses to main loss
-                        # For router_loss_only mode, we need these losses (especially supervised router loss)
-                        # to flow through backward
-                        if loss is None:
-                            loss = loss_val
-                        else:
-                            loss = loss + loss_val
-                        
-                        if loss_name in auxiliary_batch_losses:
-                            auxiliary_batch_losses[loss_name] += loss_val_local
-                        else:
-                            auxiliary_batch_losses[loss_name] = loss_val_local
-                    
-                    del auxiliary_losses
+                # The supervised losses have already been attached to activations via attach_auxiliary_loss
+                # in the patched router forward method. They will flow through backward automatically when
+                # we call .backward() on a loss that's downstream from the MoE layers.
                 
-                # Fallback: if no auxiliary losses were found, create dummy loss for dry run
-                if loss is None:
+                # For router_loss_only mode, we need a loss that's downstream from the routers to trigger backward.
+                # The supervised losses are attached to activations in the MoE layers, so backward must flow through them.
+                if self.router_loss_only and loss is None:
                     if dry_run:
                         dummy_loss = self._create_dummy_loss_for_dry_run()
                         loss = dummy_loss if dummy_loss is not None and dummy_loss.requires_grad else None
-                    elif self.router_loss_only:
-                        raise RuntimeError(
-                            "router_loss_only=True but no router loss found. "
-                            "This likely means no auxiliary losses were returned from the model."
-                        )
+                    else:
+                        # Use a tiny fraction of the CE loss (which is downstream from MoE layers).
+                        # This triggers backward through the entire graph, causing AutoAuxiliaryLoss.backward
+                        # to fire for each attached supervised loss, which computes full gradients for routers.
+                        # The tiny multiplier ensures minimal gradients for non-router parameters.
+                        if ce_loss is not None and ce_loss.requires_grad:
+                            loss = ce_loss * 1e-10
+                        else:
+                            raise RuntimeError("router_loss_only=True but ce_loss is not available to trigger backward")
                 
                 ce_batch_loss += get_local_tensor(ce_loss.detach())
                 del ce_loss
@@ -418,8 +396,6 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
 
         if dry_run:
             model_for_aux = _unwrap_fsdp_model(self.model)
-            if hasattr(model_for_aux, 'reset_auxiliary_losses'):
-                model_for_aux.reset_auxiliary_losses()  # type: ignore[attr-defined]
             if hasattr(model_for_aux, 'reset_auxiliary_metrics'):
                 model_for_aux.reset_auxiliary_metrics()  # type: ignore[attr-defined]
             return
@@ -429,15 +405,13 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         if z_batch_loss is not None:
             self.record_metric("Z loss", z_batch_loss, ReduceType.mean, namespace="train")
         
+        # Record the supervised router loss that we collected for logging
         if isinstance(router_batch_loss, torch.Tensor):
             router_loss_val = router_batch_loss.item()
             if router_loss_val > 0:
-                self.record_metric("Router loss", router_batch_loss, ReduceType.mean, namespace="train")
+                self.record_metric("Supervised Router Loss", router_batch_loss, ReduceType.mean, namespace="train")
             elif self.trainer.global_step % 100 == 0:
                 log.warning(f"[Router Training] router_batch_loss is 0 (step={self.trainer.global_step})")
-        
-        for loss_name, loss_val in auxiliary_batch_losses.items():
-            self.record_metric(loss_name, loss_val, ReduceType.mean, namespace="train")
 
         model_for_aux = _unwrap_fsdp_model(self.model)
         if hasattr(model_for_aux, 'compute_auxiliary_metrics'):
