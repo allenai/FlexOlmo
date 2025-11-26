@@ -34,9 +34,15 @@ echo "Batch size per GPU: ${BATCH_SIZE}"
 echo "Nodes: ${NUM_NODES}, GPUs per node: ${NUM_GPUS}"
 echo ""
 
+# Generate unique experiment name with timestamp
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+EXPERIMENT_NAME="FlexOlmo-Expert-Label-Gen-${TIMESTAMP}"
+
+echo "Experiment name: ${EXPERIMENT_NAME}"
+
 PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:$PYTHONPATH \
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
-   --launch.name=FlexOlmo-Expert-Label-Generation \
+   --launch.name=${EXPERIMENT_NAME} \
    --launch.num_nodes=${NUM_NODES} \
    --launch.num_gpus=${NUM_GPUS} \
    --launch.budget=ai2/oceo \
