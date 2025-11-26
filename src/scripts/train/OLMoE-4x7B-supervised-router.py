@@ -1,21 +1,28 @@
 """
-Train a 4x7B OLMo2 model with supervised router training.
+Train a 4x7B OLMo2 model with supervised router training (3-expert setup).
 
 This script performs supervised router training where ground truth expert labels
 are provided for each data file, and the router is trained via cross-entropy loss
 on router logits.
 
-The labeled mix file should have format:
-    domain_label,one_hot_label,path/to/file.npy
-    e.g., mj_finemath4plus,1,0,0,0,preprocessed/.../file.npy
-    e.g., starcoder,0,0,1,0,preprocessed/.../file.npy
-    e.g., general,0,1,0,0,preprocessed/.../file.npy
+## Labeling Strategies
 
-Expert mapping:
-    Expert 0 (Math): [1, 0, 0, 0] - for mj_finemath4plus
-    Expert 1 (General): [0, 1, 0, 0] - for everything else
-    Expert 2 (Code): [0, 0, 1, 0] - for starcoder
-    Expert 3: Masked (repeat of Expert 1)
+### 1. Domain-based labeling (default)
+Labels are assigned based on data source name:
+    e.g., mj_finemath4plus -> Expert 0 (Math)
+    e.g., starcoder -> Expert 2 (Code)
+    e.g., Academic_Writing -> Expert 1 (General)
+
+### 2. Optimal loss-based labeling (recommended)
+Uses pre-computed labels from generate_expert_labels.py which selects the expert
+that minimizes per-sequence loss. Enable with:
+    --data_loader.expert_labels_file=/path/to/optimal_labels_5B.json
+
+Expert mapping (3 active experts, Expert 3 is masked/duplicate):
+    Expert 0 (Math): [1, 0, 0, 0] - mj_finemath4plus
+    Expert 1 (General): [0, 1, 0, 0] - all other domains
+    Expert 2 (Code): [0, 0, 1, 0] - starcoder
+    Expert 3: Masked/unused
 
 Run this script without any arguments to see usage info.
 """
@@ -163,16 +170,16 @@ if __name__ == "__main__":
     print(sys.argv)
     if len(sys.argv) < 2:
         print(f"Usage: torchrun [OPTS..] {sys.argv[0]} [dry_run] run_name [OVERRIDES...]")
-        print("\nExample:")
+        print("\nExample (domain-based labels):")
         print(f"  torchrun --nproc-per-node=8 {sys.argv[0]} FlexOlmo-4x7B-Supervised-RT \\")
-        print("    --trainer.callbacks.profiler.enabled=true \\")
-        print("    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \\")
-        print("    --dataset.mix=router_training_mix_labeled \\")
         print("    --trainer.load_path=/path/to/checkpoint \\")
-        print("    --model.block.feed_forward_moe.router.top_k=3 \\")
-        print("    --model.block.feed_forward_moe.router.disabled_experts=[3] \\")
-        print("    --train_module.router_loss_weight=1.0 \\")
-        print("    --train_module.router_loss_only=false \\")
+        print("    --train_module.router_loss_only=true \\")
+        print("    --trainer.save_folder=/path/to/save")
+        print("\nExample (optimal loss-based labels):")
+        print(f"  torchrun --nproc-per-node=8 {sys.argv[0]} FlexOlmo-4x7B-Supervised-RT-Optimal \\")
+        print("    --data_loader.expert_labels_file=/path/to/optimal_labels_5B.json \\")
+        print("    --trainer.load_path=/path/to/checkpoint \\")
+        print("    --train_module.router_loss_only=true \\")
         print("    --trainer.save_folder=/path/to/save")
         sys.exit(1)
 
@@ -205,4 +212,3 @@ if __name__ == "__main__":
         train(config)
     finally:
         teardown_training_environment()
-
