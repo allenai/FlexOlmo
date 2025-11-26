@@ -164,14 +164,14 @@ def load_model(checkpoint_path: str, device: torch.device, dtype: torch.dtype) -
     log.info(f"Loading model from {checkpoint_path}")
     
     # Build model config (same as training)
-    # We need to infer the config from the checkpoint or use a known config
     model_config = TransformerConfig.olmoe_nx7b(
         vocab_size=100352,  # Standard vocab size
         num_experts=4,
         top_k=4,
     )
     
-    model = model_config.build(device="cpu", max_seq_len=4096)
+    # Build model on CPU first, then move to device
+    model = model_config.build(init_device="cpu")
     
     # Load checkpoint
     checkpoint_dir = Path(checkpoint_path)
