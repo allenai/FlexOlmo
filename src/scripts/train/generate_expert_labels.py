@@ -46,6 +46,9 @@ from olmo_core.nn.moe.router import MoERouter
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.utils import seed_all
 
+# Import flexolmo model_utils to register olmoe_nx7b on TransformerConfig
+from flexolmo.internal.model_utils import *  # noqa: F401, F403
+
 log = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
