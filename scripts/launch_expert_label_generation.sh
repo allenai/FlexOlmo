@@ -36,6 +36,7 @@ echo ""
 
 PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:$PYTHONPATH \
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
+   --launch.name=FlexOlmo-Expert-Label-Generation \
    --launch.num_nodes=${NUM_NODES} \
    --launch.num_gpus=${NUM_GPUS} \
    --launch.budget=ai2/oceo \
