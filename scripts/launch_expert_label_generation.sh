@@ -47,7 +47,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_gpus=${NUM_GPUS} \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=normal -- src/scripts/train/generate_expert_labels.py \
+   --launch.priority=urgent -- src/scripts/train/generate_expert_labels.py \
    --checkpoint ${CHECKPOINT} \
    --output ${OUTPUT_FILE} \
    --mix ${MIX} \
