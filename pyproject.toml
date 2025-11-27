@@ -60,7 +60,7 @@ wandb = [
     "wandb",
 ]
 train = [
-    "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@9f191936ac205db41fb3d315c0b052f947a95b0c",
+    "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@57105806017f1e3fa14fc4c119f09dd348a26851",
     "huggingface-hub>=0.27.1",
     "torchao==0.9.0",
     "torchvision==0.21.0",
