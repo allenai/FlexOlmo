@@ -146,31 +146,74 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         loss_div_factor: Optional[Union[torch.Tensor, float]],
         num_experts: int,
     ) -> Optional[torch.Tensor]:
-        """Compute supervised loss during forward pass."""
+        """
+        Compute supervised loss during forward pass.
+        
+        Supports both:
+        - Per-sequence labels: shape (batch_size, num_experts) one-hot encoded
+        - Per-token labels: shape (batch_size, seq_len) or (batch_size, seq_len-1) with expert IDs
+        """
         if isinstance(router_logits, DTensor):
             router_logits = get_full_tensor(router_logits)
-        
-        if expert_labels.shape[-1] != num_experts:
-            return None
         
         expert_labels = expert_labels.to(router_logits.device)
         
         if router_logits.dim() == 3:
-            batch_size, seq_len, num_experts = router_logits.shape
-            router_logits_flat = router_logits.reshape(-1, num_experts)
+            batch_size, seq_len, num_experts_logits = router_logits.shape
+            router_logits_flat = router_logits.reshape(-1, num_experts_logits)
         elif router_logits.dim() == 2:
             router_logits_flat = router_logits
-            batch_size = expert_labels.shape[0]
-            seq_len = router_logits_flat.shape[0] // batch_size
+            num_experts_logits = router_logits.shape[-1]
+            # Infer batch_size from expert_labels
+            if expert_labels.dim() == 2 and expert_labels.shape[-1] != num_experts_logits:
+                # Per-token labels: (batch_size, token_len)
+                batch_size = expert_labels.shape[0]
+                seq_len = router_logits_flat.shape[0] // batch_size
+            else:
+                # Per-sequence labels: (batch_size, num_experts)
+                batch_size = expert_labels.shape[0]
+                seq_len = router_logits_flat.shape[0] // batch_size
         else:
             return None
         
-        expert_indices = expert_labels.argmax(dim=-1).long()
-        expert_indices = expert_indices.repeat_interleave(seq_len)
+        # Determine if per-token or per-sequence labels
+        if expert_labels.dim() == 2 and expert_labels.shape[-1] == num_experts:
+            # Per-sequence labels: one-hot encoded (batch_size, num_experts)
+            expert_indices = expert_labels.argmax(dim=-1).long()  # (batch_size,)
+            expert_indices = expert_indices.repeat_interleave(seq_len)  # (batch_size * seq_len,)
+        elif expert_labels.dim() == 2:
+            # Per-token labels: (batch_size, token_len) with expert IDs
+            token_len = expert_labels.shape[1]
+            
+            # Handle seq_len mismatch (labels are for seq_len-1 due to next-token prediction shift)
+            if token_len == seq_len - 1:
+                # Pad labels to match seq_len (repeat last label for the extra position)
+                expert_labels_padded = F.pad(expert_labels, (0, 1), mode='replicate')
+                expert_indices = expert_labels_padded.reshape(-1).long()
+            elif token_len == seq_len:
+                expert_indices = expert_labels.reshape(-1).long()
+            else:
+                # Log warning and fall back to repeating
+                if not hasattr(self, '_logged_token_mismatch'):
+                    self._logged_token_mismatch = True
+                    log.warning(f"Token length mismatch: labels={token_len}, seq_len={seq_len}. Padding/truncating.")
+                if token_len < seq_len:
+                    expert_labels_padded = F.pad(expert_labels, (0, seq_len - token_len), mode='replicate')
+                    expert_indices = expert_labels_padded.reshape(-1).long()
+                else:
+                    expert_indices = expert_labels[:, :seq_len].reshape(-1).long()
+        elif expert_labels.dim() == 1:
+            # Per-sequence labels: just expert IDs (batch_size,)
+            expert_indices = expert_labels.long().repeat_interleave(seq_len)
+        else:
+            return None
         
         num_tokens = expert_indices.numel()
         if num_tokens == 0:
             return None
+        
+        # Clamp expert indices to valid range
+        expert_indices = expert_indices.clamp(0, num_experts_logits - 1)
         
         router_loss = F.cross_entropy(router_logits_flat, expert_indices, reduction="sum")
         
