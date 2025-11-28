@@ -190,25 +190,34 @@ def load_model(checkpoint_path: str, device: torch.device, dtype: torch.dtype) -
 
 
 def build_dataset(config: LabelGenerationConfig):
-    """Build the dataset for label generation."""
-    from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
+    """
+    Build the dataset for label generation.
     
-    # Create dataset config
+    Uses the default NumpyDataset behavior which samples proportionally to token count
+    (file size), matching how --dataset.mix=router_training_mix works in training.
+    This respects the intended token distribution from file repetitions in the mix.
+    """
+    from flexolmo.data.mixes import CustomDataMix
+    
+    # Create dataset config - use CustomDataMix directly (no source_mixture_config)
+    # This matches the behavior of --dataset.mix=router_training_mix in training
     dataset_config = NumpyDatasetConfig(
         sequence_length=config.sequence_length,
         tokenizer=TokenizerConfig.dolma2(),
-        mix=config.mix_name,
+        mix=CustomDataMix(config.mix_name),  # Convert to CustomDataMix enum
         mix_base_dir=config.mix_base_dir,
         include_instance_metadata=True,
     )
     
-    # Get source mixture config split by domain
-    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=True)
-    dataset_config.source_mixture_config = source_mixture_config
-    dataset_config.mix = None
+    # Don't set source_mixture_config - let it use default behavior
+    # which samples uniformly by index, where each file contributes
+    # instances proportional to its token count (file size)
     
     # Build the dataset
     dataset = dataset_config.build()
+    
+    log.info(f"Dataset built with {len(dataset)} total instances")
+    log.info(f"Token distribution follows file sizes (token counts), not domain labels")
     
     return dataset, dataset_config
 
@@ -439,7 +448,9 @@ def main():
             for i, global_idx in enumerate(batch_indices):
                 # Get per-token labels for this sequence
                 token_labels = optimal_experts[i].cpu().numpy().astype(np.uint8)
-                token_losses = min_losses[i].cpu().numpy().astype(np.float16)
+                # Keep losses as float32 for accuracy, convert to float16 only for storage
+                token_losses_f32 = min_losses[i].cpu().float().numpy()
+                token_losses = token_losses_f32.astype(np.float16)
                 
                 # Save to file
                 label_path = output_dir / f"seq_{global_idx:08d}.npz"
@@ -449,22 +460,23 @@ def main():
                     losses=token_losses,
                 )
                 
-                # Update statistics
+                # Update statistics (use float32 for accumulation to avoid overflow)
                 for expert_id in config.expert_indices:
-                    expert_token_counts[expert_id] += (token_labels == expert_id).sum()
+                    expert_token_counts[expert_id] += int((token_labels == expert_id).sum())
                 total_tokens_processed += len(token_labels)
-                total_loss += token_losses.sum()
+                total_loss += float(token_losses_f32.sum())  # Use f32 for stats
         
         except Exception as e:
             log.error(f"Error processing batch {batch_idx}: {e}")
             import traceback
             traceback.print_exc()
-            # Save fallback (general expert for all tokens)
+            # Save fallback (general expert for all tokens) with NaN losses to indicate error
             for global_idx in batch_indices:
                 token_labels = np.ones(config.sequence_length - 1, dtype=np.uint8)  # All General
-                token_losses = np.full(config.sequence_length - 1, float('inf'), dtype=np.float16)
+                token_losses = np.full(config.sequence_length - 1, np.nan, dtype=np.float16)
                 label_path = output_dir / f"seq_{global_idx:08d}.npz"
                 np.savez_compressed(label_path, labels=token_labels, losses=token_losses)
+                # Don't update total_loss for failed batches (NaN would propagate)
         
         # Update progress bar
         if rank == 0:
@@ -478,31 +490,56 @@ def main():
             log.info(f"Progress: {batch_idx + 1}/{num_batches} batches, {total_tokens_processed} tokens")
             log.info(f"Expert distribution so far: {expert_token_counts}")
     
-    # Synchronize all ranks
-    if world_size > 1:
-        dist.barrier()
+    # Save local statistics BEFORE any distributed sync (to avoid losing data if sync fails)
+    local_stats = {
+        "rank": rank,
+        "expert_token_counts": expert_token_counts,
+        "total_tokens_processed": total_tokens_processed,
+        "total_loss": total_loss,
+        "num_sequences_processed": len(local_indices),
+    }
+    local_stats_path = output_dir / f"stats_rank_{rank:03d}.json"
+    with open(local_stats_path, "w") as f:
+        json.dump(local_stats, f, indent=2)
+    log.info(f"Rank {rank}: Saved local stats to {local_stats_path}")
     
-    # Gather statistics from all ranks
+    # Try to gather statistics from all ranks (with timeout handling)
+    global_stats_gathered = False
     if world_size > 1:
-        # Convert to tensors for all_reduce
-        counts_tensor = torch.tensor(
-            [expert_token_counts[0], expert_token_counts[1], expert_token_counts[2], 
-             total_tokens_processed, total_loss],
-            device=device, dtype=torch.float64
-        )
-        dist.all_reduce(counts_tensor, op=dist.ReduceOp.SUM)
-        
-        if rank == 0:
-            expert_token_counts = {
-                0: int(counts_tensor[0].item()),
-                1: int(counts_tensor[1].item()),
-                2: int(counts_tensor[2].item()),
-            }
-            total_tokens_processed = int(counts_tensor[3].item())
-            total_loss = counts_tensor[4].item()
+        try:
+            # Set a reasonable timeout for the barrier
+            dist.barrier()
+            
+            # Convert to tensors for all_reduce
+            counts_tensor = torch.tensor(
+                [expert_token_counts[0], expert_token_counts[1], expert_token_counts[2], 
+                 total_tokens_processed, total_loss],
+                device=device, dtype=torch.float64
+            )
+            dist.all_reduce(counts_tensor, op=dist.ReduceOp.SUM)
+            
+            if rank == 0:
+                expert_token_counts = {
+                    0: int(counts_tensor[0].item()),
+                    1: int(counts_tensor[1].item()),
+                    2: int(counts_tensor[2].item()),
+                }
+                total_tokens_processed = int(counts_tensor[3].item())
+                total_loss = counts_tensor[4].item()
+                global_stats_gathered = True
+        except Exception as e:
+            log.warning(f"Rank {rank}: Failed to gather global statistics: {e}")
+            log.warning(f"Rank {rank}: Local data is saved. Run combine_stats.py to merge.")
+    else:
+        global_stats_gathered = True
     
-    # Save metadata (rank 0 only)
+    # Save metadata (rank 0 only, or if single GPU)
     if rank == 0:
+        if not global_stats_gathered:
+            # If global gather failed, use local stats and note it
+            log.warning("Global stats gathering failed. Saving local rank 0 stats only.")
+            log.warning("To get full stats, combine stats_rank_*.json files manually.")
+        
         metadata = {
             "type": "per_token",
             "checkpoint": config.checkpoint_path,
@@ -512,6 +549,7 @@ def main():
             "token_length": config.sequence_length - 1,  # After shift
             "num_sequences": total_sequences,
             "total_tokens": total_tokens_processed,
+            "global_stats_complete": global_stats_gathered,
             "expert_mapping": {
                 "0": "Math",
                 "1": "General",
@@ -537,8 +575,11 @@ def main():
         log.info(f"Expert percentages: {metadata['statistics']['expert_percentages']}")
         log.info(f"Average loss per token: {metadata['statistics']['average_loss_per_token']:.4f}")
     
-    # Cleanup
-    cleanup_distributed()
+    # Cleanup (don't fail if already cleaned up)
+    try:
+        cleanup_distributed()
+    except Exception as e:
+        log.warning(f"Rank {rank}: Cleanup warning: {e}")
     
     if rank == 0:
         log.info("Per-token label generation complete!")
