@@ -112,12 +112,21 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
+    print("starting main")
+
     prepare_cli_environment()
+
+    print("prapred env")
 
     args = parse_args()
 
+    print("got args")
+
     expert_paths = args.models
     target_path = args.target
+
+    print(f"expert paths: {expert_paths}")
+    print(f"target path: {target_path}")
 
     moe_to_expert_mapping = {
         "feed_forward_moe.experts.mlp.w1": "feed_forward.w1.weight",
@@ -137,9 +146,13 @@ if __name__ == "__main__":
         "embeddings.weight": "embeddings.weight",
     }
 
+    print("made mapping")
+
     # load the MoE model config
     model_config = build_model_config(len(expert_paths))
     log.info(model_config)
+
+    print(model_config)
 
     assert isinstance(model_config.block.feed_forward_moe, MoEConfig)
     assert model_config.block.feed_forward_moe.num_experts == len(
