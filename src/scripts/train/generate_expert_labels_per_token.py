@@ -63,7 +63,7 @@ class LabelGenerationConfig:
     output_dir: str
     mix_name: str
     mix_base_dir: str
-    batch_size: int = 4  # Smaller batch size since we store more data
+    batch_size: int = 1  # Use batch_size=1 to avoid MoE routing bugs with larger batches
     max_tokens: int = 5_000_000_000
     sequence_length: int = 4096
     num_experts: int = 3  # Only 3 active experts (expert 3 is masked)
