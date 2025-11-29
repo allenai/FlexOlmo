@@ -17,7 +17,8 @@ log = logging.getLogger(__name__)
 
 def build_model_config(num_experts: int = 3) -> TransformerConfig:
     tokenizer = TokenizerConfig.dolma2()
-    return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
+    # return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
+    return TransformerConfig.olmoe_nx7b(
         vocab_size=tokenizer.padded_vocab_size(),
         num_experts=num_experts,
         freeze_params=[
