@@ -190,7 +190,7 @@ if __name__ == "__main__":
                     log.warning(f"No dense key mapping for '{key}', skipping")
                     continue
                 if dense_key not in expert_state_dict:
-                    sample_keys = list(expert_state_dict.keys())[:100]
+                    sample_keys = list(expert_state_dict.keys())#[:25]
                     raise KeyError(
                         f"Missing '{dense_key}' in expert checkpoint at {path}. Sample keys: {sample_keys}"
                     )
