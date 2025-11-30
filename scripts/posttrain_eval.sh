@@ -29,6 +29,9 @@ MODEL_NAME=flexolmo-2x7b-code-sft-mixed
 
 MODEL_PATH=/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias/step95250-hf
 MODEL_NAME=flex_olmo_2x7b_code_anneal
+
+MODEL_PATH=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-test-hf/
+MODEL_NAME=FlexOlmo-3x7B-sft-only-test
 uv run python scripts/submit_eval_jobs.py \
     --model_name $MODEL_NAME \
     --location $MODEL_PATH \
