@@ -129,11 +129,30 @@ if __name__ == "__main__":
     print(f"expert paths: {expert_paths}")
     print(f"target path: {target_path}")
 
+    # moe_to_expert_mapping = {
+    #     "feed_forward_moe.experts.mlp.w1": "feed_forward.w1.weight",
+    #     "feed_forward_moe.experts.mlp.w2": "feed_forward.w2.weight",
+    #     "feed_forward_moe.experts.mlp.w3": "feed_forward.w3.weight",
+    #     # "feed_forward_moe.router.weight": "feed_forward.w1",
+    #     "attention.q_norm.weight": "attention.q_norm.weight",
+    #     "attention.k_norm.weight": "attention.k_norm.weight",
+    #     "attention_norm.weight": "attention_norm.weight",
+    #     "attention.w_q.weight": "attention.w_q.weight",
+    #     "attention.w_k.weight": "attention.w_k.weight",
+    #     "attention.w_v.weight": "attention.w_v.weight",
+    #     "attention.w_out.weight": "attention.w_out.weight",
+    #     "feed_forward_norm.weight": "feed_forward_norm.weight",
+    #     "lm_head.norm.weight": "lm_head.norm.weight",
+    #     "lm_head.w_out.weight": "lm_head.w_out.weight",
+    #     "embeddings.weight": "embeddings.weight",
+    # }
+
+    # trying from claude
     moe_to_expert_mapping = {
-        "feed_forward_moe.experts.mlp.w1": "feed_forward.w1.weight",
-        "feed_forward_moe.experts.mlp.w2": "feed_forward.w2.weight",
-        "feed_forward_moe.experts.mlp.w3": "feed_forward.w3.weight",
-        # "feed_forward_moe.router.weight": "feed_forward.w1",
+        "feed_forward_moe.experts.mlp.w1": "feed_forward_moe.experts.mlp.w1",
+        "feed_forward_moe.experts.mlp.w2": "feed_forward_moe.experts.mlp.w2",
+        "feed_forward_moe.experts.mlp.w3": "feed_forward_moe.experts.mlp.w3",
+        # "feed_forward_moe.router.weight": "feed_forward_moe.router.weight",
         "attention.q_norm.weight": "attention.q_norm.weight",
         "attention.k_norm.weight": "attention.k_norm.weight",
         "attention_norm.weight": "attention_norm.weight",
