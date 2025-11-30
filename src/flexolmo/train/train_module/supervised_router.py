@@ -6,6 +6,7 @@ Trains router via cross-entropy loss between router logits and ground truth expe
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
+import re
 
 import torch
 import torch.distributed.checkpoint.state_dict as dist_cp_sd
@@ -48,6 +49,9 @@ class SupervisedRouterTrainModuleConfig(TransformerTrainModuleConfig):
     router_loss_only: bool = False
     """If True, only train router (set language modeling loss weight to 0)."""
     
+    supervised_layers: Optional[List[int]] = None
+    """If set, only supervise routers in these layer indices. E.g., [0] for layer 0 only."""
+    
     def build(
         self,
         model: Transformer,
@@ -82,6 +86,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         self,
         router_loss_weight: float = 1.0,
         router_loss_only: bool = False,
+        supervised_layers: Optional[List[int]] = None,
         dataset=None,
         *args,
         **kwargs,
@@ -89,9 +94,25 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         super().__init__(*args, **kwargs)
         self.router_loss_weight = router_loss_weight
         self.router_loss_only = router_loss_only
+        self.supervised_layers = supervised_layers
         self.dataset = dataset
         self._patch_routers_for_supervised_loss()
-        log.info(f"SupervisedRouterTrainModule initialized (router_loss_only={router_loss_only})")
+        log.info(f"SupervisedRouterTrainModule initialized (router_loss_only={router_loss_only}, supervised_layers={supervised_layers})")
+    
+    def _extract_layer_index(self, module_name: str) -> Optional[int]:
+        """Extract layer index from module name like 'blocks.5.feed_forward_moe.router'."""
+        match = re.search(r'blocks\.(\d+)\.', module_name)
+        if match:
+            return int(match.group(1))
+        return None
+    
+    def _should_supervise_layer(self, layer_idx: Optional[int]) -> bool:
+        """Check if this layer should be supervised based on supervised_layers config."""
+        if self.supervised_layers is None:
+            return True  # Supervise all layers if not specified
+        if layer_idx is None:
+            return False  # Can't determine layer, skip
+        return layer_idx in self.supervised_layers
     
     def _patch_routers_for_supervised_loss(self):
         """Patch router forward methods to compute supervised loss during forward."""
@@ -99,10 +120,17 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         self._router_supervised_losses: List[float] = []
         
         patched_count = 0
+        skipped_layers = []
         for name, module in self.model.named_modules():
             if isinstance(module, MoERouter):
                 if not hasattr(module, 'num_experts') or not hasattr(module, '_latest_router_logits'):
                     log.warning(f"Skipping {name}: isinstance MoERouter but missing router attributes")
+                    continue
+                
+                # Check if this layer should be supervised
+                layer_idx = self._extract_layer_index(name)
+                if not self._should_supervise_layer(layer_idx):
+                    skipped_layers.append(layer_idx)
                     continue
                     
                 original_forward = module.forward
@@ -137,6 +165,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 module.forward = make_patched_forward(module, original_forward, self, router_name)
                 patched_count += 1
         
+        if skipped_layers:
+            log.info(f"[Router Training] Skipped supervision for layers: {sorted(set(skipped_layers))}")
         log.info(f"[Router Training] Patched {patched_count} routers for supervised loss computation")
     
     def _compute_supervised_loss_during_forward(
