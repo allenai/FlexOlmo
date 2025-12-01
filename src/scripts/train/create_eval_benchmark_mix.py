@@ -89,23 +89,14 @@ BENCHMARK_CONFIGS = {
     "mj_finemath_minerva": BenchmarkConfig(
         name="mj_finemath_minerva",
         hf_path="EleutherAI/hendrycks_math",
-        hf_name="all",  # Load all subsets together
+        hf_name=None,  # Special handling: load all subsets
         split="test",
         text_fields=["problem"],
         answer_field="solution",
         expert_category="math",
         prompt_template="Solve the following math problem.\n\nProblem: {problem}\n\nSolution: {solution}",
     ),
-    "mj_finemath_aime": BenchmarkConfig(
-        name="mj_finemath_aime",
-        hf_path="allenai/aime-2021-2025",
-        hf_name=None,
-        split="train",  # Filtered by year during eval, but we use all for training
-        text_fields=["problem"],
-        answer_field="answer",
-        expert_category="math",
-        prompt_template="Solve the following AIME problem.\n\nProblem: {problem}\n\nAnswer: {answer}",
-    ),
+    # NOTE: aime skipped - private dataset
     
     # =========================
     # CODE BENCHMARKS (use starcoder_ prefix for expert_label_utils mapping)
@@ -184,16 +175,7 @@ BENCHMARK_CONFIGS = {
         expert_category="general",
         prompt_template="Question: {Question}\n\nAnswer: {Correct Answer}",
     ),
-    "zebralogic": BenchmarkConfig(
-        name="zebralogic",
-        hf_path="allenai/ZebraLogicBench-private",
-        hf_name="grid_mode",
-        split="test",
-        text_fields=["puzzle"],
-        answer_field="solution",
-        expert_category="general",
-        prompt_template="Solve this logic puzzle:\n\n{puzzle}\n\nSolution: {solution}",
-    ),
+    # NOTE: zebralogic skipped - private dataset
     "ifeval": BenchmarkConfig(
         name="ifeval",
         hf_path="HuggingFaceH4/ifeval",  # Correct: HuggingFaceH4/ifeval, not google/IFEval
@@ -350,6 +332,25 @@ def load_benchmark_dataset(config: BenchmarkConfig, max_samples: Optional[int] =
                 log.warning(f"Failed to get BBH configs: {e}")
                 ds = load_dataset(config.hf_path, split=config.split)
                 all_examples = list(ds)
+            
+            if max_samples and len(all_examples) > max_samples:
+                all_examples = all_examples[:max_samples]
+            return all_examples
+        
+        # Special handling for hendrycks_math (minerva) which has multiple subsets
+        if config.hf_path == "EleutherAI/hendrycks_math" and config.hf_name is None:
+            all_examples = []
+            math_subsets = [
+                "algebra", "counting_and_probability", "geometry",
+                "intermediate_algebra", "number_theory", "prealgebra", "precalculus"
+            ]
+            for subset in math_subsets:
+                try:
+                    ds = load_dataset(config.hf_path, subset, split=config.split)
+                    all_examples.extend(list(ds))
+                    log.info(f"  Loaded {len(ds)} from {subset}")
+                except Exception as e:
+                    log.warning(f"Failed to load hendrycks_math/{subset}: {e}")
             
             if max_samples and len(all_examples) > max_samples:
                 all_examples = all_examples[:max_samples]
