@@ -74,11 +74,11 @@ class BenchmarkConfig:
 
 BENCHMARK_CONFIGS = {
     # =========================
-    # MATH BENCHMARKS (use mj_finemath_ prefix)
+    # MATH BENCHMARKS (use mj_finemath_ prefix for expert_label_utils mapping)
     # =========================
     "mj_finemath_gsm8k": BenchmarkConfig(
         name="mj_finemath_gsm8k",
-        hf_path="openai/gsm8k",
+        hf_path="gsm8k",  # Correct: gsm8k, not openai/gsm8k
         hf_name="main",
         split="test",
         text_fields=["question"],
@@ -86,79 +86,29 @@ BENCHMARK_CONFIGS = {
         expert_category="math",
         prompt_template="Solve the following math problem step by step.\n\nQuestion: {question}\n\nAnswer: {answer}",
     ),
-    "mj_finemath_algebra": BenchmarkConfig(
-        name="mj_finemath_algebra",
+    "mj_finemath_minerva": BenchmarkConfig(
+        name="mj_finemath_minerva",
         hf_path="EleutherAI/hendrycks_math",
-        hf_name="algebra",
+        hf_name="all",  # Load all subsets together
         split="test",
         text_fields=["problem"],
         answer_field="solution",
         expert_category="math",
-        prompt_template="Solve the following algebra problem.\n\nProblem: {problem}\n\nSolution: {solution}",
+        prompt_template="Solve the following math problem.\n\nProblem: {problem}\n\nSolution: {solution}",
     ),
-    "mj_finemath_counting": BenchmarkConfig(
-        name="mj_finemath_counting",
-        hf_path="EleutherAI/hendrycks_math",
-        hf_name="counting_and_probability",
-        split="test",
+    "mj_finemath_aime": BenchmarkConfig(
+        name="mj_finemath_aime",
+        hf_path="allenai/aime-2021-2025",
+        hf_name=None,
+        split="train",  # Filtered by year during eval, but we use all for training
         text_fields=["problem"],
-        answer_field="solution",
+        answer_field="answer",
         expert_category="math",
-        prompt_template="Solve the following counting and probability problem.\n\nProblem: {problem}\n\nSolution: {solution}",
-    ),
-    "mj_finemath_geometry": BenchmarkConfig(
-        name="mj_finemath_geometry",
-        hf_path="EleutherAI/hendrycks_math",
-        hf_name="geometry",
-        split="test",
-        text_fields=["problem"],
-        answer_field="solution",
-        expert_category="math",
-        prompt_template="Solve the following geometry problem.\n\nProblem: {problem}\n\nSolution: {solution}",
-    ),
-    "mj_finemath_intermediate_algebra": BenchmarkConfig(
-        name="mj_finemath_intermediate_algebra",
-        hf_path="EleutherAI/hendrycks_math",
-        hf_name="intermediate_algebra",
-        split="test",
-        text_fields=["problem"],
-        answer_field="solution",
-        expert_category="math",
-        prompt_template="Solve the following intermediate algebra problem.\n\nProblem: {problem}\n\nSolution: {solution}",
-    ),
-    "mj_finemath_number_theory": BenchmarkConfig(
-        name="mj_finemath_number_theory",
-        hf_path="EleutherAI/hendrycks_math",
-        hf_name="number_theory",
-        split="test",
-        text_fields=["problem"],
-        answer_field="solution",
-        expert_category="math",
-        prompt_template="Solve the following number theory problem.\n\nProblem: {problem}\n\nSolution: {solution}",
-    ),
-    "mj_finemath_prealgebra": BenchmarkConfig(
-        name="mj_finemath_prealgebra",
-        hf_path="EleutherAI/hendrycks_math",
-        hf_name="prealgebra",
-        split="test",
-        text_fields=["problem"],
-        answer_field="solution",
-        expert_category="math",
-        prompt_template="Solve the following pre-algebra problem.\n\nProblem: {problem}\n\nSolution: {solution}",
-    ),
-    "mj_finemath_precalculus": BenchmarkConfig(
-        name="mj_finemath_precalculus",
-        hf_path="EleutherAI/hendrycks_math",
-        hf_name="precalculus",
-        split="test",
-        text_fields=["problem"],
-        answer_field="solution",
-        expert_category="math",
-        prompt_template="Solve the following precalculus problem.\n\nProblem: {problem}\n\nSolution: {solution}",
+        prompt_template="Solve the following AIME problem.\n\nProblem: {problem}\n\nAnswer: {answer}",
     ),
     
     # =========================
-    # CODE BENCHMARKS (use starcoder_ prefix)
+    # CODE BENCHMARKS (use starcoder_ prefix for expert_label_utils mapping)
     # =========================
     "starcoder_humaneval": BenchmarkConfig(
         name="starcoder_humaneval",
@@ -182,7 +132,7 @@ BENCHMARK_CONFIGS = {
     ),
     
     # =========================
-    # GENERAL BENCHMARKS (no special prefix needed)
+    # GENERAL/REASONING BENCHMARKS
     # =========================
     "mmlu": BenchmarkConfig(
         name="mmlu",
@@ -197,7 +147,7 @@ BENCHMARK_CONFIGS = {
     "bbh": BenchmarkConfig(
         name="bbh",
         hf_path="lukaemon/bbh",
-        hf_name=None,
+        hf_name=None,  # Will iterate over configs
         split="test",
         text_fields=["input"],
         answer_field="target",
@@ -214,19 +164,39 @@ BENCHMARK_CONFIGS = {
         expert_category="general",
         prompt_template="Question: {question}\n\nAnswer: {answer}",
     ),
+    "simpleqa": BenchmarkConfig(
+        name="simpleqa",
+        hf_path="lighteval/SimpleQA",
+        hf_name=None,
+        split="test",
+        text_fields=["problem"],
+        answer_field="answer",
+        expert_category="general",
+        prompt_template="Question: {problem}\n\nAnswer: {answer}",
+    ),
     "gpqa": BenchmarkConfig(
         name="gpqa",
         hf_path="Idavidrein/gpqa",
-        hf_name="gpqa_extended",
+        hf_name="gpqa_main",  # Correct: gpqa_main, not gpqa_extended
         split="train",
         text_fields=["Question"],
         answer_field="Correct Answer",
         expert_category="general",
         prompt_template="Question: {Question}\n\nAnswer: {Correct Answer}",
     ),
+    "zebralogic": BenchmarkConfig(
+        name="zebralogic",
+        hf_path="allenai/ZebraLogicBench-private",
+        hf_name="grid_mode",
+        split="test",
+        text_fields=["puzzle"],
+        answer_field="solution",
+        expert_category="general",
+        prompt_template="Solve this logic puzzle:\n\n{puzzle}\n\nSolution: {solution}",
+    ),
     "ifeval": BenchmarkConfig(
         name="ifeval",
-        hf_path="google/IFEval",
+        hf_path="HuggingFaceH4/ifeval",  # Correct: HuggingFaceH4/ifeval, not google/IFEval
         hf_name=None,
         split="train",
         text_fields=["prompt"],
@@ -234,16 +204,8 @@ BENCHMARK_CONFIGS = {
         expert_category="general",
         prompt_template="{prompt}",
     ),
-    "alpaca_eval": BenchmarkConfig(
-        name="alpaca_eval",
-        hf_path="tatsu-lab/alpaca_eval",
-        hf_name="alpaca_eval",
-        split="eval",
-        text_fields=["instruction"],
-        answer_field="output",
-        expert_category="general",
-        prompt_template="Instruction: {instruction}\n\nResponse: {output}",
-    ),
+    # NOTE: alpaca_eval uses deprecated HF loading script - skipped
+    # NOTE: agi_eval_english uses local files - skipped
 }
 
 
@@ -380,24 +342,24 @@ def load_benchmark_dataset(config: BenchmarkConfig, max_samples: Optional[int] =
                 configs = get_dataset_config_names(config.hf_path)
                 for cfg_name in configs[:10]:  # First 10 BBH tasks
                     try:
-                        ds = load_dataset(config.hf_path, cfg_name, split=config.split, trust_remote_code=True)
+                        ds = load_dataset(config.hf_path, cfg_name, split=config.split)
                         all_examples.extend(list(ds))
                     except Exception as e:
                         log.warning(f"Failed to load BBH config {cfg_name}: {e}")
             except Exception as e:
                 log.warning(f"Failed to get BBH configs: {e}")
-                ds = load_dataset(config.hf_path, split=config.split, trust_remote_code=True)
+                ds = load_dataset(config.hf_path, split=config.split)
                 all_examples = list(ds)
             
             if max_samples and len(all_examples) > max_samples:
                 all_examples = all_examples[:max_samples]
             return all_examples
         
-        # Standard loading
+        # Standard loading (no trust_remote_code - deprecated in newer HF versions)
         if config.hf_name:
-            dataset = load_dataset(config.hf_path, config.hf_name, split=config.split, trust_remote_code=True)
+            dataset = load_dataset(config.hf_path, config.hf_name, split=config.split)
         else:
-            dataset = load_dataset(config.hf_path, split=config.split, trust_remote_code=True)
+            dataset = load_dataset(config.hf_path, split=config.split)
         
         examples = list(dataset)
         if max_samples and len(examples) > max_samples:
@@ -588,7 +550,7 @@ Then use in training:
         "sequence_length": args.sequence_length,
         "total_sequences": total_sequences,
         "total_tokens": total_tokens,
-        "expert_distribution": stats,
+        "domain_distribution": stats,  # Based on benchmark category, not actual expert routing
         "output_dir": str(output_dir),
         "mix_base_dir": str(mix_base_dir),
     }
@@ -603,7 +565,8 @@ Then use in training:
     log.info(f"Total sequences: {total_sequences}")
     log.info(f"Total tokens: {total_tokens:,}")
     log.info("")
-    log.info("Expert distribution (by sequences):")
+    log.info("Domain distribution (by sequences):")
+    log.info("  (This is based on benchmark category, NOT actual expert routing)")
     for domain, count in stats.items():
         pct = count / total_sequences * 100 if total_sequences > 0 else 0
         log.info(f"  {domain}: {count} ({pct:.1f}%)")
