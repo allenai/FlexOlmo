@@ -201,8 +201,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 seq_len = router_logits_flat.shape[0] // batch_size
             else:
                 # Per-sequence labels: (batch_size, num_experts)
-            batch_size = expert_labels.shape[0]
-            seq_len = router_logits_flat.shape[0] // batch_size
+                batch_size = expert_labels.shape[0]
+                seq_len = router_logits_flat.shape[0] // batch_size
         else:
             return None
         
