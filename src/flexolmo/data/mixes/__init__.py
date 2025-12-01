@@ -62,6 +62,9 @@ class CustomDataMix(DataMixBase):
     
     # 4x7B supervised router training mix (with one-hot labels)
     router_training_mix_labeled = "router_training_mix_labeled"
+    
+    # Evaluation benchmark mix (for debugging - training on test data!)
+    eval_benchmark_mix = "eval_benchmark_mix"
 
     def build(self, base_dir: str, tokenizer: str) -> Tuple[List[str], List[str]]:
         """
