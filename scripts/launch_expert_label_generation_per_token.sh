@@ -21,7 +21,7 @@
 NUM_NODES=8
 NUM_GPUS=8
 CHECKPOINT="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code"
-OUTPUT_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B"
+OUTPUT_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B_uniform_v2"
 MIX="router_training_mix"
 MIX_BASE_DIR="/weka/oe-training-default/ai2-llm/"
 BATCH_SIZE=1  # Per-GPU batch size (must be 1 to avoid MoE routing bug with forced experts)

@@ -12,11 +12,20 @@
 #
 # The labels directory should be at:
 #   /weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B/
+#
+# IMPORTANT: This uses labeled_indices_file to ONLY train on sequences that have labels.
+# Stage 1 (label generation) samples uniformly across Math/Code/General domains,
+# so Stage 2 training will also have uniform domain distribution.
 
-EXPERT_LABELS_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B"
+EXPERT_LABELS_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B_uniform_v2"
+LABELED_INDICES_FILE="${EXPERT_LABELS_DIR}/labeled_indices.npy"
 
 echo "=== Supervised Router Training with Per-Token Optimal Labels ==="
 echo "Expert labels directory: ${EXPERT_LABELS_DIR}"
+echo "Labeled indices file: ${LABELED_INDICES_FILE}"
+echo ""
+echo "NOTE: Training will ONLY use sequences that have per-token labels."
+echo "      This ensures uniform Math/Code/General distribution (from Stage 1 sampling)."
 echo ""
 
 # Generate unique experiment name with timestamp
@@ -32,13 +41,14 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-supervised-router.py FlexOlmo-4x7B-Supervised-RT-PerToken \
    --data_loader.expert_labels_dir=${EXPERT_LABELS_DIR} \
+   --data_loader.labeled_indices_file=${LABELED_INDICES_FILE} \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.include_instance_metadata=true \
    --trainer.max_duration.value=5000000000 \
    --trainer.max_duration.unit=tokens \
    --trainer.load_path=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code \
-   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-router-per-token \
+   --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-router-per-token-uniform-v2 \
    --model.block.feed_forward_moe.num_experts=4 \
    --model.block.feed_forward_moe.router.top_k=4 \
    --train_module.rank_microbatch_size=4096 \
@@ -52,4 +62,5 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
 
 echo ""
 echo "Job submitted. Training with per-token optimal loss-based expert labels."
+echo "Only labeled sequences (uniform across domains) will be used."
 

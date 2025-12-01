@@ -189,18 +189,19 @@ def load_model(checkpoint_path: str, device: torch.device, dtype: torch.dtype) -
     return model
 
 
-def build_dataset(config: LabelGenerationConfig):
+def build_dataset(config: LabelGenerationConfig, use_source_mixture: bool = True):
     """
     Build the dataset for label generation.
     
-    Uses the default NumpyDataset behavior which samples proportionally to token count
-    (file size), matching how --dataset.mix=router_training_mix works in training.
-    This respects the intended token distribution from file repetitions in the mix.
+    Args:
+        config: Label generation config
+        use_source_mixture: If True, use source_mixture_config for uniform sampling
+                           across domains (Math, Code, General). This ensures we
+                           label sequences from ALL sources, not just the first ones.
     """
-    from flexolmo.data.mixes import CustomDataMix
+    from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
     
-    # Create dataset config - use CustomDataMix directly (no source_mixture_config)
-    # This matches the behavior of --dataset.mix=router_training_mix in training
+    # Create base dataset config
     dataset_config = NumpyDatasetConfig(
         sequence_length=config.sequence_length,
         tokenizer=TokenizerConfig.dolma2(),
@@ -209,15 +210,20 @@ def build_dataset(config: LabelGenerationConfig):
         include_instance_metadata=True,
     )
     
-    # Don't set source_mixture_config - let it use default behavior
-    # which samples uniformly by index, where each file contributes
-    # instances proportional to its token count (file size)
+    if use_source_mixture:
+        # Use source_mixture_config for uniform sampling across domains
+        # This ensures we get Math, Code, AND General sequences
+        dataset_config.source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config)
+        # Clear the mix since we're using source_mixture_config
+        dataset_config.mix = None
+        log.info(f"Using source_mixture_config for uniform domain sampling")
+    else:
+        log.info(f"Using default sampling (proportional to file size)")
     
     # Build the dataset
     dataset = dataset_config.build()
     
     log.info(f"Dataset built with {len(dataset)} total instances")
-    log.info(f"Token distribution follows file sizes (token counts), not domain labels")
     
     return dataset, dataset_config
 
@@ -330,7 +336,14 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--dtype", type=str, default="bfloat16", choices=["float32", "float16", "bfloat16"])
     parser.add_argument("--save_interval", type=int, default=1000, help="Save progress every N batches")
+    parser.add_argument("--use_source_mixture", action="store_true", default=True, 
+                        help="Use source_mixture_config for uniform domain sampling (recommended)")
+    parser.add_argument("--no_source_mixture", action="store_true",
+                        help="Disable source_mixture_config, use default file-size proportional sampling")
     args = parser.parse_args()
+    
+    # Handle source mixture flag
+    args.use_source_mixture = args.use_source_mixture and not args.no_source_mixture
     
     # Setup distributed
     rank, world_size, local_rank, device = setup_distributed()
@@ -378,7 +391,8 @@ def main():
     # Build dataset
     if rank == 0:
         log.info("Building dataset...")
-    dataset, dataset_config = build_dataset(config)
+        log.info(f"Using source_mixture: {args.use_source_mixture}")
+    dataset, dataset_config = build_dataset(config, use_source_mixture=args.use_source_mixture)
     
     # Calculate number of sequences to process
     max_sequences = config.max_tokens // config.sequence_length
@@ -497,11 +511,17 @@ def main():
         "total_tokens_processed": total_tokens_processed,
         "total_loss": total_loss,
         "num_sequences_processed": len(local_indices),
+        "labeled_indices": local_indices,  # Save which indices this rank labeled
     }
     local_stats_path = output_dir / f"stats_rank_{rank:03d}.json"
     with open(local_stats_path, "w") as f:
         json.dump(local_stats, f, indent=2)
     log.info(f"Rank {rank}: Saved local stats to {local_stats_path}")
+    
+    # Save manifest of labeled indices for this rank (as numpy for efficiency)
+    manifest_path = output_dir / f"manifest_rank_{rank:03d}.npy"
+    np.save(manifest_path, np.array(local_indices, dtype=np.int64))
+    log.info(f"Rank {rank}: Saved manifest of {len(local_indices)} indices to {manifest_path}")
     
     # Try to gather statistics from all ranks (with timeout handling)
     global_stats_gathered = False
@@ -540,6 +560,18 @@ def main():
             log.warning("Global stats gathering failed. Saving local rank 0 stats only.")
             log.warning("To get full stats, combine stats_rank_*.json files manually.")
         
+        # Combine all manifests into a single file
+        all_labeled_indices = []
+        for manifest_file in sorted(output_dir.glob("manifest_rank_*.npy")):
+            indices = np.load(manifest_file)
+            all_labeled_indices.extend(indices.tolist())
+        all_labeled_indices = sorted(set(all_labeled_indices))
+        
+        # Save combined manifest
+        combined_manifest_path = output_dir / "labeled_indices.npy"
+        np.save(combined_manifest_path, np.array(all_labeled_indices, dtype=np.int64))
+        log.info(f"Saved combined manifest of {len(all_labeled_indices)} unique indices to {combined_manifest_path}")
+        
         metadata = {
             "type": "per_token",
             "checkpoint": config.checkpoint_path,
@@ -548,8 +580,10 @@ def main():
             "sequence_length": config.sequence_length,
             "token_length": config.sequence_length - 1,  # After shift
             "num_sequences": total_sequences,
+            "num_labeled_sequences": len(all_labeled_indices),
             "total_tokens": total_tokens_processed,
             "global_stats_complete": global_stats_gathered,
+            "use_source_mixture": args.use_source_mixture,
             "expert_mapping": {
                 "0": "Math",
                 "1": "General",
