@@ -152,7 +152,7 @@ if __name__ == "__main__":
         "feed_forward_moe.experts.mlp.w1": "feed_forward_moe.experts.mlp.w1",
         "feed_forward_moe.experts.mlp.w2": "feed_forward_moe.experts.mlp.w2",
         "feed_forward_moe.experts.mlp.w3": "feed_forward_moe.experts.mlp.w3",
-        # "feed_forward_moe.router.weight": "feed_forward_moe.router.weight",
+        "feed_forward_moe.router.weight": "feed_forward_moe.router.weight",
         "attention.q_norm.weight": "attention.q_norm.weight",
         "attention.k_norm.weight": "attention.k_norm.weight",
         "attention_norm.weight": "attention_norm.weight",
