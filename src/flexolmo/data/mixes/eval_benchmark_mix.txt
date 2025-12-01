@@ -1,0 +1,13 @@
+# Router training mix from evaluation benchmarks
+# WARNING: Training on test data - for debugging only!
+# Format: domain_label,path/to/file.npy
+# mix_base_dir: /weka/oe-training-default/sanjaya/eval_benchmark_data
+#
+mj_finemath_gsm8k,mj_finemath_gsm8k/part-00-00000.npy
+starcoder_humaneval,starcoder_humaneval/part-00-00000.npy
+starcoder_mbpp,starcoder_mbpp/part-00-00000.npy
+mmlu,mmlu/part-00-00000.npy
+bbh,bbh/part-00-00000.npy
+popqa,popqa/part-00-00000.npy
+simpleqa,simpleqa/part-00-00000.npy
+ifeval,ifeval/part-00-00000.npy
