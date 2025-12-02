@@ -165,7 +165,7 @@ def load_model(checkpoint_path: str, device: torch.device, dtype: torch.dtype) -
     
     # Build model config (same as training)
     model_config = TransformerConfig.olmoe_nx7b(
-        vocab_size=100352,  # Standard vocab size
+        vocab_size=100278,  # dolma2 tokenizer vocab size
         num_experts=4,
         top_k=4,
     )
