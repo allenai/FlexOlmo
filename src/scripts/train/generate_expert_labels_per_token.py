@@ -203,12 +203,13 @@ def build_dataset(config: LabelGenerationConfig, use_source_mixture: bool = True
     from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
     
     # Create base dataset config
+    # NOTE: include_instance_metadata=False to avoid bug where first item gets corrupted
     dataset_config = NumpyDatasetConfig(
         sequence_length=config.sequence_length,
         tokenizer=TokenizerConfig.dolma2(),
         mix=CustomDataMix(config.mix_name),  # Convert to CustomDataMix enum
         mix_base_dir=config.mix_base_dir,
-        include_instance_metadata=True,
+        include_instance_metadata=False,
     )
     
     if use_source_mixture:
@@ -249,15 +250,6 @@ def compute_per_token_losses(
     """
     input_ids = input_ids.to(device)
     batch_size, seq_len = input_ids.shape
-    
-    # Validate input_ids are within vocab range
-    vocab_size = 100352
-    max_id = input_ids.max().item()
-    min_id = input_ids.min().item()
-    if max_id >= vocab_size:
-        raise ValueError(f"Token ID {max_id} >= vocab_size {vocab_size}")
-    if min_id < 0:
-        raise ValueError(f"Negative token ID {min_id}")
     
     with torch.no_grad():
         # Forward pass to get logits
@@ -470,8 +462,10 @@ def main():
         batch_end = min(batch_start + config.batch_size, len(local_indices))
         batch_indices = local_indices[batch_start:batch_end]
         
-        # Get batch data
+        # Get batch data, filtering out corrupted items
         batch_input_ids = []
+        valid_batch_indices = []
+        vocab_size = 100352
         
         for global_idx in batch_indices:
             item = dataset[global_idx]
@@ -485,20 +479,25 @@ def main():
             else:
                 input_ids = input_ids.long()  # Ensure int64 dtype
             
+            # Skip corrupted items (token IDs >= vocab_size)
+            max_id = input_ids.max().item()
+            if max_id >= vocab_size:
+                log.warning(f"Skipping corrupted item {global_idx}: max token ID {max_id} >= vocab_size {vocab_size}")
+                continue
+            
             batch_input_ids.append(input_ids)
+            valid_batch_indices.append(global_idx)
+        
+        # Skip if no valid items in batch
+        if len(batch_input_ids) == 0:
+            log.warning(f"Batch {batch_idx}: No valid items, skipping")
+            continue
+        
+        # Update batch_indices to only include valid items
+        batch_indices = valid_batch_indices
         
         # Stack into batch
         input_ids_batch = torch.stack(batch_input_ids)
-        
-        # Validate input before model forward pass
-        if batch_idx == 0 and rank == 0:
-            log.info(f"DEBUG: input_ids_batch shape={input_ids_batch.shape}, dtype={input_ids_batch.dtype}")
-            log.info(f"DEBUG: input_ids min={input_ids_batch.min().item()}, max={input_ids_batch.max().item()}")
-            log.info(f"DEBUG: vocab_size={100352}")
-            if input_ids_batch.max().item() >= 100352:
-                log.error(f"ERROR: Token ID {input_ids_batch.max().item()} >= vocab_size 100352!")
-            if input_ids_batch.min().item() < 0:
-                log.error(f"ERROR: Negative token ID {input_ids_batch.min().item()}!")
         
         # Generate per-token labels for this batch
         try:
