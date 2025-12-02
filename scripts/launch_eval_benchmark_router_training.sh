@@ -55,14 +55,8 @@ echo "Mix:        ${MIX}"
 echo "Mix base:   ${MIX_BASE_DIR}"
 echo ""
 
-# Check if eval benchmark data exists
-if [[ ! -f "${EVAL_DATA_DIR}/${MIX}.txt" ]]; then
-    echo "ERROR: Eval benchmark mix not found at ${EVAL_DATA_DIR}/${MIX}.txt"
-    echo ""
-    echo "First run:"
-    echo "  python src/scripts/train/create_eval_benchmark_mix.py --max_samples_per_task 1000"
-    exit 1
-fi
+# Note: We don't check if files exist locally since this launches on Beaker
+# which has WEKA access. The mix file should be at ${EVAL_DATA_DIR}/${MIX}.txt
 
 # Generate experiment name based on mode
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -84,14 +78,8 @@ case ${MODE} in
         SAVE_FOLDER="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/eval_benchmark_RT_pertoken"
         TRAIN_SCRIPT="src/scripts/train/OLMoE-4x7B-supervised-router.py"
         
-        # Check if per-token labels exist
-        if [[ ! -d "${PER_TOKEN_LABELS_DIR}" ]]; then
-            echo "ERROR: Per-token labels not found at ${PER_TOKEN_LABELS_DIR}"
-            echo ""
-            echo "First run:"
-            echo "  ./scripts/launch_eval_benchmark_label_generation.sh"
-            exit 1
-        fi
+        # Note: per-token labels should exist at ${PER_TOKEN_LABELS_DIR}
+        # Run ./scripts/launch_eval_benchmark_label_generation.sh first if not
         
         LABELED_INDICES_FILE="${PER_TOKEN_LABELS_DIR}/labeled_indices.npy"
         EXTRA_ARGS="--train_module.router_loss_weight=1.0 --train_module.router_loss_only=true"

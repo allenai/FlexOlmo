@@ -40,14 +40,8 @@ echo "Mix:        ${MIX}"
 echo "Mix base:   ${MIX_BASE_DIR}"
 echo ""
 
-# Check if eval benchmark data exists
-if [[ ! -f "${EVAL_DATA_DIR}/${MIX}.txt" ]]; then
-    echo "ERROR: Eval benchmark mix not found at ${EVAL_DATA_DIR}/${MIX}.txt"
-    echo ""
-    echo "First run:"
-    echo "  python src/scripts/train/create_eval_benchmark_mix.py --max_samples_per_task 1000"
-    exit 1
-fi
+# Note: We don't check if files exist locally since this launches on Beaker
+# which has WEKA access. The mix file should be at ${EVAL_DATA_DIR}/${MIX}.txt
 
 # Generate unique experiment name
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
