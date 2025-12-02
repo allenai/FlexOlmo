@@ -4,10 +4,12 @@
 # mix_base_dir: /weka/oe-training-default/sanjaya/eval_benchmark_data
 #
 mj_finemath_gsm8k,mj_finemath_gsm8k/part-00-00000.npy
+mj_finemath_minerva,mj_finemath_minerva/part-00-00000.npy
 starcoder_humaneval,starcoder_humaneval/part-00-00000.npy
 starcoder_mbpp,starcoder_mbpp/part-00-00000.npy
 mmlu,mmlu/part-00-00000.npy
 bbh,bbh/part-00-00000.npy
 popqa,popqa/part-00-00000.npy
 simpleqa,simpleqa/part-00-00000.npy
+gpqa,gpqa/part-00-00000.npy
 ifeval,ifeval/part-00-00000.npy
