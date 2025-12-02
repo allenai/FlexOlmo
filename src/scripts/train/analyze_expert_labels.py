@@ -19,6 +19,7 @@ from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
+import torch
 
 
 # Expert mapping
@@ -40,11 +41,45 @@ def get_expected_expert(domain_label: str) -> int:
         return 1  # General
 
 
+def load_sequence_text(data_dir: Path, seq_idx: int, seq_to_domain: dict, domain_files: list, tokenizer) -> str:
+    """Load and decode the text for a specific sequence index."""
+    try:
+        # Find which file and offset this sequence is in
+        current_seq_idx = 0
+        for domain_label, file_path in domain_files:
+            full_path = data_dir / file_path
+            if full_path.exists():
+                data = np.load(full_path)
+                num_seqs = len(data) // 4096
+                if current_seq_idx <= seq_idx < current_seq_idx + num_seqs:
+                    # Found the file, extract the sequence
+                    local_idx = seq_idx - current_seq_idx
+                    start = local_idx * 4096
+                    end = start + 4096
+                    token_ids = data[start:end].astype(np.int64)
+                    # Decode to text
+                    text = tokenizer.decode(token_ids, skip_special_tokens=False)
+                    return text
+                current_seq_idx += num_seqs
+    except Exception as e:
+        return f"[Error loading text: {e}]"
+    return "[Sequence not found]"
+
+
 def analyze_labels(labels_dir: str, data_dir: str, output_path: str):
     """Analyze per-token labels and compare with source-based expectations."""
     
     labels_dir = Path(labels_dir)
     data_dir = Path(data_dir)
+    
+    # Load tokenizer for decoding text
+    print("Loading tokenizer...")
+    try:
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained("allenai/dolma2-tokenizer")
+    except Exception as e:
+        print(f"Warning: Could not load tokenizer: {e}")
+        tokenizer = None
     
     # Load metadata
     metadata_path = labels_dir / "metadata.json"
@@ -180,8 +215,15 @@ def analyze_labels(labels_dir: str, data_dir: str, output_path: str):
         f.write("OVERALL SUMMARY\n")
         f.write("=" * 100 + "\n\n")
         
+        # Filter out corrupted sequences (NaN loss)
+        valid_results = [r for r in results if not np.isnan(r["avg_loss"])]
+        corrupted_count = len(results) - len(valid_results)
+        
         total = overall_stats["total_tokens"]
-        f.write(f"Total sequences analyzed: {len(results)}\n")
+        f.write(f"Total sequences found: {len(results)}\n")
+        f.write(f"Valid sequences (non-NaN loss): {len(valid_results)}\n")
+        if corrupted_count > 0:
+            f.write(f"Corrupted sequences (NaN loss, excluded): {corrupted_count}\n")
         f.write(f"Total tokens: {total:,}\n\n")
         
         f.write("Overall Expert Distribution (per-token, loss-based):\n")
@@ -190,12 +232,16 @@ def analyze_labels(labels_dir: str, data_dir: str, output_path: str):
             pct = count / total * 100 if total > 0 else 0
             f.write(f"  {EXPERT_NAMES[e]:10} (Expert {e}): {count:>10,} tokens ({pct:5.2f}%)\n")
         
-        f.write(f"\nSource-based vs Loss-based Agreement:\n")
-        agree = agreement_stats["agree"]
-        disagree = agreement_stats["disagree"]
-        total_seqs = agree + disagree
-        f.write(f"  Agree:    {agree:>4} sequences ({agree/total_seqs*100:.1f}%)\n")
-        f.write(f"  Disagree: {disagree:>4} sequences ({disagree/total_seqs*100:.1f}%)\n")
+        f.write(f"\nSource-based vs Loss-based Agreement (valid sequences only):\n")
+        # Recalculate agreement for valid sequences only
+        valid_agree = sum(1 for r in valid_results if r["agrees"])
+        valid_disagree = sum(1 for r in valid_results if not r["agrees"])
+        valid_total = valid_agree + valid_disagree
+        if valid_total > 0:
+            f.write(f"  Agree:    {valid_agree:>4} sequences ({valid_agree/valid_total*100:.1f}%)\n")
+            f.write(f"  Disagree: {valid_disagree:>4} sequences ({valid_disagree/valid_total*100:.1f}%)\n")
+        else:
+            f.write(f"  No valid sequences to analyze\n")
         
         f.write("\n" + "=" * 100 + "\n")
         f.write("PER-DOMAIN STATISTICS\n")
@@ -232,16 +278,36 @@ def analyze_labels(labels_dir: str, data_dir: str, output_path: str):
         f.write("DISAGREEMENT ANALYSIS\n")
         f.write("=" * 100 + "\n\n")
         
-        disagreements = [r for r in results if not r["agrees"]]
+        # Filter out NaN losses (corrupted sequences from old runs)
+        valid_results = [r for r in results if not np.isnan(r["avg_loss"])]
+        disagreements = [r for r in valid_results if not r["agrees"]]
+        
         if disagreements:
-            f.write(f"Found {len(disagreements)} sequences where loss-based majority differs from source-based expectation:\n\n")
+            f.write(f"Found {len(disagreements)} sequences where loss-based majority differs from source-based expectation:\n")
+            f.write(f"(Excluding {len(results) - len(valid_results)} corrupted sequences with NaN loss)\n\n")
+            
             for r in disagreements:
+                f.write("-" * 100 + "\n")
                 f.write(f"Seq {r['seq_idx']}: {r['domain']}\n")
                 f.write(f"  Expected: {r['expected_expert_name']}, Got: {r['majority_expert_name']} ({r['majority_pct']:.1f}%)\n")
                 f.write(f"  Distribution: Math={r['expert_pcts'][0]:.1f}%, General={r['expert_pcts'][1]:.1f}%, Code={r['expert_pcts'][2]:.1f}%\n")
                 f.write(f"  Avg Loss: {r['avg_loss']:.2f}\n\n")
+                
+                # Load and show text snippet
+                if tokenizer is not None:
+                    text = load_sequence_text(data_dir, r['seq_idx'], seq_to_domain, domain_files, tokenizer)
+                    # Show first 500 chars and last 200 chars
+                    if len(text) > 800:
+                        snippet = text[:500] + "\n\n  [...middle truncated...]\n\n" + text[-200:]
+                    else:
+                        snippet = text
+                    # Indent the text
+                    snippet_lines = snippet.split('\n')
+                    indented = '\n'.join('    ' + line for line in snippet_lines)
+                    f.write(f"  TEXT CONTENT:\n{indented}\n\n")
         else:
             f.write("All sequences agree between source-based and loss-based labels!\n")
+            f.write(f"(Excluding {len(results) - len(valid_results)} corrupted sequences with NaN loss)\n")
     
     print(f"\nAnalysis written to: {output_path}")
     print(f"\nQuick summary:")
