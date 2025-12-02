@@ -163,9 +163,9 @@ def load_model(checkpoint_path: str, device: torch.device, dtype: torch.dtype) -
     log.info(f"Loading model from {checkpoint_path}")
     
     # Build model config (same as training)
-    # vocab_size=100278 matches dolma2 tokenizer
+    # vocab_size=100352 matches the checkpoint (extended from dolma2's 100278)
     model_config = TransformerConfig.olmoe_nx7b(
-        vocab_size=100278,
+        vocab_size=100352,
         num_experts=4,
         top_k=4,
     )
