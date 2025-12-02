@@ -1,0 +1,717 @@
+====================================================================================================
+PER-TOKEN EXPERT LABEL ANALYSIS
+====================================================================================================
+
+Expert Mapping:
+  0 = Math (expected for mj_finemath_* sources)
+  1 = General (expected for mmlu, bbh, popqa, simpleqa, gpqa, ifeval)
+  2 = Code (expected for starcoder_* sources)
+
+====================================================================================================
+OVERALL SUMMARY
+====================================================================================================
+
+Total sequences analyzed: 190
+Total tokens: 778,050
+
+Overall Expert Distribution (per-token, loss-based):
+  Math       (Expert 0):    301,219 tokens (38.71%)
+  General    (Expert 1):    286,206 tokens (36.79%)
+  Code       (Expert 2):    190,625 tokens (24.50%)
+
+Source-based vs Loss-based Agreement:
+  Agree:     109 sequences (57.4%)
+  Disagree:   81 sequences (42.6%)
+
+====================================================================================================
+PER-DOMAIN STATISTICS
+====================================================================================================
+
+Domain: bbh
+  Expected Expert: General (Expert 1)
+  Total tokens: 98,280
+  Expert distribution:
+    Math      : 31.41%
+    General   : 37.77% <-- expected
+    Code      : 30.83%
+
+Domain: gpqa
+  Expected Expert: General (Expert 1)
+  Total tokens: 65,520
+  Expert distribution:
+    Math      : 30.78%
+    General   : 39.57% <-- expected
+    Code      : 29.65%
+
+Domain: ifeval
+  Expected Expert: General (Expert 1)
+  Total tokens: 28,665
+  Expert distribution:
+    Math      : 31.76%
+    General   : 39.83% <-- expected
+    Code      : 28.41%
+
+Domain: mj_finemath_gsm8k
+  Expected Expert: Math (Expert 0)
+  Total tokens: 176,085
+  Expert distribution:
+    Math      : 48.18% <-- expected
+    General   : 31.65%
+    Code      : 20.17%
+
+Domain: mj_finemath_minerva
+  Expected Expert: Math (Expert 0)
+  Total tokens: 208,845
+  Expert distribution:
+    Math      : 43.66% <-- expected
+    General   : 30.69%
+    Code      : 25.65%
+
+Domain: mmlu
+  Expected Expert: General (Expert 1)
+  Total tokens: 73,710
+  Expert distribution:
+    Math      : 39.53%
+    General   : 41.65% <-- expected
+    Code      : 18.83%
+
+Domain: popqa
+  Expected Expert: General (Expert 1)
+  Total tokens: 36,855
+  Expert distribution:
+    Math      : 29.29%
+    General   : 49.49% <-- expected
+    Code      : 21.22%
+
+Domain: simpleqa
+  Expected Expert: General (Expert 1)
+  Total tokens: 32,760
+  Expert distribution:
+    Math      : 30.89%
+    General   : 41.52% <-- expected
+    Code      : 27.59%
+
+Domain: starcoder_humaneval
+  Expected Expert: Code (Expert 2)
+  Total tokens: 32,760
+  Expert distribution:
+    Math      : 28.46%
+    General   : 45.08%
+    Code      : 26.47% <-- expected
+
+Domain: starcoder_mbpp
+  Expected Expert: Code (Expert 2)
+  Total tokens: 24,570
+  Expert distribution:
+    Math      : 23.15%
+    General   : 59.47%
+    Code      : 17.38% <-- expected
+
+====================================================================================================
+PER-SEQUENCE DETAILS
+====================================================================================================
+
+   Seq | Domain                    | Expected   | Majority   | Match |  Math% |   Gen% |  Code% |   Loss
+----------------------------------------------------------------------------------------------------
+     0 | mj_finemath_gsm8k         | Math       | General    |   ✗   |   0.0% | 100.0% |   0.0% |    nan
+     1 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  48.1% |  29.4% |  22.5% |   7.44
+     2 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  53.1% |  29.5% |  17.5% |   7.55
+     3 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  43.1% |  43.5% |  13.3% |   7.68
+     4 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  46.1% |  28.3% |  25.6% |   7.64
+     5 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  56.2% |  25.8% |  18.0% |   7.60
+     6 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  50.1% |  25.3% |  24.6% |   7.59
+     7 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  38.6% |  43.9% |  17.5% |   8.02
+     8 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  56.1% |  25.2% |  18.7% |   7.75
+     9 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  44.5% |  31.1% |  24.3% |   7.80
+    10 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  50.8% |  26.6% |  22.6% |   7.73
+    11 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  37.8% |  30.6% |  31.6% |   7.35
+    12 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  42.3% |  33.2% |  24.5% |   7.85
+    13 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  56.5% |  28.8% |  14.7% |   7.50
+    14 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  48.5% |  31.0% |  20.5% |   7.54
+    15 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  55.7% |  28.2% |  16.2% |   7.41
+    16 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  55.2% |  28.4% |  16.4% |   7.58
+    17 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  52.0% |  27.7% |  20.2% |   7.71
+    18 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  55.7% |  26.2% |  18.1% |   7.84
+    19 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  40.0% |  32.8% |  27.2% |   7.82
+    20 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  53.9% |  33.4% |  12.6% |   7.77
+    21 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  46.8% |  30.5% |  22.7% |   7.98
+    22 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  37.1% |  29.1% |  33.8% |   7.68
+    23 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  58.1% |  24.6% |  17.3% |   7.70
+    24 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  52.3% |  28.7% |  18.9% |   7.81
+    25 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  52.0% |  27.5% |  20.5% |   7.98
+    26 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  38.1% |  26.0% |  35.9% |   7.79
+    27 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  49.4% |  30.2% |  20.4% |   7.90
+    28 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  50.5% |  27.5% |  21.9% |   7.81
+    29 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  47.3% |  32.8% |  20.0% |   7.45
+    30 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  51.3% |  32.0% |  16.7% |   7.38
+    31 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  55.7% |  30.0% |  14.3% |   7.77
+    32 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  51.1% |  32.4% |  16.5% |   7.70
+    33 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  50.0% |  33.5% |  16.6% |   7.55
+    34 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  46.1% |  25.4% |  28.5% |   7.53
+    35 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  53.7% |  27.1% |  19.2% |   7.63
+    36 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  48.4% |  31.1% |  20.5% |   7.56
+    37 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  40.7% |  30.3% |  29.0% |   7.91
+    38 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  55.0% |  25.6% |  19.4% |   7.80
+    39 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  55.9% |  27.1% |  17.0% |   7.62
+    40 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  50.9% |  25.7% |  23.4% |   7.48
+    41 | mj_finemath_gsm8k         | Math       | Math       |   ✓   |  56.6% |  27.4% |  16.1% |   7.71
+    42 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  40.2% |  47.4% |  12.3% |   7.28
+    43 | mj_finemath_minerva       | Math       | General    |   ✗   |   0.0% | 100.0% |   0.0% |    nan
+    44 | mj_finemath_minerva       | Math       | Math       |   ✓   |  36.9% |  36.1% |  27.0% |   8.30
+    45 | mj_finemath_minerva       | Math       | General    |   ✗   |  30.8% |  39.5% |  29.7% |   8.45
+    46 | mj_finemath_minerva       | Math       | Code       |   ✗   |  32.5% |  31.3% |  36.2% |   8.22
+    47 | mj_finemath_minerva       | Math       | Math       |   ✓   |  46.8% |  31.9% |  21.2% |   8.41
+    48 | mj_finemath_minerva       | Math       | Code       |   ✗   |  37.2% |  20.5% |  42.3% |   8.34
+    49 | mj_finemath_minerva       | Math       | Math       |   ✓   |  51.6% |  25.1% |  23.3% |   8.05
+    50 | mj_finemath_minerva       | Math       | Math       |   ✓   |  39.8% |  31.8% |  28.4% |   7.96
+    51 | mj_finemath_minerva       | Math       | General    |   ✗   |  40.2% |  46.1% |  13.7% |   8.19
+    52 | mj_finemath_minerva       | Math       | Math       |   ✓   |  55.2% |  25.6% |  19.2% |   8.32
+    53 | mj_finemath_minerva       | Math       | Math       |   ✓   |  53.9% |  29.2% |  16.9% |   8.19
+    54 | mj_finemath_minerva       | Math       | Math       |   ✓   |  37.5% |  31.1% |  31.4% |   7.77
+    55 | mj_finemath_minerva       | Math       | Math       |   ✓   |  34.5% |  31.1% |  34.4% |   8.33
+    56 | mj_finemath_minerva       | Math       | General    |   ✗   |  33.0% |  35.3% |  31.7% |   8.07
+    57 | mj_finemath_minerva       | Math       | Math       |   ✓   |  38.5% |  31.2% |  30.3% |   8.15
+    58 | mj_finemath_minerva       | Math       | Math       |   ✓   |  46.8% |  23.6% |  29.6% |   8.21
+    59 | mj_finemath_minerva       | Math       | Math       |   ✓   |  39.9% |  29.6% |  30.5% |   8.35
+    60 | mj_finemath_minerva       | Math       | Math       |   ✓   |  38.5% |  35.1% |  26.4% |   8.15
+    61 | mj_finemath_minerva       | Math       | Math       |   ✓   |  69.0% |  16.3% |  14.7% |   7.77
+    62 | mj_finemath_minerva       | Math       | Math       |   ✓   |  51.1% |  32.3% |  16.7% |   8.31
+    63 | mj_finemath_minerva       | Math       | Math       |   ✓   |  53.5% |  25.2% |  21.3% |   8.26
+    64 | mj_finemath_minerva       | Math       | Math       |   ✓   |  50.7% |  29.6% |  19.7% |   8.27
+    65 | mj_finemath_minerva       | Math       | Math       |   ✓   |  48.3% |  30.8% |  20.9% |   8.39
+    66 | mj_finemath_minerva       | Math       | Math       |   ✓   |  50.2% |  30.5% |  19.3% |   8.20
+    67 | mj_finemath_minerva       | Math       | General    |   ✗   |  35.3% |  42.2% |  22.5% |   8.21
+    68 | mj_finemath_minerva       | Math       | Math       |   ✓   |  55.8% |  30.4% |  13.9% |   8.05
+    69 | mj_finemath_minerva       | Math       | Math       |   ✓   |  68.4% |  14.6% |  17.1% |   8.16
+    70 | mj_finemath_minerva       | Math       | Math       |   ✓   |  48.2% |  30.6% |  21.2% |   8.28
+    71 | mj_finemath_minerva       | Math       | Math       |   ✓   |  46.6% |  22.9% |  30.5% |   8.12
+    72 | mj_finemath_minerva       | Math       | Math       |   ✓   |  59.3% |  15.9% |  24.8% |   7.82
+    73 | mj_finemath_minerva       | Math       | Code       |   ✗   |  28.7% |  28.0% |  43.3% |   7.90
+    74 | mj_finemath_minerva       | Math       | Math       |   ✓   |  55.2% |  27.6% |  17.2% |   7.96
+    75 | mj_finemath_minerva       | Math       | Math       |   ✓   |  39.3% |  27.7% |  33.1% |   8.17
+    76 | mj_finemath_minerva       | Math       | General    |   ✗   |  32.7% |  38.4% |  28.8% |   8.16
+    77 | mj_finemath_minerva       | Math       | Code       |   ✗   |  27.3% |  27.5% |  45.2% |   8.11
+    78 | mj_finemath_minerva       | Math       | Code       |   ✗   |  29.5% |  30.3% |  40.3% |   8.12
+    79 | mj_finemath_minerva       | Math       | Math       |   ✓   |  48.6% |  29.5% |  21.9% |   8.07
+    80 | mj_finemath_minerva       | Math       | Math       |   ✓   |  50.2% |  28.2% |  21.6% |   8.14
+    81 | mj_finemath_minerva       | Math       | Math       |   ✓   |  43.5% |  27.3% |  29.2% |   8.11
+    82 | mj_finemath_minerva       | Math       | Code       |   ✗   |  37.2% |  21.1% |  41.7% |   8.01
+    83 | mj_finemath_minerva       | Math       | Math       |   ✓   |  53.4% |  28.7% |  17.9% |   8.25
+    84 | mj_finemath_minerva       | Math       | Math       |   ✓   |  48.4% |  31.5% |  20.1% |   8.15
+    85 | mj_finemath_minerva       | Math       | Math       |   ✓   |  55.2% |  31.5% |  13.4% |   8.25
+    86 | mj_finemath_minerva       | Math       | Math       |   ✓   |  60.0% |  25.7% |  14.3% |   8.30
+    87 | mj_finemath_minerva       | Math       | Math       |   ✓   |  39.1% |  35.1% |  25.7% |   8.24
+    88 | mj_finemath_minerva       | Math       | Math       |   ✓   |  57.3% |  25.9% |  16.8% |   8.20
+    89 | mj_finemath_minerva       | Math       | Math       |   ✓   |  37.2% |  28.8% |  34.0% |   8.02
+    90 | mj_finemath_minerva       | Math       | Math       |   ✓   |  58.5% |  25.6% |  15.9% |   8.07
+    91 | mj_finemath_minerva       | Math       | Math       |   ✓   |  39.0% |  23.8% |  37.1% |   8.09
+    92 | mj_finemath_minerva       | Math       | Math       |   ✓   |  47.0% |  27.1% |  26.0% |   8.10
+    93 | mj_finemath_minerva       | Math       | Code       |   ✗   |   9.2% |  41.1% |  49.8% |   6.99
+    94 | starcoder_humaneval       | Code       | General    |   ✗   |   0.0% | 100.0% |   0.0% |    nan
+    95 | starcoder_humaneval       | Code       | General    |   ✗   |  27.9% |  44.0% |  28.1% |   8.16
+    96 | starcoder_humaneval       | Code       | Code       |   ✓   |  32.3% |  32.6% |  35.1% |   7.92
+    97 | starcoder_humaneval       | Code       | Code       |   ✓   |  30.0% |  33.4% |  36.6% |   8.37
+    98 | starcoder_humaneval       | Code       | Math       |   ✗   |  38.9% |  37.2% |  24.0% |   8.05
+    99 | starcoder_humaneval       | Code       | Code       |   ✓   |  34.3% |  30.6% |  35.1% |   8.02
+   100 | starcoder_humaneval       | Code       | Code       |   ✓   |  23.5% |  36.8% |  39.7% |   8.32
+   101 | starcoder_humaneval       | Code       | General    |   ✗   |  40.8% |  46.0% |  13.2% |  10.05
+   102 | starcoder_mbpp            | Code       | General    |   ✗   |   0.0% | 100.0% |   0.0% |    nan
+   103 | starcoder_mbpp            | Code       | General    |   ✗   |  33.7% |  41.6% |  24.7% |   8.05
+   104 | starcoder_mbpp            | Code       | General    |   ✗   |  20.2% |  68.1% |  11.6% |   8.22
+   105 | starcoder_mbpp            | Code       | General    |   ✗   |  27.0% |  42.2% |  30.8% |   7.92
+   106 | starcoder_mbpp            | Code       | General    |   ✗   |  26.6% |  57.4% |  16.0% |   7.98
+   107 | starcoder_mbpp            | Code       | General    |   ✗   |  31.4% |  47.4% |  21.2% |   8.72
+   108 | mmlu                      | General    | General    |   ✓   |   0.0% | 100.0% |   0.0% |    nan
+   109 | mmlu                      | General    | Math       |   ✗   |  56.6% |  30.2% |  13.2% |   8.12
+   110 | mmlu                      | General    | General    |   ✓   |  32.2% |  47.5% |  20.3% |   7.23
+   111 | mmlu                      | General    | Math       |   ✗   |  41.8% |  37.6% |  20.6% |   7.30
+   112 | mmlu                      | General    | Math       |   ✗   |  40.2% |  27.8% |  31.9% |   7.46
+   113 | mmlu                      | General    | Math       |   ✗   |  52.0% |  33.5% |  14.6% |   7.25
+   114 | mmlu                      | General    | Math       |   ✗   |  56.4% |  28.2% |  15.4% |   7.41
+   115 | mmlu                      | General    | General    |   ✓   |  34.1% |  40.5% |  25.4% |   7.73
+   116 | mmlu                      | General    | General    |   ✓   |  28.4% |  50.4% |  21.2% |   7.70
+   117 | mmlu                      | General    | Math       |   ✗   |  49.5% |  34.5% |  16.0% |   7.94
+   118 | mmlu                      | General    | Math       |   ✗   |  49.5% |  33.5% |  17.0% |   7.62
+   119 | mmlu                      | General    | Math       |   ✗   |  42.8% |  36.2% |  21.1% |   7.59
+   120 | mmlu                      | General    | Math       |   ✗   |  46.9% |  34.3% |  18.8% |   7.98
+   121 | mmlu                      | General    | Code       |   ✗   |  26.0% |  36.4% |  37.6% |   7.71
+   122 | mmlu                      | General    | Math       |   ✗   |  40.3% |  35.1% |  24.6% |   7.51
+   123 | mmlu                      | General    | Math       |   ✗   |  44.8% |  32.3% |  22.9% |   8.18
+   124 | mmlu                      | General    | Math       |   ✗   |  56.1% |  32.1% |  11.9% |   7.80
+   125 | mmlu                      | General    | General    |   ✓   |  14.0% |  79.6% |   6.3% |   8.51
+   126 | bbh                       | General    | General    |   ✓   |   0.0% | 100.0% |   0.0% |    nan
+   127 | bbh                       | General    | General    |   ✓   |  39.5% |  40.9% |  19.5% |   7.09
+   128 | bbh                       | General    | Math       |   ✗   |  39.6% |  34.0% |  26.4% |   7.06
+   129 | bbh                       | General    | Math       |   ✗   |  36.2% |  28.8% |  35.0% |   7.18
+   130 | bbh                       | General    | Math       |   ✗   |  35.6% |  31.7% |  32.7% |   6.94
+   131 | bbh                       | General    | Code       |   ✗   |  34.0% |  24.2% |  41.8% |   7.20
+   132 | bbh                       | General    | Code       |   ✗   |  28.6% |  35.1% |  36.3% |   6.92
+   133 | bbh                       | General    | Math       |   ✗   |  39.7% |  31.0% |  29.3% |   6.82
+   134 | bbh                       | General    | Code       |   ✗   |  31.8% |  33.8% |  34.4% |   7.03
+   135 | bbh                       | General    | Code       |   ✗   |  29.8% |  29.1% |  41.1% |   7.15
+   136 | bbh                       | General    | Math       |   ✗   |  37.9% |  34.4% |  27.8% |   7.09
+   137 | bbh                       | General    | Math       |   ✗   |  39.5% |  35.6% |  24.8% |   7.67
+   138 | bbh                       | General    | General    |   ✓   |  25.4% |  42.6% |  32.0% |   7.96
+   139 | bbh                       | General    | General    |   ✓   |  31.7% |  41.0% |  27.3% |   7.91
+   140 | bbh                       | General    | General    |   ✓   |  27.9% |  48.6% |  23.5% |   7.94
+   141 | bbh                       | General    | Math       |   ✗   |  44.9% |  40.3% |  14.8% |   8.02
+   142 | bbh                       | General    | General    |   ✓   |  36.7% |  42.3% |  21.0% |   7.94
+   143 | bbh                       | General    | General    |   ✓   |  30.3% |  40.6% |  29.1% |   7.79
+   144 | bbh                       | General    | Code       |   ✗   |  25.5% |  33.0% |  41.5% |   7.43
+   145 | bbh                       | General    | Code       |   ✗   |  25.5% |  33.4% |  41.1% |   7.28
+   146 | bbh                       | General    | Code       |   ✗   |  26.7% |  33.8% |  39.5% |   7.38
+   147 | bbh                       | General    | Code       |   ✗   |  22.5% |  35.2% |  42.3% |   7.32
+   148 | bbh                       | General    | Math       |   ✗   |  45.2% |  38.1% |  16.7% |   7.73
+   149 | bbh                       | General    | Code       |   ✗   |  19.2% |  18.9% |  61.9% |   6.36
+   150 | popqa                     | General    | General    |   ✓   |   0.0% | 100.0% |   0.0% |    nan
+   151 | popqa                     | General    | General    |   ✓   |  34.5% |  40.0% |  25.5% |   7.04
+   152 | popqa                     | General    | Math       |   ✗   |  36.2% |  35.5% |  28.3% |   7.12
+   153 | popqa                     | General    | Math       |   ✗   |  36.6% |  35.8% |  27.7% |   7.07
+   154 | popqa                     | General    | General    |   ✓   |  33.9% |  36.0% |  30.0% |   7.44
+   155 | popqa                     | General    | General    |   ✓   |  32.8% |  42.8% |  24.4% |   7.55
+   156 | popqa                     | General    | Math       |   ✗   |  39.2% |  34.7% |  26.1% |   7.62
+   157 | popqa                     | General    | General    |   ✓   |  34.2% |  45.3% |  20.5% |   7.43
+   158 | popqa                     | General    | General    |   ✓   |  16.1% |  75.4% |   8.5% |   5.73
+   159 | simpleqa                  | General    | General    |   ✓   |   0.0% | 100.0% |   0.0% |    nan
+   160 | simpleqa                  | General    | Math       |   ✗   |  35.8% |  32.4% |  31.8% |   7.35
+   161 | simpleqa                  | General    | Math       |   ✗   |  36.2% |  31.6% |  32.2% |   7.47
+   162 | simpleqa                  | General    | General    |   ✓   |  31.4% |  35.1% |  33.5% |   7.39
+   163 | simpleqa                  | General    | Math       |   ✗   |  35.0% |  34.3% |  30.6% |   7.43
+   164 | simpleqa                  | General    | Math       |   ✗   |  37.8% |  34.8% |  27.4% |   7.30
+   165 | simpleqa                  | General    | Code       |   ✗   |  33.5% |  30.8% |  35.7% |   7.40
+   166 | simpleqa                  | General    | Math       |   ✗   |  37.4% |  33.0% |  29.6% |   7.35
+   167 | gpqa                      | General    | General    |   ✓   |   0.0% | 100.0% |   0.0% |    nan
+   168 | gpqa                      | General    | General    |   ✓   |  25.4% |  40.7% |  33.8% |   9.04
+   169 | gpqa                      | General    | Math       |   ✗   |  45.8% |  30.5% |  23.8% |   8.13
+   170 | gpqa                      | General    | General    |   ✓   |  27.8% |  43.9% |  28.3% |   8.41
+   171 | gpqa                      | General    | Math       |   ✗   |  46.3% |  34.1% |  19.5% |   8.34
+   172 | gpqa                      | General    | Code       |   ✗   |  28.6% |  34.4% |  37.1% |   8.49
+   173 | gpqa                      | General    | Code       |   ✗   |  30.6% |  33.4% |  36.0% |   8.26
+   174 | gpqa                      | General    | Math       |   ✗   |  40.0% |  33.2% |  26.8% |   8.59
+   175 | gpqa                      | General    | General    |   ✓   |  31.4% |  49.6% |  19.1% |   8.31
+   176 | gpqa                      | General    | Math       |   ✗   |  46.4% |  29.9% |  23.7% |   8.16
+   177 | gpqa                      | General    | Code       |   ✗   |  32.9% |  27.3% |  39.8% |   8.33
+   178 | gpqa                      | General    | General    |   ✓   |  24.2% |  50.7% |  25.0% |   8.64
+   179 | gpqa                      | General    | Math       |   ✗   |  50.5% |  33.2% |  16.2% |   8.27
+   180 | gpqa                      | General    | Code       |   ✗   |  26.1% |  31.9% |  42.0% |   8.37
+   181 | gpqa                      | General    | General    |   ✓   |  30.8% |  37.8% |  31.4% |   8.10
+   182 | gpqa                      | General    | Code       |   ✗   |   5.6% |  22.5% |  71.9% |   6.06
+   183 | ifeval                    | General    | General    |   ✓   |   0.0% | 100.0% |   0.0% |    nan
+   184 | ifeval                    | General    | General    |   ✓   |  37.5% |  39.8% |  22.7% |   7.27
+   185 | ifeval                    | General    | Math       |   ✗   |  39.0% |  28.9% |  32.1% |   7.01
+   186 | ifeval                    | General    | Math       |   ✗   |  46.6% |  26.8% |  26.6% |   7.18
+   187 | ifeval                    | General    | Math       |   ✗   |  40.9% |  34.4% |  24.7% |   7.10
+   188 | ifeval                    | General    | Math       |   ✗   |  44.4% |  34.9% |  20.7% |   7.37
+   189 | ifeval                    | General    | Code       |   ✗   |  13.9% |  14.0% |  72.0% |   6.71
+
+====================================================================================================
+DISAGREEMENT ANALYSIS
+====================================================================================================
+
+Found 81 sequences where loss-based majority differs from source-based expectation:
+
+Seq 0: mj_finemath_gsm8k
+  Expected: Math, Got: General (100.0%)
+  Distribution: Math=0.0%, General=100.0%, Code=0.0%
+  Avg Loss: nan
+
+Seq 3: mj_finemath_gsm8k
+  Expected: Math, Got: General (43.5%)
+  Distribution: Math=43.1%, General=43.5%, Code=13.3%
+  Avg Loss: 7.68
+
+Seq 7: mj_finemath_gsm8k
+  Expected: Math, Got: General (43.9%)
+  Distribution: Math=38.6%, General=43.9%, Code=17.5%
+  Avg Loss: 8.02
+
+Seq 42: mj_finemath_gsm8k
+  Expected: Math, Got: General (47.4%)
+  Distribution: Math=40.2%, General=47.4%, Code=12.3%
+  Avg Loss: 7.28
+
+Seq 43: mj_finemath_minerva
+  Expected: Math, Got: General (100.0%)
+  Distribution: Math=0.0%, General=100.0%, Code=0.0%
+  Avg Loss: nan
+
+Seq 45: mj_finemath_minerva
+  Expected: Math, Got: General (39.5%)
+  Distribution: Math=30.8%, General=39.5%, Code=29.7%
+  Avg Loss: 8.45
+
+Seq 46: mj_finemath_minerva
+  Expected: Math, Got: Code (36.2%)
+  Distribution: Math=32.5%, General=31.3%, Code=36.2%
+  Avg Loss: 8.22
+
+Seq 48: mj_finemath_minerva
+  Expected: Math, Got: Code (42.3%)
+  Distribution: Math=37.2%, General=20.5%, Code=42.3%
+  Avg Loss: 8.34
+
+Seq 51: mj_finemath_minerva
+  Expected: Math, Got: General (46.1%)
+  Distribution: Math=40.2%, General=46.1%, Code=13.7%
+  Avg Loss: 8.19
+
+Seq 56: mj_finemath_minerva
+  Expected: Math, Got: General (35.3%)
+  Distribution: Math=33.0%, General=35.3%, Code=31.7%
+  Avg Loss: 8.07
+
+Seq 67: mj_finemath_minerva
+  Expected: Math, Got: General (42.2%)
+  Distribution: Math=35.3%, General=42.2%, Code=22.5%
+  Avg Loss: 8.21
+
+Seq 73: mj_finemath_minerva
+  Expected: Math, Got: Code (43.3%)
+  Distribution: Math=28.7%, General=28.0%, Code=43.3%
+  Avg Loss: 7.90
+
+Seq 76: mj_finemath_minerva
+  Expected: Math, Got: General (38.4%)
+  Distribution: Math=32.7%, General=38.4%, Code=28.8%
+  Avg Loss: 8.16
+
+Seq 77: mj_finemath_minerva
+  Expected: Math, Got: Code (45.2%)
+  Distribution: Math=27.3%, General=27.5%, Code=45.2%
+  Avg Loss: 8.11
+
+Seq 78: mj_finemath_minerva
+  Expected: Math, Got: Code (40.3%)
+  Distribution: Math=29.5%, General=30.3%, Code=40.3%
+  Avg Loss: 8.12
+
+Seq 82: mj_finemath_minerva
+  Expected: Math, Got: Code (41.7%)
+  Distribution: Math=37.2%, General=21.1%, Code=41.7%
+  Avg Loss: 8.01
+
+Seq 93: mj_finemath_minerva
+  Expected: Math, Got: Code (49.8%)
+  Distribution: Math=9.2%, General=41.1%, Code=49.8%
+  Avg Loss: 6.99
+
+Seq 94: starcoder_humaneval
+  Expected: Code, Got: General (100.0%)
+  Distribution: Math=0.0%, General=100.0%, Code=0.0%
+  Avg Loss: nan
+
+Seq 95: starcoder_humaneval
+  Expected: Code, Got: General (44.0%)
+  Distribution: Math=27.9%, General=44.0%, Code=28.1%
+  Avg Loss: 8.16
+
+Seq 98: starcoder_humaneval
+  Expected: Code, Got: Math (38.9%)
+  Distribution: Math=38.9%, General=37.2%, Code=24.0%
+  Avg Loss: 8.05
+
+Seq 101: starcoder_humaneval
+  Expected: Code, Got: General (46.0%)
+  Distribution: Math=40.8%, General=46.0%, Code=13.2%
+  Avg Loss: 10.05
+
+Seq 102: starcoder_mbpp
+  Expected: Code, Got: General (100.0%)
+  Distribution: Math=0.0%, General=100.0%, Code=0.0%
+  Avg Loss: nan
+
+Seq 103: starcoder_mbpp
+  Expected: Code, Got: General (41.6%)
+  Distribution: Math=33.7%, General=41.6%, Code=24.7%
+  Avg Loss: 8.05
+
+Seq 104: starcoder_mbpp
+  Expected: Code, Got: General (68.1%)
+  Distribution: Math=20.2%, General=68.1%, Code=11.6%
+  Avg Loss: 8.22
+
+Seq 105: starcoder_mbpp
+  Expected: Code, Got: General (42.2%)
+  Distribution: Math=27.0%, General=42.2%, Code=30.8%
+  Avg Loss: 7.92
+
+Seq 106: starcoder_mbpp
+  Expected: Code, Got: General (57.4%)
+  Distribution: Math=26.6%, General=57.4%, Code=16.0%
+  Avg Loss: 7.98
+
+Seq 107: starcoder_mbpp
+  Expected: Code, Got: General (47.4%)
+  Distribution: Math=31.4%, General=47.4%, Code=21.2%
+  Avg Loss: 8.72
+
+Seq 109: mmlu
+  Expected: General, Got: Math (56.6%)
+  Distribution: Math=56.6%, General=30.2%, Code=13.2%
+  Avg Loss: 8.12
+
+Seq 111: mmlu
+  Expected: General, Got: Math (41.8%)
+  Distribution: Math=41.8%, General=37.6%, Code=20.6%
+  Avg Loss: 7.30
+
+Seq 112: mmlu
+  Expected: General, Got: Math (40.2%)
+  Distribution: Math=40.2%, General=27.8%, Code=31.9%
+  Avg Loss: 7.46
+
+Seq 113: mmlu
+  Expected: General, Got: Math (52.0%)
+  Distribution: Math=52.0%, General=33.5%, Code=14.6%
+  Avg Loss: 7.25
+
+Seq 114: mmlu
+  Expected: General, Got: Math (56.4%)
+  Distribution: Math=56.4%, General=28.2%, Code=15.4%
+  Avg Loss: 7.41
+
+Seq 117: mmlu
+  Expected: General, Got: Math (49.5%)
+  Distribution: Math=49.5%, General=34.5%, Code=16.0%
+  Avg Loss: 7.94
+
+Seq 118: mmlu
+  Expected: General, Got: Math (49.5%)
+  Distribution: Math=49.5%, General=33.5%, Code=17.0%
+  Avg Loss: 7.62
+
+Seq 119: mmlu
+  Expected: General, Got: Math (42.8%)
+  Distribution: Math=42.8%, General=36.2%, Code=21.1%
+  Avg Loss: 7.59
+
+Seq 120: mmlu
+  Expected: General, Got: Math (46.9%)
+  Distribution: Math=46.9%, General=34.3%, Code=18.8%
+  Avg Loss: 7.98
+
+Seq 121: mmlu
+  Expected: General, Got: Code (37.6%)
+  Distribution: Math=26.0%, General=36.4%, Code=37.6%
+  Avg Loss: 7.71
+
+Seq 122: mmlu
+  Expected: General, Got: Math (40.3%)
+  Distribution: Math=40.3%, General=35.1%, Code=24.6%
+  Avg Loss: 7.51
+
+Seq 123: mmlu
+  Expected: General, Got: Math (44.8%)
+  Distribution: Math=44.8%, General=32.3%, Code=22.9%
+  Avg Loss: 8.18
+
+Seq 124: mmlu
+  Expected: General, Got: Math (56.1%)
+  Distribution: Math=56.1%, General=32.1%, Code=11.9%
+  Avg Loss: 7.80
+
+Seq 128: bbh
+  Expected: General, Got: Math (39.6%)
+  Distribution: Math=39.6%, General=34.0%, Code=26.4%
+  Avg Loss: 7.06
+
+Seq 129: bbh
+  Expected: General, Got: Math (36.2%)
+  Distribution: Math=36.2%, General=28.8%, Code=35.0%
+  Avg Loss: 7.18
+
+Seq 130: bbh
+  Expected: General, Got: Math (35.6%)
+  Distribution: Math=35.6%, General=31.7%, Code=32.7%
+  Avg Loss: 6.94
+
+Seq 131: bbh
+  Expected: General, Got: Code (41.8%)
+  Distribution: Math=34.0%, General=24.2%, Code=41.8%
+  Avg Loss: 7.20
+
+Seq 132: bbh
+  Expected: General, Got: Code (36.3%)
+  Distribution: Math=28.6%, General=35.1%, Code=36.3%
+  Avg Loss: 6.92
+
+Seq 133: bbh
+  Expected: General, Got: Math (39.7%)
+  Distribution: Math=39.7%, General=31.0%, Code=29.3%
+  Avg Loss: 6.82
+
+Seq 134: bbh
+  Expected: General, Got: Code (34.4%)
+  Distribution: Math=31.8%, General=33.8%, Code=34.4%
+  Avg Loss: 7.03
+
+Seq 135: bbh
+  Expected: General, Got: Code (41.1%)
+  Distribution: Math=29.8%, General=29.1%, Code=41.1%
+  Avg Loss: 7.15
+
+Seq 136: bbh
+  Expected: General, Got: Math (37.9%)
+  Distribution: Math=37.9%, General=34.4%, Code=27.8%
+  Avg Loss: 7.09
+
+Seq 137: bbh
+  Expected: General, Got: Math (39.5%)
+  Distribution: Math=39.5%, General=35.6%, Code=24.8%
+  Avg Loss: 7.67
+
+Seq 141: bbh
+  Expected: General, Got: Math (44.9%)
+  Distribution: Math=44.9%, General=40.3%, Code=14.8%
+  Avg Loss: 8.02
+
+Seq 144: bbh
+  Expected: General, Got: Code (41.5%)
+  Distribution: Math=25.5%, General=33.0%, Code=41.5%
+  Avg Loss: 7.43
+
+Seq 145: bbh
+  Expected: General, Got: Code (41.1%)
+  Distribution: Math=25.5%, General=33.4%, Code=41.1%
+  Avg Loss: 7.28
+
+Seq 146: bbh
+  Expected: General, Got: Code (39.5%)
+  Distribution: Math=26.7%, General=33.8%, Code=39.5%
+  Avg Loss: 7.38
+
+Seq 147: bbh
+  Expected: General, Got: Code (42.3%)
+  Distribution: Math=22.5%, General=35.2%, Code=42.3%
+  Avg Loss: 7.32
+
+Seq 148: bbh
+  Expected: General, Got: Math (45.2%)
+  Distribution: Math=45.2%, General=38.1%, Code=16.7%
+  Avg Loss: 7.73
+
+Seq 149: bbh
+  Expected: General, Got: Code (61.9%)
+  Distribution: Math=19.2%, General=18.9%, Code=61.9%
+  Avg Loss: 6.36
+
+Seq 152: popqa
+  Expected: General, Got: Math (36.2%)
+  Distribution: Math=36.2%, General=35.5%, Code=28.3%
+  Avg Loss: 7.12
+
+Seq 153: popqa
+  Expected: General, Got: Math (36.6%)
+  Distribution: Math=36.6%, General=35.8%, Code=27.7%
+  Avg Loss: 7.07
+
+Seq 156: popqa
+  Expected: General, Got: Math (39.2%)
+  Distribution: Math=39.2%, General=34.7%, Code=26.1%
+  Avg Loss: 7.62
+
+Seq 160: simpleqa
+  Expected: General, Got: Math (35.8%)
+  Distribution: Math=35.8%, General=32.4%, Code=31.8%
+  Avg Loss: 7.35
+
+Seq 161: simpleqa
+  Expected: General, Got: Math (36.2%)
+  Distribution: Math=36.2%, General=31.6%, Code=32.2%
+  Avg Loss: 7.47
+
+Seq 163: simpleqa
+  Expected: General, Got: Math (35.0%)
+  Distribution: Math=35.0%, General=34.3%, Code=30.6%
+  Avg Loss: 7.43
+
+Seq 164: simpleqa
+  Expected: General, Got: Math (37.8%)
+  Distribution: Math=37.8%, General=34.8%, Code=27.4%
+  Avg Loss: 7.30
+
+Seq 165: simpleqa
+  Expected: General, Got: Code (35.7%)
+  Distribution: Math=33.5%, General=30.8%, Code=35.7%
+  Avg Loss: 7.40
+
+Seq 166: simpleqa
+  Expected: General, Got: Math (37.4%)
+  Distribution: Math=37.4%, General=33.0%, Code=29.6%
+  Avg Loss: 7.35
+
+Seq 169: gpqa
+  Expected: General, Got: Math (45.8%)
+  Distribution: Math=45.8%, General=30.5%, Code=23.8%
+  Avg Loss: 8.13
+
+Seq 171: gpqa
+  Expected: General, Got: Math (46.3%)
+  Distribution: Math=46.3%, General=34.1%, Code=19.5%
+  Avg Loss: 8.34
+
+Seq 172: gpqa
+  Expected: General, Got: Code (37.1%)
+  Distribution: Math=28.6%, General=34.4%, Code=37.1%
+  Avg Loss: 8.49
+
+Seq 173: gpqa
+  Expected: General, Got: Code (36.0%)
+  Distribution: Math=30.6%, General=33.4%, Code=36.0%
+  Avg Loss: 8.26
+
+Seq 174: gpqa
+  Expected: General, Got: Math (40.0%)
+  Distribution: Math=40.0%, General=33.2%, Code=26.8%
+  Avg Loss: 8.59
+
+Seq 176: gpqa
+  Expected: General, Got: Math (46.4%)
+  Distribution: Math=46.4%, General=29.9%, Code=23.7%
+  Avg Loss: 8.16
+
+Seq 177: gpqa
+  Expected: General, Got: Code (39.8%)
+  Distribution: Math=32.9%, General=27.3%, Code=39.8%
+  Avg Loss: 8.33
+
+Seq 179: gpqa
+  Expected: General, Got: Math (50.5%)
+  Distribution: Math=50.5%, General=33.2%, Code=16.2%
+  Avg Loss: 8.27
+
+Seq 180: gpqa
+  Expected: General, Got: Code (42.0%)
+  Distribution: Math=26.1%, General=31.9%, Code=42.0%
+  Avg Loss: 8.37
+
+Seq 182: gpqa
+  Expected: General, Got: Code (71.9%)
+  Distribution: Math=5.6%, General=22.5%, Code=71.9%
+  Avg Loss: 6.06
+
+Seq 185: ifeval
+  Expected: General, Got: Math (39.0%)
+  Distribution: Math=39.0%, General=28.9%, Code=32.1%
+  Avg Loss: 7.01
+
+Seq 186: ifeval
+  Expected: General, Got: Math (46.6%)
+  Distribution: Math=46.6%, General=26.8%, Code=26.6%
+  Avg Loss: 7.18
+
+Seq 187: ifeval
+  Expected: General, Got: Math (40.9%)
+  Distribution: Math=40.9%, General=34.4%, Code=24.7%
+  Avg Loss: 7.10
+
+Seq 188: ifeval
+  Expected: General, Got: Math (44.4%)
+  Distribution: Math=44.4%, General=34.9%, Code=20.7%
+  Avg Loss: 7.37
+
+Seq 189: ifeval
+  Expected: General, Got: Code (72.0%)
+  Distribution: Math=13.9%, General=14.0%, Code=72.0%
+  Avg Loss: 6.71
+
