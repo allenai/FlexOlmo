@@ -393,15 +393,25 @@ def main():
     # This prevents CUBLAS_STATUS_NOT_INITIALIZED errors
     if rank == 0:
         log.info("Running CUDA warmup...")
+    
+    # Synchronize first to ensure all ranks have loaded the model
+    if world_size > 1:
+        dist.barrier()
+    
+    # Each rank does its own warmup to initialize its CUDA context
+    torch.cuda.synchronize(device)  # Ensure any pending CUDA ops complete
     with torch.no_grad():
-        dummy_input = torch.zeros(1, 10, dtype=torch.long, device=device)
+        # Use token ID 1 (not 0) to avoid potential special token issues
+        dummy_input = torch.ones(1, 16, dtype=torch.long, device=device)
         try:
             _ = model(dummy_input)
+            torch.cuda.synchronize(device)  # Wait for forward pass to complete
         except Exception as e:
-            log.warning(f"Warmup forward pass failed (expected for some models): {e}")
+            log.warning(f"Rank {rank}: Warmup forward pass failed: {e}")
         del dummy_input
         torch.cuda.empty_cache()
     
+    # Synchronize after warmup
     if world_size > 1:
         dist.barrier()
     
