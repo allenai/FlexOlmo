@@ -250,6 +250,15 @@ def compute_per_token_losses(
     input_ids = input_ids.to(device)
     batch_size, seq_len = input_ids.shape
     
+    # Validate input_ids are within vocab range
+    vocab_size = 100352
+    max_id = input_ids.max().item()
+    min_id = input_ids.min().item()
+    if max_id >= vocab_size:
+        raise ValueError(f"Token ID {max_id} >= vocab_size {vocab_size}")
+    if min_id < 0:
+        raise ValueError(f"Negative token ID {min_id}")
+    
     with torch.no_grad():
         # Forward pass to get logits
         output = model(input_ids)
@@ -472,12 +481,24 @@ def main():
                 input_ids = item
             
             if not isinstance(input_ids, torch.Tensor):
-                input_ids = torch.tensor(input_ids)
+                input_ids = torch.tensor(input_ids, dtype=torch.long)
+            else:
+                input_ids = input_ids.long()  # Ensure int64 dtype
             
             batch_input_ids.append(input_ids)
         
         # Stack into batch
         input_ids_batch = torch.stack(batch_input_ids)
+        
+        # Validate input before model forward pass
+        if batch_idx == 0 and rank == 0:
+            log.info(f"DEBUG: input_ids_batch shape={input_ids_batch.shape}, dtype={input_ids_batch.dtype}")
+            log.info(f"DEBUG: input_ids min={input_ids_batch.min().item()}, max={input_ids_batch.max().item()}")
+            log.info(f"DEBUG: vocab_size={100352}")
+            if input_ids_batch.max().item() >= 100352:
+                log.error(f"ERROR: Token ID {input_ids_batch.max().item()} >= vocab_size 100352!")
+            if input_ids_batch.min().item() < 0:
+                log.error(f"ERROR: Negative token ID {input_ids_batch.min().item()}!")
         
         # Generate per-token labels for this batch
         try:
