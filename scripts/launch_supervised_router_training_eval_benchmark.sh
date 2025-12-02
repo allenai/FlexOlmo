@@ -33,17 +33,22 @@ echo "         This is primarily for experimentation/analysis, not production tr
 echo "         Training will ONLY use sequences that have per-token labels."
 echo ""
 
-# Check if labels directory exists
+# Check if labels directory exists (only warn, since weka may not be mounted locally)
 if [ ! -d "${EXPERT_LABELS_DIR}" ]; then
-    echo "ERROR: Labels directory does not exist: ${EXPERT_LABELS_DIR}"
-    echo "Please run label generation first."
-    exit 1
+    echo "WARNING: Cannot verify labels directory exists locally: ${EXPERT_LABELS_DIR}"
+    echo "         (This is normal if weka is not mounted on this machine)"
+    echo "         The job will verify this on Beaker where weka is mounted."
+else
+    echo "✓ Labels directory found: ${EXPERT_LABELS_DIR}"
 fi
 
 if [ ! -f "${LABELED_INDICES_FILE}" ]; then
-    echo "ERROR: Labeled indices file does not exist: ${LABELED_INDICES_FILE}"
-    exit 1
+    echo "WARNING: Cannot verify labeled indices file exists locally: ${LABELED_INDICES_FILE}"
+    echo "         (This is normal if weka is not mounted on this machine)"
+else
+    echo "✓ Labeled indices file found: ${LABELED_INDICES_FILE}"
 fi
+echo ""
 
 # Generate unique experiment name with timestamp
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
