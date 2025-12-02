@@ -13,8 +13,8 @@
 #   ./scripts/launch_eval_benchmark_label_generation.sh
 # =============================================================================
 
-# Configuration
-NUM_NODES=8
+# Configuration - reduced for small eval benchmark dataset (~2M tokens)
+NUM_NODES=1
 NUM_GPUS=8
 CHECKPOINT="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code"
 
@@ -25,9 +25,9 @@ MIX="eval_benchmark_mix"
 MIX_BASE_DIR="${EVAL_DATA_DIR}"
 
 BATCH_SIZE=1  # Must be 1 to avoid MoE routing bug with forced experts
-MAX_TOKENS=500000000  # 500M tokens (eval benchmarks are smaller)
+MAX_TOKENS=10000000  # 10M tokens (more than enough for eval benchmarks ~2M)
 SEQUENCE_LENGTH=4096
-SAVE_INTERVAL=500
+SAVE_INTERVAL=100
 
 echo "=== Per-Token Expert Label Generation for EVAL BENCHMARKS ==="
 echo ""
@@ -66,7 +66,8 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --max_tokens ${MAX_TOKENS} \
    --sequence_length ${SEQUENCE_LENGTH} \
    --save_interval ${SAVE_INTERVAL} \
-   --dtype bfloat16
+   --dtype bfloat16 \
+   --no_source_mixture
 
 echo ""
 echo "Job submitted. Output will be saved to: ${OUTPUT_DIR}"
