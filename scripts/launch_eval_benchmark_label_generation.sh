@@ -13,8 +13,8 @@
 #   ./scripts/launch_eval_benchmark_label_generation.sh
 # =============================================================================
 
-# Configuration - reduced for small eval benchmark dataset (~2M tokens)
-NUM_NODES=1
+# Configuration - need 8 nodes like the working script since model (20B) loads to each GPU
+NUM_NODES=8
 NUM_GPUS=8
 CHECKPOINT="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code"
 
@@ -25,7 +25,7 @@ MIX="eval_benchmark_mix"
 MIX_BASE_DIR="${EVAL_DATA_DIR}"
 
 BATCH_SIZE=1  # Must be 1 to avoid MoE routing bug with forced experts
-MAX_TOKENS=10000000  # 10M tokens (more than enough for eval benchmarks ~2M)
+MAX_TOKENS=50000000  # 50M tokens (plenty for eval benchmarks ~2M, but gives buffer)
 SEQUENCE_LENGTH=4096
 SAVE_INTERVAL=100
 
