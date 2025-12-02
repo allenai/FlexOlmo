@@ -13,8 +13,9 @@
 #   ./scripts/launch_eval_benchmark_label_generation.sh
 # =============================================================================
 
-# Configuration - need 8 nodes like the working script since model (20B) loads to each GPU
-NUM_NODES=8
+# Configuration - try 1 node first to debug, can scale up later
+# The 20B model fits on a single GPU, so we don't need 8 nodes for this small dataset
+NUM_NODES=1
 NUM_GPUS=8
 CHECKPOINT="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code"
 
