@@ -284,7 +284,7 @@ def tokenize_and_save(
         seq = all_token_ids[i:i + sequence_length]
         if len(seq) < sequence_length:
             seq = seq + [eos_token_id] * (sequence_length - len(seq))
-        sequences.append(np.array(seq, dtype=np.uint16))
+        sequences.append(np.array(seq, dtype=np.uint32))  # uint32 needed for vocab_size > 65535
     
     # Save to numpy files
     benchmark_dir = output_dir / domain_label

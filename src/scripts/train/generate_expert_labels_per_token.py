@@ -388,6 +388,25 @@ def main():
     # Load model
     model = load_model(config.checkpoint_path, device, dtype)
     
+    # CUDA warmup: ensure cuBLAS is properly initialized before inference
+    # This prevents CUBLAS_STATUS_NOT_INITIALIZED errors
+    if rank == 0:
+        log.info("Running CUDA warmup...")
+    with torch.no_grad():
+        dummy_input = torch.zeros(1, 10, dtype=torch.long, device=device)
+        try:
+            _ = model(dummy_input)
+        except Exception as e:
+            log.warning(f"Warmup forward pass failed (expected for some models): {e}")
+        del dummy_input
+        torch.cuda.empty_cache()
+    
+    if world_size > 1:
+        dist.barrier()
+    
+    if rank == 0:
+        log.info("CUDA warmup complete")
+    
     # Build dataset
     if rank == 0:
         log.info("Building dataset...")
