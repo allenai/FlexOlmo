@@ -72,6 +72,7 @@ echo "  Experiment: ${EXPERIMENT_NAME}"
 echo ""
 
 PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:$PYTHONPATH \
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.name=${EXPERIMENT_NAME} \
    --launch.num_nodes=${NUM_NODES} \
@@ -90,14 +91,14 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --trainer.save_folder=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-RT-supervised-router-eval-oracle-${LABEL_TYPE} \
    --model.block.feed_forward_moe.num_experts=4 \
    --model.block.feed_forward_moe.router.top_k=4 \
-   --train_module.rank_microbatch_size=4096 \
+   --train_module.rank_microbatch_size=1024 \
    --train_module.scheduler.warmup_steps=100 \
    --train_module.optim.lr=2e-3 \
    --train_module.router_loss_weight=1.0 \
    --train_module.router_loss_only=true \
    --train_module.dp_config.num_replicas=2 \
    --train_module.ep_config.degree=4 \
-   --data_loader.global_batch_size=32768
+   --data_loader.global_batch_size=8192
 
 echo ""
 echo "Job submitted. Training with eval benchmark oracle (per-token optimal) expert labels."
