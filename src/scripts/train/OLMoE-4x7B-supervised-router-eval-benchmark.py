@@ -124,11 +124,16 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     # Use eval_benchmark_mix instead of router_training_mix for eval benchmark data
     dataset_config.mix = CustomDataMix.eval_benchmark_mix
     
-    # Ensure mix_base_dir is set (should be set via command line override, but verify)
-    if dataset_config.mix_base_dir is None:
-        # Default to eval_benchmark_data location if not set
-        log.warning("mix_base_dir not set, using default eval_benchmark_data location")
-        dataset_config.mix_base_dir = "/weka/oe-training-default/sanjaya/eval_benchmark_data"
+    # FORCE mix_base_dir to eval_benchmark_data location (command line override may not be applied yet)
+    # Check if it's set to the wrong default path and fix it
+    correct_mix_base_dir = "/weka/oe-training-default/sanjaya/eval_benchmark_data"
+    if dataset_config.mix_base_dir != correct_mix_base_dir:
+        old_dir = dataset_config.mix_base_dir
+        dataset_config.mix_base_dir = correct_mix_base_dir
+        if old_dir:
+            log.warning(f"Overriding mix_base_dir from '{old_dir}' to '{correct_mix_base_dir}'")
+        else:
+            log.info(f"Setting mix_base_dir to '{correct_mix_base_dir}'")
     
     log.info(f"Using mix_base_dir: {dataset_config.mix_base_dir}")
     log.info(f"Using mix: {dataset_config.mix}")
