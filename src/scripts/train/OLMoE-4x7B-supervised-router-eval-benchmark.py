@@ -155,16 +155,15 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
-    # For eval benchmark with labeled_indices_file, we don't need source_name metadata
-    # The per-token labels are indexed by sequence index, not by source name
-    # Setting include_instance_metadata=True ensures instance indices are available for label lookup
+    # For eval benchmark with labeled_indices_file, we need include_instance_metadata=True
+    # to ensure the 'index' field is available in dataset items for label lookup
+    # The index field is used by DataCollator to load per-token labels from expert_labels_dir
     dataset_config.include_instance_metadata = True
-    # Don't set metadata - let it auto-generate or use None
-    # This avoids "metadata length mismatch" errors when paths are filtered during dataset building
-    if hasattr(dataset_config, 'metadata'):
-        dataset_config.metadata = None
+    # Don't manually set metadata - let it auto-generate from source_mixture_config if needed
+    # The key requirement is that 'index' field is set (via include_instance_metadata)
     
-    # Note: We rely on instance_indices being available in batches for per-token label lookup
+    # Note: We rely on instance 'index' being available in batches for per-token label lookup
+    # The DataCollator will load labels using: expert_labels_dir/seq_{index:08d}.npz
     
     return dataset_config
 
