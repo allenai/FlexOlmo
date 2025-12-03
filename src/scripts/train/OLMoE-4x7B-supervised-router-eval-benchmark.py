@@ -49,6 +49,7 @@ from flexolmo.train.train_module.supervised_router import (
 SEQUENCE_LENGTH = 4096
 
 log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def build_model_config(common: CommonComponents) -> TransformerConfig:
@@ -122,6 +123,15 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config = common.dataset
     # Use eval_benchmark_mix instead of router_training_mix for eval benchmark data
     dataset_config.mix = CustomDataMix.eval_benchmark_mix
+    
+    # Ensure mix_base_dir is set (should be set via command line override, but verify)
+    if dataset_config.mix_base_dir is None:
+        # Default to eval_benchmark_data location if not set
+        log.warning("mix_base_dir not set, using default eval_benchmark_data location")
+        dataset_config.mix_base_dir = "/weka/oe-training-default/sanjaya/eval_benchmark_data"
+    
+    log.info(f"Using mix_base_dir: {dataset_config.mix_base_dir}")
+    log.info(f"Using mix: {dataset_config.mix}")
     
     # Use get_mixture_dataset_config_by_domain to split by domain labels
     # This ensures each domain (starcoder, mj_finemath_gsm8k, etc.) becomes a separate source
