@@ -142,6 +142,12 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     # This ensures each domain (starcoder, mj_finemath_gsm8k, etc.) becomes a separate source
     # Enable file validation to skip corrupted files (prevents errors during dataset building)
     source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=True)
+    
+    # For small eval benchmark dataset, increase max_repetition_ratio to allow multiple passes
+    # This allows training on the small dataset by repeating it many times
+    for source_config in source_mixture_config.source_configs:
+        source_config.max_repetition_ratio = 100  # Allow up to 100x repetition for small datasets
+    
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
@@ -155,9 +161,12 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
 
 
 def build_trainer_config(common: CommonComponents) -> TrainerConfig:
-    """Build trainer config."""
+    """Build trainer config for eval benchmark dataset."""
     trainer_config = common.trainer
-    trainer_config.max_duration.value = 5_000_000_000
+    # Default to 10M tokens for small eval benchmark dataset
+    # Can be overridden via command line: --trainer.max_duration.value=<value>
+    # The launch script passes --trainer.max_duration.value=${MAX_TOKENS} which will override this
+    trainer_config.max_duration.value = 10_000_000  # 10M tokens default (can be overridden)
     trainer_config.max_duration.unit = DurationUnit("tokens")
     return trainer_config
 
