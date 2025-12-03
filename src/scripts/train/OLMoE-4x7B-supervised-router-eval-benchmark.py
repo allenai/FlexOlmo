@@ -155,11 +155,16 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
-    # Add source_name metadata so it appears in batches via batch["metadata"]
-    dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
+    # For eval benchmark with labeled_indices_file, we don't need source_name metadata
+    # The per-token labels are indexed by sequence index, not by source name
+    # Setting include_instance_metadata=True ensures instance indices are available for label lookup
+    dataset_config.include_instance_metadata = True
+    # Don't set metadata - let it auto-generate or use None
+    # This avoids "metadata length mismatch" errors when paths are filtered during dataset building
+    if hasattr(dataset_config, 'metadata'):
+        dataset_config.metadata = None
     
-    # Note: include_instance_metadata is already set by add_source_name_metadata()
-    # We rely on instance_indices being available in batches (olmo-core default behavior)
+    # Note: We rely on instance_indices being available in batches for per-token label lookup
     
     return dataset_config
 
