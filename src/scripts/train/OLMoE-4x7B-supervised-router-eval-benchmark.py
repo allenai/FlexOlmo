@@ -140,8 +140,9 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     
     # Use get_mixture_dataset_config_by_domain to split by domain labels
     # This ensures each domain (starcoder, mj_finemath_gsm8k, etc.) becomes a separate source
-    # Enable file validation to skip corrupted files (prevents errors during dataset building)
-    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=True)
+    # NOTE: validate_files=False to ensure path count matches metadata count
+    # (validation can cause mismatch between add_source_name_metadata and actual dataset build)
+    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=False)
     
     # For small eval benchmark dataset, override the hardcoded max_tokens (default is 5B)
     # Set to 10M tokens to match our training duration (can be overridden via trainer config)
