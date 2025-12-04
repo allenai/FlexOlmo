@@ -134,18 +134,29 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
 
 
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
-    """Build dataset config using router training mix, split by domain."""
+    """Build dataset config using router training mix (or custom mix), split by domain."""
     from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
     from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
 
     dataset_config = common.dataset
-    # Use router_training_mix and split by domain so each domain becomes a separate source
-    dataset_config.mix = CustomDataMix.router_training_mix
+    
+    # Use router_training_mix by default, but allow override via --dataset.mix
+    # Note: Command line overrides happen AFTER this function, so we check env var
+    import os
+    mix_override = os.environ.get("FLEXOLMO_DATASET_MIX")
+    if mix_override:
+        dataset_config.mix = mix_override
+        log.info(f"Using mix from FLEXOLMO_DATASET_MIX: {mix_override}")
+    elif dataset_config.mix is None:
+        dataset_config.mix = CustomDataMix.router_training_mix
+        log.info(f"Using default mix: router_training_mix")
+    else:
+        log.info(f"Using pre-configured mix: {dataset_config.mix}")
     
     # Use get_mixture_dataset_config_by_domain to split by domain labels
     # This ensures each domain (starcoder, mj_finemath4plus, etc.) becomes its own source
-    # Enable file validation to skip corrupted files (prevents errors during dataset building)
-    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=True)
+    # Disable file validation to avoid metadata count mismatch with add_source_name_metadata
+    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=False)
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     

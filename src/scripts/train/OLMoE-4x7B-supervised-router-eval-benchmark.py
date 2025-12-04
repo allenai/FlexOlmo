@@ -118,7 +118,6 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     """Build dataset config using eval_benchmark_mix, split by domain."""
     from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
-    from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
 
     dataset_config = common.dataset
     # Use eval_benchmark_mix instead of router_training_mix for eval benchmark data
@@ -156,18 +155,16 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
-    # Add source_name metadata so it appears in batches via batch["metadata"]
-    # This is required for domain-based labeling when expert_labels_dir is not provided
-    dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
-    
     # For eval benchmark with labeled_indices_file, we need include_instance_metadata=True
     # to ensure the 'index' field is available in dataset items for label lookup
     # The index field is used by DataCollator to load per-token labels from expert_labels_dir
-    # Note: add_source_name_metadata already sets include_instance_metadata=True
+    dataset_config.include_instance_metadata = True
     
     # Note: We rely on instance 'index' being available in batches for per-token label lookup
     # The DataCollator will load labels using: expert_labels_dir/seq_{index:08d}.npz
-    # If expert_labels_dir is NOT provided, it falls back to domain-based labeling using source_name
+    # 
+    # For source-based labels (without expert_labels_dir), use OLMoE-4x7B-supervised-router.py
+    # with dataset.mix=eval_benchmark_mix instead of this script.
     
     return dataset_config
 
