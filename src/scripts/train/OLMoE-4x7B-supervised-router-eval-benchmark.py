@@ -208,7 +208,7 @@ if __name__ == "__main__":
             overrides,
             root_dir=get_root_dir(),
             sequence_length=SEQUENCE_LENGTH,
-            global_batch_size=4 * SEQUENCE_LENGTH,  # 16384 tokens - works with 2 nodes, 4 DP replicas
+            global_batch_size=16 * SEQUENCE_LENGTH,  # 65536 tokens - works with 16 GPUs (2 nodes × 8)
             include_default_evals=False,  # Disable evals that expect text-based datasets
             freeze_embeddings=False,
             model_config_builder=build_model_config,
