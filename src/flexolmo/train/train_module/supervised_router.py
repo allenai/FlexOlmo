@@ -230,18 +230,25 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             expert_indices = expert_labels.reshape(-1).long()
             num_label_tokens = expert_indices.shape[0]
             
-            # Align labels to actual logit count
+            # ALWAYS align labels to actual logit count (handles seq_len-1 offset and any other mismatch)
             if num_label_tokens != num_logit_tokens:
                 if not hasattr(self, '_logged_shape_align'):
                     self._logged_shape_align = True
-                    log.warning(f"Shape alignment needed: labels={num_label_tokens}, logits={num_logit_tokens}. "
-                               f"Labels shape: {expert_labels.shape}, expected per seq: {num_logit_tokens // label_batch_size if label_batch_size > 0 else 'N/A'}")
+                    log.warning(f"Shape alignment: labels={num_label_tokens} -> logits={num_logit_tokens}. "
+                               f"Labels shape: {expert_labels.shape}")
                 
                 if num_label_tokens > num_logit_tokens:
                     expert_indices = expert_indices[:num_logit_tokens]
                 else:
-                    padding = expert_indices[-1:].repeat(num_logit_tokens - num_label_tokens)
+                    # Pad with zeros (expert 0) for missing positions
+                    padding = torch.zeros(num_logit_tokens - num_label_tokens, dtype=expert_indices.dtype, device=expert_indices.device)
                     expert_indices = torch.cat([expert_indices, padding])
+            
+            # Verify alignment worked
+            if expert_indices.shape[0] != num_logit_tokens:
+                log.error(f"ALIGNMENT FAILED: expert_indices={expert_indices.shape[0]}, logits={num_logit_tokens}")
+                expert_indices = expert_indices[:num_logit_tokens] if expert_indices.shape[0] > num_logit_tokens else \
+                                 torch.cat([expert_indices, torch.zeros(num_logit_tokens - expert_indices.shape[0], dtype=expert_indices.dtype, device=expert_indices.device)])
         elif expert_labels.dim() == 1:
             # Per-sequence labels: just expert IDs (batch_size,)
             expert_indices = expert_labels.long().repeat_interleave(seq_len)
