@@ -214,24 +214,34 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         elif expert_labels.dim() == 2:
             # Per-token labels: (batch_size, token_len) with expert IDs
             token_len = expert_labels.shape[1]
+            num_logit_tokens = router_logits_flat.shape[0]
+            label_batch_size = expert_labels.shape[0]
             
-            # Handle seq_len mismatch (labels are for seq_len-1 due to next-token prediction shift)
-            if token_len == seq_len - 1:
-                # Pad labels to match seq_len (repeat last label for the extra position)
-                expert_labels_padded = F.pad(expert_labels, (0, 1), mode='replicate')
-                expert_indices = expert_labels_padded.reshape(-1).long()
-            elif token_len == seq_len:
-                expert_indices = expert_labels.reshape(-1).long()
-            else:
-                # Log warning and fall back to repeating
-                if not hasattr(self, '_logged_token_mismatch'):
-                    self._logged_token_mismatch = True
-                    log.warning(f"Token length mismatch: labels={token_len}, seq_len={seq_len}. Padding/truncating.")
-                if token_len < seq_len:
-                    expert_labels_padded = F.pad(expert_labels, (0, seq_len - token_len), mode='replicate')
-                    expert_indices = expert_labels_padded.reshape(-1).long()
+            # Debug logging (first few times only)
+            if not hasattr(self, '_shape_log_count'):
+                self._shape_log_count = 0
+            if self._shape_log_count < 3:
+                self._shape_log_count += 1
+                log.info(f"[Shape Debug] router_logits_flat: {router_logits_flat.shape}, "
+                        f"expert_labels: {expert_labels.shape}, "
+                        f"inferred seq_len: {num_logit_tokens // label_batch_size if label_batch_size > 0 else 'N/A'}")
+            
+            # Flatten labels and get total count
+            expert_indices = expert_labels.reshape(-1).long()
+            num_label_tokens = expert_indices.shape[0]
+            
+            # Align labels to actual logit count
+            if num_label_tokens != num_logit_tokens:
+                if not hasattr(self, '_logged_shape_align'):
+                    self._logged_shape_align = True
+                    log.warning(f"Shape alignment needed: labels={num_label_tokens}, logits={num_logit_tokens}. "
+                               f"Labels shape: {expert_labels.shape}, expected per seq: {num_logit_tokens // label_batch_size if label_batch_size > 0 else 'N/A'}")
+                
+                if num_label_tokens > num_logit_tokens:
+                    expert_indices = expert_indices[:num_logit_tokens]
                 else:
-                    expert_indices = expert_labels[:, :seq_len].reshape(-1).long()
+                    padding = expert_indices[-1:].repeat(num_logit_tokens - num_label_tokens)
+                    expert_indices = torch.cat([expert_indices, padding])
         elif expert_labels.dim() == 1:
             # Per-sequence labels: just expert IDs (batch_size,)
             expert_indices = expert_labels.long().repeat_interleave(seq_len)
