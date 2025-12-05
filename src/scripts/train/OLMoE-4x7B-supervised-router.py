@@ -140,12 +140,14 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
 
     dataset_config = common.dataset
     
-    # Use router_training_mix by default, but allow override via --dataset.mix
-    # Note: Command line overrides happen AFTER this function, so we check env var
+    # Use router_training_mix by default, but allow override via --dataset.mix or env var
     import os
     mix_override = os.environ.get("FLEXOLMO_DATASET_MIX")
     if mix_override:
-        dataset_config.mix = mix_override
+        if mix_override == "eval_benchmark_mix":
+            dataset_config.mix = CustomDataMix.eval_benchmark_mix
+        else:
+            dataset_config.mix = mix_override
         log.info(f"Using mix from FLEXOLMO_DATASET_MIX: {mix_override}")
     elif dataset_config.mix is None:
         dataset_config.mix = CustomDataMix.router_training_mix
