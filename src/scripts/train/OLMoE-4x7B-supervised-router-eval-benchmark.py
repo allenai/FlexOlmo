@@ -116,49 +116,52 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
 
 
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
-    """Build dataset config using eval_benchmark_mix, split by domain."""
-    from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
-    from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
-
+    """Build dataset config using eval_benchmark_mix files directly (no source mixture).
+    
+    For source-based labeling on the small eval_benchmark dataset, we bypass the
+    SourceMixtureConfig system and directly specify files with metadata. This avoids
+    the path replication issue where source mixture expands 10 files to hundreds of
+    path entries, causing metadata length mismatch.
+    """
     dataset_config = common.dataset
-    # Use eval_benchmark_mix instead of router_training_mix for eval benchmark data
-    dataset_config.mix = CustomDataMix.eval_benchmark_mix
     
-    # FORCE mix_base_dir to eval_benchmark_data location (command line override may not be applied yet)
-    # Check if it's set to the wrong default path and fix it
-    correct_mix_base_dir = "/weka/oe-training-default/sanjaya/eval_benchmark_data"
-    if dataset_config.mix_base_dir != correct_mix_base_dir:
-        old_dir = dataset_config.mix_base_dir
-        dataset_config.mix_base_dir = correct_mix_base_dir
-        if old_dir:
-            log.warning(f"Overriding mix_base_dir from '{old_dir}' to '{correct_mix_base_dir}'")
-        else:
-            log.info(f"Setting mix_base_dir to '{correct_mix_base_dir}'")
+    # Base directory for eval benchmark data
+    base_dir = "/weka/oe-training-default/sanjaya/eval_benchmark_data"
     
-    log.info(f"Using mix_base_dir: {dataset_config.mix_base_dir}")
-    log.info(f"Using mix: {dataset_config.mix}")
+    # Define the 10 eval benchmark files with their domain labels
+    # This matches eval_benchmark_mix.txt
+    domain_files = [
+        ("mj_finemath_gsm8k", "mj_finemath_gsm8k/part-00-00000.npy"),
+        ("mj_finemath_minerva", "mj_finemath_minerva/part-00-00000.npy"),
+        ("starcoder_humaneval", "starcoder_humaneval/part-00-00000.npy"),
+        ("starcoder_mbpp", "starcoder_mbpp/part-00-00000.npy"),
+        ("mmlu", "mmlu/part-00-00000.npy"),
+        ("bbh", "bbh/part-00-00000.npy"),
+        ("popqa", "popqa/part-00-00000.npy"),
+        ("simpleqa", "simpleqa/part-00-00000.npy"),
+        ("gpqa", "gpqa/part-00-00000.npy"),
+        ("ifeval", "ifeval/part-00-00000.npy"),
+    ]
     
-    # Use get_mixture_dataset_config_by_domain to split by domain labels
-    # This ensures each domain (starcoder, mj_finemath_gsm8k, etc.) becomes a separate source
-    # NOTE: validate_files=False to ensure path count matches metadata count
-    # (validation can cause mismatch between add_source_name_metadata and actual dataset build)
-    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=False)
+    # Build paths and metadata lists
+    paths = []
+    metadata = []
+    for domain_label, rel_path in domain_files:
+        full_path = f"{base_dir}/{rel_path}"
+        paths.append(full_path)
+        metadata.append({"source_name": domain_label})
     
-    # For small eval benchmark dataset, override the hardcoded max_tokens (default is 5B)
-    # Set to 10M tokens to match our training duration (can be overridden via trainer config)
-    # This prevents "Insufficient tokens" validation errors
-    source_mixture_config.max_tokens = 10_000_000
+    # Set paths and metadata directly on the dataset config
+    dataset_config.paths = paths
+    dataset_config.metadata = metadata
+    dataset_config.include_instance_metadata = True
     
-    # Increase max_repetition_ratio to allow multiple passes over the small dataset
-    for source_config in source_mixture_config.source_configs:
-        source_config.max_repetition_ratio = 100  # Allow up to 100x repetition for small datasets
+    # Clear any mix settings (we're using direct paths)
+    dataset_config.mix = None
+    dataset_config.source_mixture_config = None
     
-    dataset_config.source_mixture_config = source_mixture_config
-    dataset_config.mix = None  # Clear mix since we're using source_mixture_config
-    
-    # Add source_name metadata so it appears in batches via batch["metadata"]
-    # This is required for source-based labeling to work
-    dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
+    log.info(f"Created direct NumpyDatasetConfig with {len(paths)} files")
+    log.info(f"Domains: {[d for d, _ in domain_files]}")
     
     return dataset_config
 
