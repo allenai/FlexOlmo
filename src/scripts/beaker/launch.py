@@ -166,7 +166,7 @@ def main():
         cluster=args.cluster,
         overrides=launch_overrides,
         nccl_debug=False,
-        cuda_debug=True,  # TEMPORARY: Enable for debugging indexSelectLargeIndex error
+        cuda_debug=False,
     )
 
     print(config)

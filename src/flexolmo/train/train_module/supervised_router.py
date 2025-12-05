@@ -139,10 +139,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 def make_patched_forward(router, orig_fn, train_module_self, router_name_inner):
                     def patched_forward(x, *, loss_div_factor=None):
                         result = orig_fn(x, loss_div_factor=loss_div_factor)
-                        expert_weights, expert_indices_router, batch_size_per_expert, aux_loss = result
-                        
-                        # TEMPORARY DEBUG: Skip supervised loss entirely to isolate if bug is in MoE dispatch
-                        return expert_weights, expert_indices_router, batch_size_per_expert, aux_loss
+                        expert_weights, expert_indices, batch_size_per_expert, aux_loss = result
                         
                         expert_labels = train_module_self._current_expert_labels
                         if expert_labels is not None and router.training and torch.is_grad_enabled():
@@ -161,7 +158,7 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                                         log.info(f"[Router Training] Computed supervised loss in router '{router_name_inner}': {scaled_loss.item():.6f}")
                                         train_module_self._logged_supervised_loss.add(router_name_inner)
                         
-                        return expert_weights, expert_indices_router, batch_size_per_expert, aux_loss
+                        return expert_weights, expert_indices, batch_size_per_expert, aux_loss
                     
                     return patched_forward
                 
