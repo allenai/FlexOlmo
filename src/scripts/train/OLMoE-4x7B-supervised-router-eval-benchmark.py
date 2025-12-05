@@ -118,7 +118,6 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     """Build dataset config using eval_benchmark_mix, split by domain."""
     from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
-    from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
 
     dataset_config = common.dataset
     # Use eval_benchmark_mix instead of router_training_mix for eval benchmark data
@@ -156,13 +155,23 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
-    # Add source_name metadata for source-based labeling fallback
-    # This enables the script to work with EITHER:
-    # 1. Per-token labels (via expert_labels_dir) - uses 'index' field
-    # 2. Source-based labels (fallback) - uses 'source_name' field
-    dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
+    # Enable instance metadata for both per-token and source-based labels
+    dataset_config.include_instance_metadata = True
     
-    # include_instance_metadata is set by add_source_name_metadata
+    # For source-based labeling, we need metadata with source_name
+    # Build metadata list matching file paths in source_mixture_config
+    all_metadata = []
+    for source_config in source_mixture_config.source_configs:
+        source_name = source_config.source_name
+        # Count files for this source
+        num_files = len(source_config.paths) if source_config.paths else 0
+        # Add metadata entry for each file
+        for _ in range(num_files):
+            all_metadata.append({"source_name": source_name})
+    
+    if all_metadata:
+        dataset_config.metadata = all_metadata
+        log.info(f"Added {len(all_metadata)} metadata entries for source-based labeling")
     
     return dataset_config
 
