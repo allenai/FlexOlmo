@@ -118,6 +118,7 @@ def build_train_module_config(common: CommonComponents) -> SupervisedRouterTrain
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     """Build dataset config using eval_benchmark_mix, split by domain."""
     from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
+    from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
 
     dataset_config = common.dataset
     # Use eval_benchmark_mix instead of router_training_mix for eval benchmark data
@@ -155,9 +156,9 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
-    # Enable instance metadata for both per-token and source-based labels
-    # The source_name is automatically tracked by the source mixture when this is True
-    dataset_config.include_instance_metadata = True
+    # Add source_name metadata so it appears in batches via batch["metadata"]
+    # This is required for source-based labeling to work
+    dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
     
     return dataset_config
 
