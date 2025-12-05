@@ -79,8 +79,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.num_gpus=${NUM_GPUS} \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent \
-   --launch.cuda_debug=true -- src/scripts/train/OLMoE-4x7B-supervised-router-eval-benchmark.py FlexOlmo-4x7B-Supervised-RT-EvalOracle \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-supervised-router-eval-benchmark.py FlexOlmo-4x7B-Supervised-RT-EvalOracle \
    --data_loader.expert_labels_dir=${EXPERT_LABELS_DIR} \
    --data_loader.labeled_indices_file=${LABELED_INDICES_FILE} \
    --trainer.callbacks.profiler.enabled=false \
