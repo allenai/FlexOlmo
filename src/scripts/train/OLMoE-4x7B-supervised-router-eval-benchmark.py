@@ -156,22 +156,8 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
     # Enable instance metadata for both per-token and source-based labels
+    # The source_name is automatically tracked by the source mixture when this is True
     dataset_config.include_instance_metadata = True
-    
-    # For source-based labeling, we need metadata with source_name
-    # Build metadata list matching file paths in source_mixture_config
-    all_metadata = []
-    for source_config in source_mixture_config.source_configs:
-        source_name = source_config.source_name
-        # Count files for this source
-        num_files = len(source_config.paths) if source_config.paths else 0
-        # Add metadata entry for each file
-        for _ in range(num_files):
-            all_metadata.append({"source_name": source_name})
-    
-    if all_metadata:
-        dataset_config.metadata = all_metadata
-        log.info(f"Added {len(all_metadata)} metadata entries for source-based labeling")
     
     return dataset_config
 
