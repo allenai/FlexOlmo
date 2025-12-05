@@ -138,18 +138,8 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
                 
                 def make_patched_forward(router, orig_fn, train_module_self, router_name_inner):
                     def patched_forward(x, *, loss_div_factor=None):
-                        # Validate input before router forward
-                        if torch.isnan(x).any() or torch.isinf(x).any():
-                            log.error(f"[{router_name_inner}] NaN/Inf in router INPUT!")
-                        
                         result = orig_fn(x, loss_div_factor=loss_div_factor)
                         expert_weights, expert_indices, batch_size_per_expert, aux_loss = result
-                        
-                        # Validate router outputs
-                        if expert_indices.max() >= router.num_experts:
-                            log.error(f"[{router_name_inner}] INVALID expert_indices: max={expert_indices.max()}, num_experts={router.num_experts}")
-                        if expert_weights is not None and (torch.isnan(expert_weights).any() or torch.isinf(expert_weights).any()):
-                            log.error(f"[{router_name_inner}] NaN/Inf in expert_weights!")
                         
                         expert_labels = train_module_self._current_expert_labels
                         if expert_labels is not None and router.training and torch.is_grad_enabled():
