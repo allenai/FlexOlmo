@@ -56,8 +56,8 @@ MODEL_TYPE=$(basename $(dirname $(dirname ${EXPERT_LABELS_DIR})))
 LABEL_TYPE=$(basename ${EXPERT_LABELS_DIR})
 EXPERIMENT_NAME="FlexOlmo-4x7B-Supervised-RT-EvalOracle-${LABEL_TYPE}-${TIMESTAMP}"
 
-# Use 2 nodes for better memory distribution (helps with OOM issues)
-NUM_NODES=2
+# Use 1 node for debugging (8 GPUs total)
+NUM_NODES=1
 NUM_GPUS=8
 
 # Reduced token budget since dataset is small (~180 sequences * 4096 tokens = ~737k tokens)
@@ -96,9 +96,9 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --train_module.optim.lr=2e-3 \
    --train_module.router_loss_weight=1.0 \
    --train_module.router_loss_only=true \
-   --train_module.dp_config.num_replicas=4 \
+   --train_module.dp_config.num_replicas=2 \
    --train_module.ep_config.degree=4 \
-   --data_loader.global_batch_size=65536
+   --data_loader.global_batch_size=32768
 
 echo ""
 echo "Job submitted. Training with eval benchmark oracle (per-token optimal) expert labels."
