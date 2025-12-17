@@ -13,7 +13,8 @@ MODELS=(
     # "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921-hf"
     # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-anneal-frozen-router-mixed-sft/step1062-hf"
     # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-anneal-NO-frozen-router-mixed-sft/step1062-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-test-hf/"
+    # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-test-hf/"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-test-router-hf"
 
 )
 BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
@@ -137,6 +138,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --env-secret HF_TOKEN=jacobm_HF_TOKEN \
         --env-secret AWS_ACCESS_KEY_ID=jacobm_AWS_ACCESS_KEY_ID \
         --env-secret AWS_SECRET_ACCESS_KEY=jacobm_AWS_SECRET_ACCESS_KEY \
+        --allow-dirty \
         -- \
         bash -c "PYTHONPATH=. python -u src/scripts/eval/launch_eval.py \
             --model $MODEL_PATH \
