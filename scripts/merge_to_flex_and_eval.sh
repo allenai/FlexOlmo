@@ -11,25 +11,25 @@ MATH_MIX_SFT_NO_ANNEAL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex
 CODE_MIX_SFT_NO_ANNEAL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-base-no-anneal/step620-unsharded
 CKPT_DIR=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft
 
-CONFIGS=(
-    "${MATH_BASE},${MATH_MIX_SFT},${CODE_MIX_SFT_NO_ANNEAL}|${CKPT_DIR}/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_no_ann"
-)
+# CONFIGS=(
+#     "${MATH_BASE},${MATH_MIX_SFT},${CODE_MIX_SFT_NO_ANNEAL}|${CKPT_DIR}/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_no_ann"
+# )
 
-for config in "${CONFIGS[@]}"; do
-    EXPERTS="${config%|*}"
-    OUTPUT="${config#*|}"
+# for config in "${CONFIGS[@]}"; do
+#     EXPERTS="${config%|*}"
+#     OUTPUT="${config#*|}"
     
-    IFS=',' read -r E1 E2 E3 <<< "$EXPERTS"
+#     IFS=',' read -r E1 E2 E3 <<< "$EXPERTS"
     
-    python src/scripts/upcycle/merge_experts_to_flexolmo.py \
-        -m "$E1" "$E2" "$E3" \
-        -t "$OUTPUT"
-done
+#     python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+#         -m "$E1" "$E2" "$E3" \
+#         -t "$OUTPUT"
+# done
 
 cd ../Olmo-core
 
 MODEL_PATHS=(
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_no_ann"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-router_sft_all_mixed-2k/step1128"
 )
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
@@ -38,7 +38,7 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
     mkdir -p "${MODEL_PATH}/model_and_optim" && \
     cp -f "${MODEL_PATH}"/*.distcp "${MODEL_PATH}/model_and_optim/" && \
     cp -f "${MODEL_PATH}/.metadata" "${MODEL_PATH}/model_and_optim/" && \
-    python src/examples/huggingface/convert_checkpoint_to_hf.py \
+    uv run python src/examples/huggingface/convert_checkpoint_to_hf.py \
         -i "$MODEL_PATH" \
         -o "${MODEL_PATH}-hf" \
         --skip-validation \
@@ -53,7 +53,7 @@ done
 cd ../open-instruct
 
 MODEL_PATHS=(
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_no_ann-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-router_sft_all_mixed-2k/step1128-hf"
 )
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
