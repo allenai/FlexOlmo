@@ -113,9 +113,9 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     # Check if using a predefined mix
     if dataset_config.mix:
         # Check if it's a glob-based mixture (ends with _glob)
-        if dataset_config.mix.endswith("_glob"):
+        if dataset_config.mix.value.endswith("_glob"):
             # Use glob-based mixture
-            source_configs = get_glob_mixture(dataset_config.mix)
+            source_configs = get_glob_mixture(dataset_config.mix.value)
             
             dataset_config.source_mixture_config = SourceMixtureDatasetConfig(
                 source_configs=source_configs,
