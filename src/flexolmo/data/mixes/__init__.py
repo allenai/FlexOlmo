@@ -70,9 +70,11 @@ class CustomDataMix(DataMixBase):
         :returns: A list of paths/URLs to the tokenized numpy data files in the mix and list
             of corresponding labels.
         """
-        # For glob-based mixtures, return empty lists since they're handled differently
+        # For glob-based mixtures, return dummy values since they're handled differently
+        # in the training script's build_dataset_config
         if self.value.endswith("_glob"):
-            return [], []
+            # Return a dummy path and label to satisfy validation
+            return ["dummy_path_for_glob_mixture"], ["glob_mixture"]
             
         if not base_dir.endswith("/"):
             base_dir = base_dir + "/"
