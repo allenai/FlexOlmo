@@ -2,7 +2,7 @@ GENERAL_MODEL=/weka/oe-adapt-default/jacobm/flexolmo/checkpoints/general-model-r
 PRETRAINED_MODEL=/weka/oe-training-default/ai2-llm/checkpoints/weijias/OLMo2-7B-anneal-from-stage1-no-math/step11921
 
 # math expert
-python src/scripts/upcycle/dense_to_expert_moe.py \
+uv run python src/scripts/upcycle/dense_to_expert_moe.py \
     -m $GENERAL_MODEL \
        $PRETRAINED_MODEL \
     -e src/data/domain_embeddings/grit/public.npy \
@@ -10,7 +10,7 @@ python src/scripts/upcycle/dense_to_expert_moe.py \
     -t /weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-with-expert-bias
 
 # code expert
-python src/scripts/upcycle/dense_to_expert_moe.py \
+uv run python src/scripts/upcycle/dense_to_expert_moe.py \
     -m $GENERAL_MODEL \
        $PRETRAINED_MODEL \
     -e src/data/domain_embeddings/grit/public.npy \
