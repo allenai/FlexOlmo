@@ -54,6 +54,11 @@ class CustomDataMix(DataMixBase):
     # 2x7B router training mixes
     math_general_rt_mix = "math_general_rt_mix"
     code_general_rt_mix = "code_general_rt_mix"
+    
+    # glob-based mixtures
+    code_glob = "code_glob"
+    math_glob = "math_glob"
+    code_math_glob = "code_math_glob"
 
     def build(self, base_dir: str, tokenizer: str) -> Tuple[List[str], List[str]]:
         """
@@ -65,6 +70,10 @@ class CustomDataMix(DataMixBase):
         :returns: A list of paths/URLs to the tokenized numpy data files in the mix and list
             of corresponding labels.
         """
+        # For glob-based mixtures, return empty lists since they're handled differently
+        if self.value.endswith("_glob"):
+            return [], []
+            
         if not base_dir.endswith("/"):
             base_dir = base_dir + "/"
 
