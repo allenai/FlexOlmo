@@ -70,12 +70,14 @@ class CustomDataMix(DataMixBase):
         :returns: A list of paths/URLs to the tokenized numpy data files in the mix and list
             of corresponding labels.
         """
-        # For glob-based mixtures, return dummy values since they're handled differently
-        # in the training script's build_dataset_config
+        # Glob-based mixtures should be handled via source_mixture_config in common.py,
+        # not through this build() method. If we get here with a glob mix, it's an error.
         if self.value.endswith("_glob"):
-            # Return a dummy path and label to satisfy validation
-            return ["dummy_path_for_glob_mixture"], ["glob_mixture"]
-            
+            raise ValueError(
+                f"Glob-based mixture '{self.value}' should be handled via source_mixture_config, "
+                "not through CustomDataMix.build(). This is likely a bug in the config setup."
+            )
+
         if not base_dir.endswith("/"):
             base_dir = base_dir + "/"
 

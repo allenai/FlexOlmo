@@ -103,50 +103,9 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
 
 
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
-    from flexolmo.data.mixes import CustomDataMix
-    from flexolmo.data.glob_mixtures import get_glob_mixture
-    from olmo_core.data.source_mixture import SourceMixtureConfig, SourceMixtureDatasetConfig
-    from olmo_core.data.types import NumpyDatasetDType
-
-    dataset_config = common.dataset
-    
-    # Check if using a predefined mix
-    if dataset_config.mix:
-        # Check if it's a glob-based mixture (ends with _glob)
-        if dataset_config.mix.value.endswith("_glob"):
-            # Use glob-based mixture
-            source_configs = get_glob_mixture(dataset_config.mix.value)
-            
-            dataset_config.source_mixture_config = SourceMixtureDatasetConfig(
-                source_configs=source_configs,
-                max_tokens=5_000_000_000,  # Adjust based on your training duration
-                sequence_length=dataset_config.sequence_length,
-                seed=2025,
-                dtype=NumpyDatasetDType(dataset_config.get_dtype().__name__),
-                processes=8,
-            )
-            
-            # Clear the mix field since we're using source_mixture_config
-            dataset_config.mix = None
-        else:
-            # Use the existing txt-based data mix system
-            return dataset_config
-    else:
-        # Default to code mixture if no mix specified
-        source_configs = get_glob_mixture("code_glob")
-        
-        dataset_config.source_mixture_config = SourceMixtureDatasetConfig(
-            source_configs=source_configs,
-            max_tokens=5_000_000_000,
-            sequence_length=dataset_config.sequence_length,
-            seed=2025,
-            dtype=NumpyDatasetDType(dataset_config.get_dtype().__name__),
-            processes=8,
-        )
-        
-        dataset_config.mix = None
-    
-    return dataset_config
+    # Glob mixtures are now handled in common.py's build_experiment_config
+    # This function just returns the dataset config as-is
+    return common.dataset
 
 
 def build_trainer_config(common: CommonComponents) -> TrainerConfig:

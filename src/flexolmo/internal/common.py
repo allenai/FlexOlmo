@@ -47,6 +47,7 @@ from olmo_core.train.train_module import (
 )
 
 from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config
+from flexolmo.data.glob_mixtures import get_glob_mixture
 # from flexolmo.eval.evaluator_callback import DownstreamEvaluatorUpdatedCallbackConfig
 
 log = logging.getLogger(__name__)
@@ -332,7 +333,23 @@ def build_experiment_config(
     if override_datamix is not None:
         config.dataset.mix = override_datamix
         if "," in override_datamix:
+            # Comma-separated mixes
             config.dataset.source_mixture_config = get_mixture_dataset_config(config.dataset)
+            config.dataset.mix = None
+        elif override_datamix.endswith("_glob"):
+            # Glob-based mixtures - set up source_mixture_config directly
+            from olmo_core.data.source_mixture import SourceMixtureDatasetConfig
+            from olmo_core.data.types import NumpyDatasetDType
+
+            source_configs = get_glob_mixture(override_datamix)
+            config.dataset.source_mixture_config = SourceMixtureDatasetConfig(
+                source_configs=source_configs,
+                max_tokens=config.trainer.max_duration.value if config.trainer.max_duration.unit.name == "tokens" else 50_000_000_000,
+                sequence_length=config.dataset.sequence_length,
+                seed=2025,
+                dtype=NumpyDatasetDType(config.dataset.get_dtype().__name__),
+                processes=8,
+            )
             config.dataset.mix = None
         else:
             config.dataset.source_mixture_config = None
