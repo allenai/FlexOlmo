@@ -40,6 +40,7 @@ def build_launch_config(
     weka_buckets: List[BeakerWekaBucket] = []
     if root_dir.startswith("/weka/"):
         weka_buckets.append(BeakerWekaBucket("oe-training-default", "/weka/oe-training-default"))
+        weka_buckets.append(BeakerWekaBucket("oe-adapt-default", "/weka/oe-adapt-default"))
 
     beaker_user = get_beaker_username()
 
