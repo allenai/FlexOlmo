@@ -54,6 +54,9 @@ class CustomDataMix(DataMixBase):
     # 2x7B router training mixes
     math_general_rt_mix = "math_general_rt_mix"
     code_general_rt_mix = "code_general_rt_mix"
+
+    # jacob's new data
+    olmo3_code = "olmo3_code"
     
     # glob-based mixtures
     code_glob = "code_glob"
