@@ -1,0 +1,605 @@
+====================================================================================================
+PER-TOKEN EXPERT LABEL ANALYSIS (AGGREGATE-THEN-NORMALIZE)
+====================================================================================================
+
+This analysis uses the AGGREGATE-THEN-INVERSE approach:
+  1. Sum losses per expert across all tokens
+  2. Convert to distribution via inverse normalization: (1/loss) / sum(1/loss)
+  3. Lower loss = higher probability (inversely proportional)
+  4. No exponential amplification - preserves actual proportions
+
+Expert Mapping:
+  Expert 0 = Math
+  Expert 1 = General
+  Expert 2 = Code
+
+====================================================================================================
+OVERALL SUMMARY
+====================================================================================================
+
+Total sequences analyzed: 180
+Total tokens: 737,100
+
+Per-Expert Distribution (from aggregate softmax):
+  Math       (Expert 0): 33.51%
+  General    (Expert 1): 33.17%
+  Code       (Expert 2): 33.32%
+
+Combined Domain Distribution:
+  Math       (E0):     33.51%
+  General    (E1+E3):  33.17%
+  Code       (E2):     33.32%
+
+Source-based vs Loss-based Agreement:
+  Agree:      99 sequences (55.0%)
+  Disagree:   81 sequences (45.0%)
+
+====================================================================================================
+PER-DOMAIN STATISTICS
+====================================================================================================
+
+Domain: bbh
+  Expected Category: General
+  Total tokens: 94,185
+  Per-expert distribution:
+    Math       (E0): 33.32%
+    General    (E1): 33.11%
+    Code       (E2): 33.57%
+  Combined domain distribution:
+    Math    (E0):   33.32%
+    General (E1+3): 33.11% <-- expected
+    Code    (E2):   33.57%
+
+Domain: gpqa
+  Expected Category: General
+  Total tokens: 61,425
+  Per-expert distribution:
+    Math       (E0): 32.80%
+    General    (E1): 33.61%
+    Code       (E2): 33.59%
+  Combined domain distribution:
+    Math    (E0):   32.80%
+    General (E1+3): 33.61% <-- expected
+    Code    (E2):   33.59%
+
+Domain: ifeval
+  Expected Category: General
+  Total tokens: 24,570
+  Per-expert distribution:
+    Math       (E0): 33.13%
+    General    (E1): 32.67%
+    Code       (E2): 34.20%
+  Combined domain distribution:
+    Math    (E0):   33.13%
+    General (E1+3): 32.67% <-- expected
+    Code    (E2):   34.20%
+
+Domain: mj_finemath_gsm8k
+  Expected Category: Math
+  Total tokens: 171,990
+  Per-expert distribution:
+    Math       (E0): 33.54%
+    General    (E1): 32.91%
+    Code       (E2): 33.55%
+  Combined domain distribution:
+    Math    (E0):   33.54% <-- expected
+    General (E1+3): 32.91%
+    Code    (E2):   33.55%
+
+Domain: mj_finemath_minerva
+  Expected Category: Math
+  Total tokens: 204,750
+  Per-expert distribution:
+    Math       (E0): 33.91%
+    General    (E1): 32.91%
+    Code       (E2): 33.18%
+  Combined domain distribution:
+    Math    (E0):   33.91% <-- expected
+    General (E1+3): 32.91%
+    Code    (E2):   33.18%
+
+Domain: mmlu
+  Expected Category: General
+  Total tokens: 69,615
+  Per-expert distribution:
+    Math       (E0): 33.48%
+    General    (E1): 33.57%
+    Code       (E2): 32.95%
+  Combined domain distribution:
+    Math    (E0):   33.48%
+    General (E1+3): 33.57% <-- expected
+    Code    (E2):   32.95%
+
+Domain: popqa
+  Expected Category: General
+  Total tokens: 32,760
+  Per-expert distribution:
+    Math       (E0): 33.90%
+    General    (E1): 33.91%
+    Code       (E2): 32.18%
+  Combined domain distribution:
+    Math    (E0):   33.90%
+    General (E1+3): 33.91% <-- expected
+    Code    (E2):   32.18%
+
+Domain: simpleqa
+  Expected Category: General
+  Total tokens: 28,665
+  Per-expert distribution:
+    Math       (E0): 32.56%
+    General    (E1): 33.83%
+    Code       (E2): 33.60%
+  Combined domain distribution:
+    Math    (E0):   32.56%
+    General (E1+3): 33.83% <-- expected
+    Code    (E2):   33.60%
+
+Domain: starcoder_humaneval
+  Expected Category: Code
+  Total tokens: 28,665
+  Per-expert distribution:
+    Math       (E0): 33.30%
+    General    (E1): 33.34%
+    Code       (E2): 33.35%
+  Combined domain distribution:
+    Math    (E0):   33.30%
+    General (E1+3): 33.34%
+    Code    (E2):   33.35% <-- expected
+
+Domain: starcoder_mbpp
+  Expected Category: Code
+  Total tokens: 20,475
+  Per-expert distribution:
+    Math       (E0): 33.84%
+    General    (E1): 33.54%
+    Code       (E2): 32.62%
+  Combined domain distribution:
+    Math    (E0):   33.84%
+    General (E1+3): 33.54%
+    Code    (E2):   32.62% <-- expected
+
+====================================================================================================
+PER-SEQUENCE DETAILS
+====================================================================================================
+
+   Seq | Source Domain             | Expected | Majority | Match |  Math% |   Gen% |  Code%
+----------------------------------------------------------------------------------------------------------------------------------
+     1 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.7% |  33.0% |  33.3%
+     2 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.4% |  32.7% |  34.0%
+     3 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  33.0% |  33.4%
+     4 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.4% |  32.9% |  33.6%
+     5 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.8% |  32.7% |  33.4%
+     6 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.4% |  33.4% |  33.1%
+     7 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.5% |  33.1% |  33.3%
+     8 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.7% |  32.9% |  33.4%
+     9 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  32.8% |  33.6%
+    10 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  32.6% |  34.1%
+    11 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  32.9% |  33.1% |  34.0%
+    12 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.7% |  32.9% |  33.4%
+    13 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  33.1% |  33.6%
+    14 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  32.9% |  33.5%
+    15 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.7% |  32.8% |  33.5%
+    16 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  32.7% |  33.6%
+    17 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  33.0% |  33.7%
+    18 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.8% |  32.7% |  33.5%
+    19 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.4% |  32.9% |  33.7%
+    20 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  33.0% |  33.3%
+    21 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.5% |  32.9% |  33.6%
+    22 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.4% |  33.2% |  33.3%
+    23 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.9% |  32.6% |  33.5%
+    24 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  32.9% |  33.8%
+    25 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  32.7% |  33.6%
+    26 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  33.0% |  33.3%
+    27 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  32.7% |  33.6%
+    28 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  33.0% |  33.4%
+    29 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.9% |  32.6% |  33.6%
+    30 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.2% |  33.2% |  33.6%
+    31 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  32.9% |  33.5%
+    32 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.6% |  33.0% |  33.4%
+    33 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  33.2% |  33.6%
+    34 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.8% |  32.7% |  33.5%
+    35 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.6% |  32.7% |  33.7%
+    36 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.6% |  32.8% |  33.6%
+    37 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  32.8% |  33.9%
+    38 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.7% |  32.8% |  33.5%
+    39 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.3% |  33.1% |  33.6%
+    40 | mj_finemath_gsm8k         | Math     | Math     |   ✓   |  33.7% |  32.6% |  33.6%
+    41 | mj_finemath_gsm8k         | Math     | Code     |   ✗   |  33.6% |  32.7% |  33.7%
+    42 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  33.2% |  33.8% |  33.0%
+    44 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  33.0% |  33.2%
+    45 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  33.2% |  33.1%
+    46 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.6% |  33.4%
+    47 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.5% |  33.0% |  33.5%
+    48 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.1% |  32.3% |  33.6%
+    49 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  32.6% |  33.7%
+    50 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.6% |  32.8% |  33.6%
+    51 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.6% |  33.2% |  33.2%
+    52 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  32.9% |  33.3%
+    53 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  32.9% |  33.3%
+    54 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.4% |  33.7%
+    55 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  32.9% |  33.3%
+    56 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  33.0% |  33.2%
+    57 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  32.8% |  33.4%
+    58 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  32.7% |  33.5%
+    59 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.1% |  32.4% |  33.5%
+    60 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  33.0% |  33.3%
+    61 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.2% |  32.5% |  33.3%
+    62 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.6% |  33.1% |  33.3%
+    63 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.0% |  32.7% |  33.3%
+    64 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  33.0% |  33.3%
+    65 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  32.9% |  33.3%
+    66 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  33.0% |  33.2%
+    67 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.6% |  33.2% |  33.2%
+    68 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.8% |  33.3%
+    69 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.4% |  32.5% |  33.1%
+    70 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  33.0% |  33.3%
+    71 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.6% |  33.0% |  33.3%
+    72 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.2% |  32.3% |  33.5%
+    73 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.6% |  32.8% |  33.6%
+    74 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.2% |  32.5% |  33.3%
+    75 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.0% |  32.7% |  33.3%
+    76 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  32.9% |  33.3%
+    77 | mj_finemath_minerva       | Math     | Code     |   ✗   |  33.5% |  32.8% |  33.6%
+    78 | mj_finemath_minerva       | Math     | Code     |   ✗   |  33.3% |  33.0% |  33.7%
+    79 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.1% |  32.7% |  33.2%
+    80 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.7% |  33.3%
+    81 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  32.9% |  33.3%
+    82 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.4% |  33.6%
+    83 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  33.0% |  33.2%
+    84 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.8% |  32.9% |  33.3%
+    85 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.0% |  32.8% |  33.2%
+    86 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.8% |  33.3%
+    87 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.9% |  33.2%
+    88 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.5% |  33.1% |  33.3%
+    89 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.9% |  33.2%
+    90 | mj_finemath_minerva       | Math     | Math     |   ✓   |  34.0% |  32.9% |  33.1%
+    91 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.9% |  32.8% |  33.3%
+    92 | mj_finemath_minerva       | Math     | Math     |   ✓   |  33.7% |  32.8% |  33.5%
+    93 | mj_finemath_minerva       | Math     | General  |   ✗   |  39.3% |  40.3% |  20.4%
+    95 | starcoder_humaneval       | Code     | Code     |   ✓   |  33.2% |  33.0% |  33.8%
+    96 | starcoder_humaneval       | Code     | General  |   ✗   |  33.0% |  33.5% |  33.5%
+    97 | starcoder_humaneval       | Code     | General  |   ✗   |  33.1% |  33.5% |  33.4%
+    98 | starcoder_humaneval       | Code     | General  |   ✗   |  33.0% |  33.7% |  33.3%
+    99 | starcoder_humaneval       | Code     | Math     |   ✗   |  33.3% |  33.3% |  33.3%
+   100 | starcoder_humaneval       | Code     | Code     |   ✓   |  33.2% |  33.3% |  33.5%
+   101 | starcoder_humaneval       | Code     | Math     |   ✗   |  34.1% |  33.2% |  32.7%
+   103 | starcoder_mbpp            | Code     | Math     |   ✗   |  34.1% |  33.2% |  32.8%
+   104 | starcoder_mbpp            | Code     | General  |   ✗   |  33.6% |  34.1% |  32.3%
+   105 | starcoder_mbpp            | Code     | Math     |   ✗   |  33.6% |  33.4% |  32.9%
+   106 | starcoder_mbpp            | Code     | General  |   ✗   |  33.4% |  33.7% |  32.9%
+   107 | starcoder_mbpp            | Code     | Math     |   ✗   |  34.4% |  33.4% |  32.3%
+   109 | mmlu                      | General  | Math     |   ✗   |  34.0% |  33.2% |  32.9%
+   110 | mmlu                      | General  | General  |   ✓   |  33.1% |  34.2% |  32.7%
+   111 | mmlu                      | General  | General  |   ✓   |  33.4% |  33.6% |  32.9%
+   112 | mmlu                      | General  | Code     |   ✗   |  32.8% |  33.2% |  34.0%
+   113 | mmlu                      | General  | General  |   ✓   |  32.7% |  34.4% |  32.9%
+   114 | mmlu                      | General  | General  |   ✓   |  33.3% |  33.6% |  33.1%
+   115 | mmlu                      | General  | Math     |   ✗   |  33.8% |  33.3% |  32.9%
+   116 | mmlu                      | General  | General  |   ✓   |  33.0% |  33.8% |  33.3%
+   117 | mmlu                      | General  | Math     |   ✗   |  34.1% |  33.2% |  32.7%
+   118 | mmlu                      | General  | Math     |   ✗   |  33.6% |  33.3% |  33.0%
+   119 | mmlu                      | General  | Math     |   ✗   |  33.7% |  33.4% |  32.9%
+   120 | mmlu                      | General  | General  |   ✓   |  33.3% |  33.8% |  32.9%
+   121 | mmlu                      | General  | General  |   ✓   |  33.1% |  33.9% |  33.0%
+   122 | mmlu                      | General  | General  |   ✓   |  33.3% |  33.9% |  32.8%
+   123 | mmlu                      | General  | General  |   ✓   |  33.1% |  33.8% |  33.1%
+   124 | mmlu                      | General  | Math     |   ✗   |  33.6% |  33.3% |  33.1%
+   125 | mmlu                      | General  | Math     |   ✗   |  35.2% |  32.8% |  32.0%
+   127 | bbh                       | General  | Code     |   ✗   |  33.0% |  33.3% |  33.7%
+   128 | bbh                       | General  | Code     |   ✗   |  33.1% |  33.2% |  33.7%
+   129 | bbh                       | General  | Code     |   ✗   |  33.4% |  32.9% |  33.6%
+   130 | bbh                       | General  | Code     |   ✗   |  33.4% |  32.8% |  33.8%
+   131 | bbh                       | General  | Code     |   ✗   |  33.2% |  32.8% |  34.0%
+   132 | bbh                       | General  | Code     |   ✗   |  33.5% |  32.5% |  33.9%
+   133 | bbh                       | General  | Code     |   ✗   |  33.3% |  33.3% |  33.4%
+   134 | bbh                       | General  | Code     |   ✗   |  33.3% |  32.9% |  33.9%
+   135 | bbh                       | General  | Code     |   ✗   |  33.2% |  32.9% |  33.9%
+   136 | bbh                       | General  | Code     |   ✗   |  33.0% |  33.3% |  33.7%
+   137 | bbh                       | General  | Code     |   ✗   |  33.2% |  33.1% |  33.7%
+   138 | bbh                       | General  | Code     |   ✗   |  32.5% |  33.5% |  34.0%
+   139 | bbh                       | General  | Code     |   ✗   |  32.8% |  33.4% |  33.8%
+   140 | bbh                       | General  | General  |   ✓   |  32.4% |  33.8% |  33.8%
+   141 | bbh                       | General  | Code     |   ✗   |  32.6% |  33.5% |  33.9%
+   142 | bbh                       | General  | Code     |   ✗   |  32.5% |  33.6% |  33.9%
+   143 | bbh                       | General  | Code     |   ✗   |  32.6% |  33.6% |  33.8%
+   144 | bbh                       | General  | Math     |   ✗   |  33.5% |  33.0% |  33.5%
+   145 | bbh                       | General  | Code     |   ✗   |  33.4% |  32.8% |  33.7%
+   146 | bbh                       | General  | Code     |   ✗   |  33.4% |  32.9% |  33.6%
+   147 | bbh                       | General  | Math     |   ✗   |  33.4% |  33.1% |  33.4%
+   148 | bbh                       | General  | Math     |   ✗   |  34.2% |  32.6% |  33.3%
+   149 | bbh                       | General  | Math     |   ✗   |  39.6% |  31.7% |  28.7%
+   151 | popqa                     | General  | Math     |   ✗   |  33.7% |  33.5% |  32.8%
+   152 | popqa                     | General  | Math     |   ✗   |  34.0% |  33.4% |  32.6%
+   153 | popqa                     | General  | Math     |   ✗   |  33.9% |  33.7% |  32.4%
+   154 | popqa                     | General  | Math     |   ✗   |  33.9% |  33.8% |  32.3%
+   155 | popqa                     | General  | General  |   ✓   |  33.6% |  34.0% |  32.4%
+   156 | popqa                     | General  | General  |   ✓   |  33.6% |  34.0% |  32.4%
+   157 | popqa                     | General  | Math     |   ✗   |  33.7% |  33.7% |  32.6%
+   158 | popqa                     | General  | General  |   ✓   |  34.9% |  35.2% |  29.9%
+   160 | simpleqa                  | General  | General  |   ✓   |  32.5% |  33.9% |  33.6%
+   161 | simpleqa                  | General  | Code     |   ✗   |  32.5% |  33.7% |  33.8%
+   162 | simpleqa                  | General  | Code     |   ✗   |  33.1% |  33.4% |  33.5%
+   163 | simpleqa                  | General  | General  |   ✓   |  32.5% |  34.2% |  33.3%
+   164 | simpleqa                  | General  | General  |   ✓   |  32.3% |  34.3% |  33.4%
+   165 | simpleqa                  | General  | Code     |   ✗   |  32.3% |  33.8% |  33.9%
+   166 | simpleqa                  | General  | Code     |   ✗   |  32.5% |  33.7% |  33.8%
+   168 | gpqa                      | General  | Code     |   ✗   |  33.0% |  33.5% |  33.5%
+   169 | gpqa                      | General  | General  |   ✓   |  32.9% |  34.1% |  33.0%
+   170 | gpqa                      | General  | General  |   ✓   |  33.0% |  33.7% |  33.3%
+   171 | gpqa                      | General  | Code     |   ✗   |  33.3% |  33.3% |  33.4%
+   172 | gpqa                      | General  | General  |   ✓   |  33.2% |  33.6% |  33.2%
+   173 | gpqa                      | General  | Code     |   ✗   |  33.3% |  33.1% |  33.6%
+   174 | gpqa                      | General  | General  |   ✓   |  33.2% |  33.5% |  33.3%
+   175 | gpqa                      | General  | General  |   ✓   |  33.2% |  33.7% |  33.1%
+   176 | gpqa                      | General  | Code     |   ✗   |  32.9% |  33.4% |  33.6%
+   177 | gpqa                      | General  | General  |   ✓   |  33.2% |  33.4% |  33.4%
+   178 | gpqa                      | General  | Code     |   ✗   |  33.2% |  33.3% |  33.4%
+   179 | gpqa                      | General  | General  |   ✓   |  33.7% |  33.8% |  32.5%
+   180 | gpqa                      | General  | General  |   ✓   |  32.5% |  33.8% |  33.7%
+   181 | gpqa                      | General  | Code     |   ✗   |  33.3% |  33.1% |  33.6%
+   182 | gpqa                      | General  | Code     |   ✗   |  27.9% |  34.4% |  37.7%
+   184 | ifeval                    | General  | Code     |   ✗   |  33.8% |  31.8% |  34.4%
+   185 | ifeval                    | General  | Code     |   ✗   |  33.3% |  32.3% |  34.4%
+   186 | ifeval                    | General  | Code     |   ✗   |  34.0% |  31.2% |  34.8%
+   187 | ifeval                    | General  | Math     |   ✗   |  33.9% |  32.3% |  33.8%
+   188 | ifeval                    | General  | Code     |   ✗   |  33.4% |  32.2% |  34.4%
+   189 | ifeval                    | General  | General  |   ✓   |  30.5% |  36.4% |  33.1%
+
+====================================================================================================
+DISAGREEMENT ANALYSIS
+====================================================================================================
+
+Found 81 sequences where aggregate-softmax majority differs from expected:
+
+----------------------------------------------------------------------------------------------------
+Seq 2: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.4%, General=32.7%, Code=34.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 4: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.4%, General=32.9%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 10: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=32.6%, Code=34.1%
+
+----------------------------------------------------------------------------------------------------
+Seq 11: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=32.9%, General=33.1%, Code=34.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 13: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=33.1%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 17: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=33.0%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 19: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.4%, General=32.9%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 21: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.5%, General=32.9%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 24: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=32.9%, Code=33.8%
+
+----------------------------------------------------------------------------------------------------
+Seq 30: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.2%, General=33.2%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 33: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=33.2%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 35: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.6%, General=32.7%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 36: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.6%, General=32.8%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 37: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=32.8%, Code=33.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 39: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=33.1%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 41: mj_finemath_gsm8k
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.6%, General=32.7%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 42: mj_finemath_gsm8k
+  Expected: Math, Got: General
+  Domain Dist: Math=33.2%, General=33.8%, Code=33.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 77: mj_finemath_minerva
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.5%, General=32.8%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 78: mj_finemath_minerva
+  Expected: Math, Got: Code
+  Domain Dist: Math=33.3%, General=33.0%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 93: mj_finemath_minerva
+  Expected: Math, Got: General
+  Domain Dist: Math=39.3%, General=40.3%, Code=20.4%
+
+----------------------------------------------------------------------------------------------------
+Seq 96: starcoder_humaneval
+  Expected: Code, Got: General
+  Domain Dist: Math=33.0%, General=33.5%, Code=33.5%
+
+----------------------------------------------------------------------------------------------------
+Seq 97: starcoder_humaneval
+  Expected: Code, Got: General
+  Domain Dist: Math=33.1%, General=33.5%, Code=33.4%
+
+----------------------------------------------------------------------------------------------------
+Seq 98: starcoder_humaneval
+  Expected: Code, Got: General
+  Domain Dist: Math=33.0%, General=33.7%, Code=33.3%
+
+----------------------------------------------------------------------------------------------------
+Seq 99: starcoder_humaneval
+  Expected: Code, Got: Math
+  Domain Dist: Math=33.3%, General=33.3%, Code=33.3%
+
+----------------------------------------------------------------------------------------------------
+Seq 101: starcoder_humaneval
+  Expected: Code, Got: Math
+  Domain Dist: Math=34.1%, General=33.2%, Code=32.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 103: starcoder_mbpp
+  Expected: Code, Got: Math
+  Domain Dist: Math=34.1%, General=33.2%, Code=32.8%
+
+----------------------------------------------------------------------------------------------------
+Seq 104: starcoder_mbpp
+  Expected: Code, Got: General
+  Domain Dist: Math=33.6%, General=34.1%, Code=32.3%
+
+----------------------------------------------------------------------------------------------------
+Seq 105: starcoder_mbpp
+  Expected: Code, Got: Math
+  Domain Dist: Math=33.6%, General=33.4%, Code=32.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 106: starcoder_mbpp
+  Expected: Code, Got: General
+  Domain Dist: Math=33.4%, General=33.7%, Code=32.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 107: starcoder_mbpp
+  Expected: Code, Got: Math
+  Domain Dist: Math=34.4%, General=33.4%, Code=32.3%
+
+----------------------------------------------------------------------------------------------------
+Seq 109: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=34.0%, General=33.2%, Code=32.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 112: mmlu
+  Expected: General, Got: Code
+  Domain Dist: Math=32.8%, General=33.2%, Code=34.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 115: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=33.8%, General=33.3%, Code=32.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 117: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=34.1%, General=33.2%, Code=32.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 118: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=33.6%, General=33.3%, Code=33.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 119: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=33.7%, General=33.4%, Code=32.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 124: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=33.6%, General=33.3%, Code=33.1%
+
+----------------------------------------------------------------------------------------------------
+Seq 125: mmlu
+  Expected: General, Got: Math
+  Domain Dist: Math=35.2%, General=32.8%, Code=32.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 127: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.0%, General=33.3%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 128: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.1%, General=33.2%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 129: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.4%, General=32.9%, Code=33.6%
+
+----------------------------------------------------------------------------------------------------
+Seq 130: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.4%, General=32.8%, Code=33.8%
+
+----------------------------------------------------------------------------------------------------
+Seq 131: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.2%, General=32.8%, Code=34.0%
+
+----------------------------------------------------------------------------------------------------
+Seq 132: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.5%, General=32.5%, Code=33.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 133: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.3%, General=33.3%, Code=33.4%
+
+----------------------------------------------------------------------------------------------------
+Seq 134: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.3%, General=32.9%, Code=33.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 135: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.2%, General=32.9%, Code=33.9%
+
+----------------------------------------------------------------------------------------------------
+Seq 136: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.0%, General=33.3%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 137: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=33.2%, General=33.1%, Code=33.7%
+
+----------------------------------------------------------------------------------------------------
+Seq 138: bbh
+  Expected: General, Got: Code
+  Domain Dist: Math=32.5%, General=33.5%, Code=34.0%
+
+
+... and 31 more disagreements
