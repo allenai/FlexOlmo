@@ -288,7 +288,7 @@ def generate_per_token_labels_for_batch(
     input_ids: torch.Tensor,
     device: torch.device,
     expert_indices: Tuple[int, ...],
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Generate optimal per-token expert labels for a batch of sequences.
     
@@ -302,6 +302,7 @@ def generate_per_token_labels_for_batch(
         Tuple of:
             - optimal_expert_ids: shape (batch_size, seq_len-1), values in expert_indices
             - min_losses: shape (batch_size, seq_len-1), minimum loss per token
+            - all_expert_losses: shape (batch_size, seq_len-1, num_experts), losses for all experts
     """
     batch_size, seq_len = input_ids.shape
     num_experts = len(expert_indices)
@@ -323,7 +324,10 @@ def generate_per_token_labels_for_batch(
     expert_indices_tensor = torch.tensor(expert_indices, device=device)
     optimal_experts = expert_indices_tensor[min_indices]  # (batch_size, seq_len-1)
     
-    return optimal_experts, min_losses
+    # Transpose all_losses to (batch_size, seq_len-1, num_experts) for easier per-sequence access
+    all_expert_losses = all_losses.permute(1, 2, 0)  # (batch, seq_len-1, num_experts)
+    
+    return optimal_experts, min_losses, all_expert_losses
 
 
 def main():
@@ -501,7 +505,7 @@ def main():
         
         # Generate per-token labels for this batch
         try:
-            optimal_experts, min_losses = generate_per_token_labels_for_batch(
+            optimal_experts, min_losses, all_expert_losses = generate_per_token_labels_for_batch(
                 model,
                 input_ids_batch,
                 device,
@@ -515,13 +519,17 @@ def main():
                 # Keep losses as float32 for accuracy, convert to float16 only for storage
                 token_losses_f32 = min_losses[i].cpu().float().numpy()
                 token_losses = token_losses_f32.astype(np.float16)
+                # Get all expert losses for this sequence: (seq_len-1, num_experts)
+                all_losses_f32 = all_expert_losses[i].cpu().float().numpy()
+                all_losses_f16 = all_losses_f32.astype(np.float16)
                 
-                # Save to file
+                # Save to file (now includes all_expert_losses for aggregate analysis)
                 label_path = output_dir / f"seq_{global_idx:08d}.npz"
                 np.savez_compressed(
                     label_path,
                     labels=token_labels,
                     losses=token_losses,
+                    all_expert_losses=all_losses_f16,  # NEW: shape (seq_len-1, num_experts)
                 )
                 
                 # Update statistics (use float32 for accumulation to avoid overflow)
@@ -538,8 +546,10 @@ def main():
             for global_idx in batch_indices:
                 token_labels = np.ones(config.sequence_length - 1, dtype=np.uint8)  # All General
                 token_losses = np.full(config.sequence_length - 1, np.nan, dtype=np.float16)
+                # For all_expert_losses, fill with NaN for all experts
+                all_losses_fallback = np.full((config.sequence_length - 1, len(config.expert_indices)), np.nan, dtype=np.float16)
                 label_path = output_dir / f"seq_{global_idx:08d}.npz"
-                np.savez_compressed(label_path, labels=token_labels, losses=token_losses)
+                np.savez_compressed(label_path, labels=token_labels, losses=token_losses, all_expert_losses=all_losses_fallback)
                 # Don't update total_loss for failed batches (NaN would propagate)
         
         # Update progress bar
