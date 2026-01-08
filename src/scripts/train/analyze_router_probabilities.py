@@ -62,18 +62,37 @@ logging.basicConfig(
 )
 
 # Expert mapping
-EXPERT_NAMES = {0: "Math", 1: "General", 2: "Code", 3: "Expert3"}
+# Note: Expert 3 is also a General expert, so we combine 1+3 for "General" category
+EXPERT_NAMES = {0: "Math", 1: "General", 2: "Code", 3: "General2"}
+
+# Logical domain mapping (for reporting combined categories)
+DOMAIN_NAMES = {"Math": [0], "General": [1, 3], "Code": [2]}
 
 
 def get_expected_expert(domain_label: str) -> int:
-    """Get expected expert based on domain label."""
+    """Get expected expert based on domain label.
+    
+    Returns the primary expert index for the domain.
+    For General domains, returns 1 (but note Expert 3 is also General).
+    """
     domain_lower = domain_label.lower()
     if domain_lower.startswith("mj_finemath"):
         return 0  # Math
     elif domain_lower.startswith("starcoder") or "code" in domain_lower:
         return 2  # Code
     else:
-        return 1  # General
+        return 1  # General (primary)
+
+
+def get_expected_domain(domain_label: str) -> str:
+    """Get expected domain category (Math, General, or Code)."""
+    domain_lower = domain_label.lower()
+    if domain_lower.startswith("mj_finemath"):
+        return "Math"
+    elif domain_lower.startswith("starcoder") or "code" in domain_lower:
+        return "Code"
+    else:
+        return "General"
 
 
 @dataclass
@@ -416,25 +435,33 @@ def analyze_router_probabilities(config: RouterProbabilityConfig):
                 expert_prob_means = seq_probs.mean(dim=0).numpy()  # (num_experts,)
                 
                 total_tokens = seq_probs.shape[0]
-                expected_expert = get_expected_expert(domain_label)
+                expected_domain = get_expected_domain(domain_label)
                 
-                # Determine "majority" expert by highest mean probability
-                majority_expert = int(np.argmax(expert_prob_means))
+                # Compute combined domain probabilities (Math, General=1+3, Code)
+                domain_prob_means = {
+                    "Math": float(expert_prob_means[0]),
+                    "General": float(expert_prob_means[1] + expert_prob_means[3]),  # Combine experts 1 and 3
+                    "Code": float(expert_prob_means[2]),
+                }
                 
-                # Check agreement
-                agrees = (majority_expert == expected_expert)
+                # Determine "majority" domain by highest combined probability
+                majority_domain = max(domain_prob_means, key=domain_prob_means.get)
+                
+                # Check agreement (based on domain, not individual expert)
+                agrees = (majority_domain == expected_domain)
                 
                 # Store result
                 result = {
                     "seq_idx": global_idx,
                     "domain": domain_label,
-                    "expected_expert": expected_expert,
-                    "expected_expert_name": EXPERT_NAMES.get(expected_expert, f"Expert{expected_expert}"),
-                    "majority_expert": majority_expert,
-                    "majority_expert_name": EXPERT_NAMES.get(majority_expert, f"Expert{majority_expert}"),
+                    "expected_domain": expected_domain,
+                    "majority_domain": majority_domain,
                     "agrees": agrees,
                     "expert_prob_pcts": {
                         e: float(expert_prob_means[e] * 100) for e in range(config.num_experts)
+                    },
+                    "domain_prob_pcts": {
+                        d: v * 100 for d, v in domain_prob_means.items()
                     },
                     "total_tokens": total_tokens,
                 }
@@ -516,9 +543,15 @@ def write_analysis_output(
         f.write("measure of what the router 'wants' to do.\n\n")
         
         f.write("Expert Mapping:\n")
-        for e in range(num_experts):
-            name = EXPERT_NAMES.get(e, f"Expert{e}")
-            f.write(f"  {e} = {name}\n")
+        f.write("  Expert 0 = Math\n")
+        f.write("  Expert 1 = General\n")
+        f.write("  Expert 2 = Code\n")
+        f.write("  Expert 3 = General (combined with Expert 1 for 'General' category)\n")
+        f.write("\n")
+        f.write("Domain Categories (for agreement analysis):\n")
+        f.write("  Math    = Expert 0\n")
+        f.write("  General = Expert 1 + Expert 3 (combined)\n")
+        f.write("  Code    = Expert 2\n")
         f.write("\n")
         
         f.write("=" * 100 + "\n")
@@ -529,21 +562,29 @@ def write_analysis_output(
         f.write(f"Total sequences analyzed: {len(results)}\n")
         f.write(f"Total tokens: {total_tokens:,}\n\n")
         
-        f.write("Overall Expert Probability Distribution (router softmax, averaged across tokens):\n")
-        total_prob_sum = sum(overall_stats["expert_probs"].values())
+        # Individual expert distribution
+        f.write("Per-Expert Probability Distribution:\n")
         for e in range(num_experts):
             prob_sum = overall_stats["expert_probs"][e]
-            # Percentage is prob_sum / total_tokens (since each token's probs sum to 1)
             pct = prob_sum / total_tokens * 100 if total_tokens > 0 else 0
             name = EXPERT_NAMES.get(e, f"Expert{e}")
             f.write(f"  {name:10} (Expert {e}): {pct:5.2f}%\n")
+        
+        # Combined domain distribution
+        f.write("\nCombined Domain Probability Distribution:\n")
+        math_pct = overall_stats["expert_probs"][0] / total_tokens * 100 if total_tokens > 0 else 0
+        general_pct = (overall_stats["expert_probs"][1] + overall_stats["expert_probs"][3]) / total_tokens * 100 if total_tokens > 0 else 0
+        code_pct = overall_stats["expert_probs"][2] / total_tokens * 100 if total_tokens > 0 else 0
+        f.write(f"  Math       (Expert 0):     {math_pct:5.2f}%\n")
+        f.write(f"  General    (Expert 1+3):   {general_pct:5.2f}%\n")
+        f.write(f"  Code       (Expert 2):     {code_pct:5.2f}%\n")
         
         # Agreement analysis
         valid_results = [r for r in results if r.get("agrees") is not None]
         agree_count = sum(1 for r in valid_results if r["agrees"])
         disagree_count = len(valid_results) - agree_count
         
-        f.write(f"\nSource-based vs Router-based Agreement:\n")
+        f.write(f"\nSource-based vs Router-based Agreement (using combined domains):\n")
         if valid_results:
             f.write(f"  Agree:    {agree_count:>4} sequences ({agree_count/len(valid_results)*100:.1f}%)\n")
             f.write(f"  Disagree: {disagree_count:>4} sequences ({disagree_count/len(valid_results)*100:.1f}%)\n")
@@ -557,38 +598,46 @@ def write_analysis_output(
         for domain in sorted(domain_stats.keys()):
             stats = domain_stats[domain]
             total_d = stats["total_tokens"]
-            expected = get_expected_expert(domain)
+            expected_domain = get_expected_domain(domain)
             
             f.write(f"Domain: {domain}\n")
-            f.write(f"  Expected Expert: {EXPERT_NAMES.get(expected, f'Expert{expected}')} (Expert {expected})\n")
+            f.write(f"  Expected Category: {expected_domain}\n")
             f.write(f"  Total tokens: {total_d:,}\n")
-            f.write(f"  Expert probability distribution:\n")
+            
+            # Per-expert distribution
+            f.write(f"  Per-expert distribution:\n")
             for e in range(num_experts):
                 prob_sum = stats["expert_probs"][e]
                 pct = prob_sum / total_d * 100 if total_d > 0 else 0
                 name = EXPERT_NAMES.get(e, f"Expert{e}")
-                marker = " <-- expected" if e == expected else ""
-                f.write(f"    {name:10}: {pct:5.2f}%{marker}\n")
+                f.write(f"    {name:10} (E{e}): {pct:5.2f}%\n")
+            
+            # Combined domain distribution
+            math_pct_d = stats["expert_probs"][0] / total_d * 100 if total_d > 0 else 0
+            general_pct_d = (stats["expert_probs"][1] + stats["expert_probs"][3]) / total_d * 100 if total_d > 0 else 0
+            code_pct_d = stats["expert_probs"][2] / total_d * 100 if total_d > 0 else 0
+            
+            f.write(f"  Combined domain distribution:\n")
+            f.write(f"    Math    (E0):   {math_pct_d:5.2f}%{' <-- expected' if expected_domain == 'Math' else ''}\n")
+            f.write(f"    General (E1+3): {general_pct_d:5.2f}%{' <-- expected' if expected_domain == 'General' else ''}\n")
+            f.write(f"    Code    (E2):   {code_pct_d:5.2f}%{' <-- expected' if expected_domain == 'Code' else ''}\n")
             f.write("\n")
         
         f.write("=" * 100 + "\n")
         f.write("PER-SEQUENCE DETAILS\n")
         f.write("=" * 100 + "\n\n")
         
-        # Header
-        header = f"{'Seq':>6} | {'Domain':25} | {'Expected':10} | {'Majority':10} | {'Match':5}"
-        for e in range(num_experts):
-            name = EXPERT_NAMES.get(e, f"E{e}")[:6]
-            header += f" | {name:>6}%"
-        f.write(header + "\n")
-        f.write("-" * (len(header) + 10) + "\n")
+        # Header - show both individual experts and combined domains
+        f.write(f"{'Seq':>6} | {'Source Domain':25} | {'Expected':8} | {'Majority':8} | {'Match':5} |  Math% |   Gen% |  Code% | (E0)%  | (E1)%  | (E2)%  | (E3)%\n")
+        f.write("-" * 130 + "\n")
         
         for r in sorted(results, key=lambda x: x["seq_idx"]):
             match_str = "✓" if r["agrees"] else "✗"
-            line = f"{r['seq_idx']:>6} | {r['domain']:25} | {r['expected_expert_name']:10} | {r['majority_expert_name']:10} | {match_str:^5}"
-            for e in range(num_experts):
-                pct = r["expert_prob_pcts"].get(e, 0)
-                line += f" | {pct:>5.1f}%"
+            domain_probs = r.get("domain_prob_pcts", {})
+            expert_probs = r.get("expert_prob_pcts", {})
+            line = f"{r['seq_idx']:>6} | {r['domain']:25} | {r['expected_domain']:8} | {r['majority_domain']:8} | {match_str:^5} "
+            line += f"| {domain_probs.get('Math', 0):5.1f}% | {domain_probs.get('General', 0):5.1f}% | {domain_probs.get('Code', 0):5.1f}% "
+            line += f"| {expert_probs.get(0, 0):5.1f}% | {expert_probs.get(1, 0):5.1f}% | {expert_probs.get(2, 0):5.1f}% | {expert_probs.get(3, 0):5.1f}%"
             f.write(line + "\n")
         
         f.write("\n" + "=" * 100 + "\n")
@@ -603,13 +652,11 @@ def write_analysis_output(
             for r in disagreements[:50]:  # Limit to first 50
                 f.write("-" * 100 + "\n")
                 f.write(f"Seq {r['seq_idx']}: {r['domain']}\n")
-                f.write(f"  Expected: {r['expected_expert_name']}, Got: {r['majority_expert_name']}\n")
-                f.write(f"  Probability Distribution: ")
-                probs_str = ", ".join(
-                    f"{EXPERT_NAMES.get(e, f'E{e}')}={r['expert_prob_pcts'].get(e, 0):.1f}%"
-                    for e in range(num_experts)
-                )
-                f.write(probs_str + "\n\n")
+                f.write(f"  Expected: {r['expected_domain']}, Got: {r['majority_domain']}\n")
+                domain_probs = r.get("domain_prob_pcts", {})
+                f.write(f"  Combined Domain Probs: Math={domain_probs.get('Math', 0):.1f}%, General={domain_probs.get('General', 0):.1f}%, Code={domain_probs.get('Code', 0):.1f}%\n")
+                expert_probs = r.get("expert_prob_pcts", {})
+                f.write(f"  Per-Expert Probs: E0={expert_probs.get(0, 0):.1f}%, E1={expert_probs.get(1, 0):.1f}%, E2={expert_probs.get(2, 0):.1f}%, E3={expert_probs.get(3, 0):.1f}%\n\n")
             
             if len(disagreements) > 50:
                 f.write(f"\n... and {len(disagreements) - 50} more disagreements\n")
