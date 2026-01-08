@@ -7,10 +7,15 @@ instead of computing losses by forcing each expert. This provides a more direct
 measure of what the router 'wants' to do.
 
 Expert Mapping:
-  0 = Math
-  1 = General
-  2 = Code
-  3 = Expert3
+  Expert 0 = Math
+  Expert 1 = General
+  Expert 2 = Code
+  Expert 3 = General (combined with Expert 1 for 'General' category)
+
+Domain Categories (for agreement analysis):
+  Math    = Expert 0
+  General = Expert 1 + Expert 3 (combined)
+  Code    = Expert 2
 
 ====================================================================================================
 OVERALL SUMMARY
@@ -19,562 +24,657 @@ OVERALL SUMMARY
 Total sequences analyzed: 190
 Total tokens: 778,240
 
-Overall Expert Probability Distribution (router softmax, averaged across tokens):
+Per-Expert Probability Distribution:
   Math       (Expert 0): 24.30%
   General    (Expert 1): 25.79%
   Code       (Expert 2): 25.24%
-  Expert3    (Expert 3): 24.67%
+  General2   (Expert 3): 24.67%
 
-Source-based vs Router-based Agreement:
-  Agree:      35 sequences (18.4%)
-  Disagree:  155 sequences (81.6%)
+Combined Domain Probability Distribution:
+  Math       (Expert 0):     24.30%
+  General    (Expert 1+3):   50.47%
+  Code       (Expert 2):     25.24%
+
+Source-based vs Router-based Agreement (using combined domains):
+  Agree:      82 sequences (43.2%)
+  Disagree:  108 sequences (56.8%)
 
 ====================================================================================================
 PER-DOMAIN STATISTICS
 ====================================================================================================
 
 Domain: bbh
-  Expected Expert: General (Expert 1)
+  Expected Category: General
   Total tokens: 98,304
-  Expert probability distribution:
-    Math      : 24.37%
-    General   : 25.23% <-- expected
-    Code      : 25.60%
-    Expert3   : 24.81%
+  Per-expert distribution:
+    Math       (E0): 24.37%
+    General    (E1): 25.23%
+    Code       (E2): 25.60%
+    General2   (E3): 24.81%
+  Combined domain distribution:
+    Math    (E0):   24.37%
+    General (E1+3): 50.04% <-- expected
+    Code    (E2):   25.60%
 
 Domain: gpqa
-  Expected Expert: General (Expert 1)
+  Expected Category: General
   Total tokens: 65,536
-  Expert probability distribution:
-    Math      : 24.40%
-    General   : 25.78% <-- expected
-    Code      : 24.71%
-    Expert3   : 25.10%
+  Per-expert distribution:
+    Math       (E0): 24.40%
+    General    (E1): 25.78%
+    Code       (E2): 24.71%
+    General2   (E3): 25.10%
+  Combined domain distribution:
+    Math    (E0):   24.40%
+    General (E1+3): 50.89% <-- expected
+    Code    (E2):   24.71%
 
 Domain: ifeval
-  Expected Expert: General (Expert 1)
+  Expected Category: General
   Total tokens: 28,672
-  Expert probability distribution:
-    Math      : 24.01%
-    General   : 25.60% <-- expected
-    Code      : 25.80%
-    Expert3   : 24.58%
+  Per-expert distribution:
+    Math       (E0): 24.01%
+    General    (E1): 25.60%
+    Code       (E2): 25.80%
+    General2   (E3): 24.58%
+  Combined domain distribution:
+    Math    (E0):   24.01%
+    General (E1+3): 50.18% <-- expected
+    Code    (E2):   25.80%
 
 Domain: mj_finemath_gsm8k
-  Expected Expert: Math (Expert 0)
+  Expected Category: Math
   Total tokens: 176,128
-  Expert probability distribution:
-    Math      : 23.95% <-- expected
-    General   : 26.07%
-    Code      : 25.13%
-    Expert3   : 24.85%
+  Per-expert distribution:
+    Math       (E0): 23.95%
+    General    (E1): 26.07%
+    Code       (E2): 25.13%
+    General2   (E3): 24.85%
+  Combined domain distribution:
+    Math    (E0):   23.95% <-- expected
+    General (E1+3): 50.92%
+    Code    (E2):   25.13%
 
 Domain: mj_finemath_minerva
-  Expected Expert: Math (Expert 0)
+  Expected Category: Math
   Total tokens: 208,896
-  Expert probability distribution:
-    Math      : 24.39% <-- expected
-    General   : 26.16%
-    Code      : 25.21%
-    Expert3   : 24.24%
+  Per-expert distribution:
+    Math       (E0): 24.39%
+    General    (E1): 26.16%
+    Code       (E2): 25.21%
+    General2   (E3): 24.24%
+  Combined domain distribution:
+    Math    (E0):   24.39% <-- expected
+    General (E1+3): 50.40%
+    Code    (E2):   25.21%
 
 Domain: mmlu
-  Expected Expert: General (Expert 1)
+  Expected Category: General
   Total tokens: 73,728
-  Expert probability distribution:
-    Math      : 24.04%
-    General   : 25.40% <-- expected
-    Code      : 25.31%
-    Expert3   : 25.25%
+  Per-expert distribution:
+    Math       (E0): 24.04%
+    General    (E1): 25.40%
+    Code       (E2): 25.31%
+    General2   (E3): 25.25%
+  Combined domain distribution:
+    Math    (E0):   24.04%
+    General (E1+3): 50.65% <-- expected
+    Code    (E2):   25.31%
 
 Domain: popqa
-  Expected Expert: General (Expert 1)
+  Expected Category: General
   Total tokens: 36,864
-  Expert probability distribution:
-    Math      : 24.94%
-    General   : 25.04% <-- expected
-    Code      : 25.58%
-    Expert3   : 24.44%
+  Per-expert distribution:
+    Math       (E0): 24.94%
+    General    (E1): 25.04%
+    Code       (E2): 25.58%
+    General2   (E3): 24.44%
+  Combined domain distribution:
+    Math    (E0):   24.94%
+    General (E1+3): 49.48% <-- expected
+    Code    (E2):   25.58%
 
 Domain: simpleqa
-  Expected Expert: General (Expert 1)
+  Expected Category: General
   Total tokens: 32,768
-  Expert probability distribution:
-    Math      : 25.12%
-    General   : 25.07% <-- expected
-    Code      : 24.78%
-    Expert3   : 25.02%
+  Per-expert distribution:
+    Math       (E0): 25.12%
+    General    (E1): 25.07%
+    Code       (E2): 24.78%
+    General2   (E3): 25.02%
+  Combined domain distribution:
+    Math    (E0):   25.12%
+    General (E1+3): 50.09% <-- expected
+    Code    (E2):   24.78%
 
 Domain: starcoder_humaneval
-  Expected Expert: Code (Expert 2)
+  Expected Category: Code
   Total tokens: 32,768
-  Expert probability distribution:
-    Math      : 24.30%
-    General   : 26.20%
-    Code      : 25.53% <-- expected
-    Expert3   : 23.98%
+  Per-expert distribution:
+    Math       (E0): 24.30%
+    General    (E1): 26.20%
+    Code       (E2): 25.53%
+    General2   (E3): 23.98%
+  Combined domain distribution:
+    Math    (E0):   24.30%
+    General (E1+3): 50.18%
+    Code    (E2):   25.53% <-- expected
 
 Domain: starcoder_mbpp
-  Expected Expert: Code (Expert 2)
+  Expected Category: Code
   Total tokens: 24,576
-  Expert probability distribution:
-    Math      : 24.36%
-    General   : 26.02%
-    Code      : 25.16% <-- expected
-    Expert3   : 24.46%
+  Per-expert distribution:
+    Math       (E0): 24.36%
+    General    (E1): 26.02%
+    Code       (E2): 25.16%
+    General2   (E3): 24.46%
+  Combined domain distribution:
+    Math    (E0):   24.36%
+    General (E1+3): 50.47%
+    Code    (E2):   25.16% <-- expected
 
 ====================================================================================================
 PER-SEQUENCE DETAILS
 ====================================================================================================
 
-   Seq | Domain                    | Expected   | Majority   | Match |   Math% | Genera% |   Code% | Expert%
-----------------------------------------------------------------------------------------------------------------------
-     0 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  25.8% |  25.2% |  25.0%
-     1 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  25.9% |  25.4% |  24.8%
-     2 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.8% |  26.1% |  25.2% |  24.9%
-     3 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.1% |  25.1% |  24.9%
-     4 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.8% |  26.1% |  25.1% |  25.0%
-     5 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.8% |  26.1% |  25.2% |  24.9%
-     6 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.0% |  24.9%
-     7 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.3% |  25.0% |  24.8%
-     8 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.1% |  24.9%
-     9 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.1% |  24.8%
-    10 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.1% |  25.2% |  24.7%
-    11 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.1% |  25.1% |  24.8%
-    12 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.0% |  25.2% |  24.9%
-    13 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.1% |  26.0% |  25.0% |  25.0%
-    14 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.1% |  26.0% |  24.9% |  25.0%
-    15 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.2% |  24.8%
-    16 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.2% |  25.0% |  24.9%
-    17 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.1% |  26.0% |  25.1% |  24.8%
-    18 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.1% |  25.2% |  24.8%
-    19 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.0% |  25.2% |  24.9%
-    20 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.1% |  25.0% |  24.9%
-    21 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.8% |  26.1% |  25.2% |  24.9%
-    22 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.2% |  25.0% |  24.9%
-    23 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.8% |  26.1% |  25.3% |  24.8%
-    24 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.1% |  25.2% |  24.8%
-    25 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.2% |  24.7%
-    26 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  25.9% |  25.2% |  24.9%
-    27 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.3% |  24.7%
-    28 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.1% |  25.0% |  25.0%
-    29 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.2% |  25.0% |  24.9%
-    30 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.1% |  26.1% |  25.1% |  24.7%
-    31 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.3% |  25.0% |  24.8%
-    32 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.0% |  25.3% |  24.8%
-    33 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.0% |  25.1% |  25.0%
-    34 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.1% |  26.0% |  25.1% |  24.8%
-    35 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.0% |  25.1% |  24.9%
-    36 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.2% |  24.9% |  24.9%
-    37 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  26.2% |  25.2% |  24.8%
-    38 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.1% |  25.1% |  24.8%
-    39 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.2% |  24.9% |  24.9%
-    40 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.9% |  25.9% |  25.2% |  24.9%
-    41 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  24.0% |  26.2% |  25.1% |  24.7%
-    42 | mj_finemath_gsm8k         | Math       | General    |   ✗   |  23.8% |  26.2% |  25.3% |  24.8%
-    43 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.1% |  25.3% |  24.2%
-    44 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.2% |  24.2%
-    45 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.3% |  24.2%
-    46 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.2% |  24.2%
-    47 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.6% |  26.2% |  25.0% |  24.2%
-    48 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.4% |  24.0%
-    49 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.3% |  24.2%
-    50 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.1% |  25.2% |  24.1%
-    51 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.1% |  25.2% |  24.2%
-    52 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.2% |  26.1% |  25.4% |  24.2%
-    53 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.2% |  25.2% |  24.3%
-    54 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.2% |  25.2% |  24.0%
-    55 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.2% |  24.3%
-    56 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.2% |  26.2% |  25.4% |  24.2%
-    57 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.1% |  24.3%
-    58 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.2% |  24.3%
-    59 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.6% |  26.2% |  24.8% |  24.3%
-    60 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.2% |  24.3%
-    61 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.3% |  24.2%
-    62 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.2% |  24.3%
-    63 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.3% |  25.3% |  24.2%
-    64 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.1% |  25.2% |  24.2%
-    65 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.1% |  25.4% |  24.1%
-    66 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.2% |  25.0% |  24.3%
-    67 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.2% |  26.4% |  25.2% |  24.2%
-    68 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.3% |  24.2%
-    69 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.2% |  25.2% |  24.1%
-    70 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.0% |  25.2% |  24.3%
-    71 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.1% |  25.3% |  24.2%
-    72 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.0% |  25.5% |  24.1%
-    73 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.1% |  24.2%
-    74 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.1% |  24.3%
-    75 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.2% |  25.1% |  24.2%
-    76 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.3% |  25.1% |  24.1%
-    77 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.2% |  25.3% |  24.3%
-    78 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.5% |  26.1% |  25.3% |  24.1%
-    79 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.3% |  25.2% |  24.2%
-    80 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.0% |  24.4%
-    81 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.2% |  26.4% |  24.9% |  24.5%
-    82 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.0% |  25.5% |  24.1%
-    83 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.2% |  25.4% |  24.2%
-    84 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.2% |  24.2%
-    85 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.6% |  26.1% |  25.0% |  24.3%
-    86 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.4% |  24.0%
-    87 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.6% |  26.1% |  25.2% |  24.1%
-    88 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.2% |  24.2%
-    89 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.1% |  25.1% |  24.4%
-    90 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.2% |  26.0% |  25.4% |  24.4%
-    91 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.4% |  26.2% |  25.2% |  24.2%
-    92 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.3% |  26.2% |  25.2% |  24.3%
-    93 | mj_finemath_minerva       | Math       | General    |   ✗   |  24.0% |  25.8% |  24.8% |  25.4%
-    94 | starcoder_humaneval       | Code       | General    |   ✗   |  24.3% |  26.3% |  25.5% |  23.9%
-    95 | starcoder_humaneval       | Code       | General    |   ✗   |  24.5% |  26.0% |  25.5% |  24.0%
-    96 | starcoder_humaneval       | Code       | General    |   ✗   |  24.5% |  26.2% |  25.4% |  23.8%
-    97 | starcoder_humaneval       | Code       | General    |   ✗   |  24.4% |  26.1% |  25.7% |  23.9%
-    98 | starcoder_humaneval       | Code       | General    |   ✗   |  24.5% |  26.3% |  25.3% |  23.9%
-    99 | starcoder_humaneval       | Code       | General    |   ✗   |  24.4% |  26.4% |  25.4% |  23.7%
-   100 | starcoder_humaneval       | Code       | General    |   ✗   |  24.2% |  26.3% |  25.6% |  24.0%
-   101 | starcoder_humaneval       | Code       | General    |   ✗   |  23.6% |  26.0% |  25.8% |  24.6%
-   102 | starcoder_mbpp            | Code       | General    |   ✗   |  24.3% |  26.1% |  25.2% |  24.4%
-   103 | starcoder_mbpp            | Code       | General    |   ✗   |  24.4% |  26.0% |  25.1% |  24.5%
-   104 | starcoder_mbpp            | Code       | General    |   ✗   |  24.4% |  26.1% |  25.1% |  24.4%
-   105 | starcoder_mbpp            | Code       | General    |   ✗   |  24.4% |  26.0% |  25.1% |  24.5%
-   106 | starcoder_mbpp            | Code       | General    |   ✗   |  24.5% |  26.0% |  25.1% |  24.4%
-   107 | starcoder_mbpp            | Code       | General    |   ✗   |  24.1% |  25.9% |  25.4% |  24.5%
-   108 | mmlu                      | General    | General    |   ✓   |  24.2% |  26.5% |  25.2% |  24.1%
-   109 | mmlu                      | General    | General    |   ✓   |  24.1% |  25.9% |  25.5% |  24.4%
-   110 | mmlu                      | General    | Expert3    |   ✗   |  23.9% |  24.9% |  25.6% |  25.6%
-   111 | mmlu                      | General    | Code       |   ✗   |  23.8% |  25.1% |  25.6% |  25.5%
-   112 | mmlu                      | General    | General    |   ✓   |  23.8% |  25.6% |  25.6% |  25.0%
-   113 | mmlu                      | General    | General    |   ✓   |  23.8% |  25.8% |  25.4% |  24.9%
-   114 | mmlu                      | General    | General    |   ✓   |  24.2% |  25.5% |  25.4% |  24.9%
-   115 | mmlu                      | General    | Code       |   ✗   |  24.6% |  25.3% |  25.5% |  24.6%
-   116 | mmlu                      | General    | Code       |   ✗   |  24.2% |  25.1% |  25.4% |  25.3%
-   117 | mmlu                      | General    | Expert3    |   ✗   |  23.8% |  25.0% |  25.2% |  25.9%
-   118 | mmlu                      | General    | Expert3    |   ✗   |  23.9% |  24.7% |  25.6% |  25.8%
-   119 | mmlu                      | General    | Expert3    |   ✗   |  23.9% |  24.8% |  25.3% |  26.0%
-   120 | mmlu                      | General    | Expert3    |   ✗   |  24.0% |  25.2% |  25.2% |  25.6%
-   121 | mmlu                      | General    | Expert3    |   ✗   |  24.2% |  25.4% |  24.9% |  25.5%
-   122 | mmlu                      | General    | Expert3    |   ✗   |  24.3% |  25.3% |  24.9% |  25.5%
-   123 | mmlu                      | General    | General    |   ✓   |  24.2% |  25.6% |  24.8% |  25.4%
-   124 | mmlu                      | General    | General    |   ✓   |  24.2% |  25.9% |  24.6% |  25.4%
-   125 | mmlu                      | General    | Code       |   ✗   |  23.6% |  25.7% |  25.7% |  25.0%
-   126 | bbh                       | General    | General    |   ✓   |  24.9% |  25.7% |  24.8% |  24.7%
-   127 | bbh                       | General    | Expert3    |   ✗   |  24.3% |  25.3% |  25.1% |  25.3%
-   128 | bbh                       | General    | General    |   ✓   |  24.4% |  25.4% |  25.1% |  25.1%
-   129 | bbh                       | General    | General    |   ✓   |  24.0% |  25.4% |  25.3% |  25.3%
-   130 | bbh                       | General    | Code       |   ✗   |  24.2% |  25.2% |  25.5% |  25.2%
-   131 | bbh                       | General    | Expert3    |   ✗   |  24.2% |  25.3% |  25.1% |  25.4%
-   132 | bbh                       | General    | Code       |   ✗   |  24.2% |  25.2% |  25.3% |  25.3%
-   133 | bbh                       | General    | General    |   ✓   |  24.1% |  25.4% |  25.3% |  25.2%
-   134 | bbh                       | General    | Expert3    |   ✗   |  24.0% |  25.1% |  25.3% |  25.5%
-   135 | bbh                       | General    | Expert3    |   ✗   |  24.2% |  25.2% |  25.3% |  25.3%
-   136 | bbh                       | General    | General    |   ✓   |  24.2% |  25.3% |  25.2% |  25.2%
-   137 | bbh                       | General    | Code       |   ✗   |  24.6% |  25.0% |  25.7% |  24.8%
-   138 | bbh                       | General    | Code       |   ✗   |  25.0% |  24.5% |  26.2% |  24.2%
-   139 | bbh                       | General    | Code       |   ✗   |  25.0% |  24.5% |  26.2% |  24.3%
-   140 | bbh                       | General    | Code       |   ✗   |  25.0% |  24.6% |  26.2% |  24.2%
-   141 | bbh                       | General    | Code       |   ✗   |  25.1% |  24.6% |  26.2% |  24.2%
-   142 | bbh                       | General    | Code       |   ✗   |  25.0% |  24.5% |  26.2% |  24.3%
-   143 | bbh                       | General    | Code       |   ✗   |  24.7% |  24.8% |  26.1% |  24.3%
-   144 | bbh                       | General    | Code       |   ✗   |  24.0% |  25.6% |  25.9% |  24.6%
-   145 | bbh                       | General    | Code       |   ✗   |  24.0% |  25.6% |  25.9% |  24.4%
-   146 | bbh                       | General    | Code       |   ✗   |  24.0% |  25.6% |  25.9% |  24.5%
-   147 | bbh                       | General    | Code       |   ✗   |  24.0% |  25.7% |  25.9% |  24.5%
-   148 | bbh                       | General    | General    |   ✓   |  23.9% |  26.2% |  25.6% |  24.3%
-   149 | bbh                       | General    | General    |   ✓   |  24.0% |  25.8% |  24.9% |  25.4%
-   150 | popqa                     | General    | Code       |   ✗   |  24.8% |  25.0% |  25.8% |  24.3%
-   151 | popqa                     | General    | Code       |   ✗   |  24.7% |  25.1% |  25.8% |  24.3%
-   152 | popqa                     | General    | Code       |   ✗   |  24.7% |  25.1% |  25.8% |  24.4%
-   153 | popqa                     | General    | Code       |   ✗   |  24.8% |  25.1% |  25.8% |  24.3%
-   154 | popqa                     | General    | Code       |   ✗   |  25.2% |  24.9% |  25.5% |  24.4%
-   155 | popqa                     | General    | Code       |   ✗   |  25.2% |  24.9% |  25.5% |  24.3%
-   156 | popqa                     | General    | Code       |   ✗   |  25.3% |  24.9% |  25.5% |  24.3%
-   157 | popqa                     | General    | Code       |   ✗   |  25.4% |  24.9% |  25.4% |  24.3%
-   158 | popqa                     | General    | General    |   ✓   |  24.3% |  25.3% |  25.1% |  25.3%
-   159 | simpleqa                  | General    | General    |   ✓   |  25.1% |  25.2% |  24.7% |  25.1%
-   160 | simpleqa                  | General    | Math       |   ✗   |  25.2% |  25.0% |  24.8% |  25.0%
-   161 | simpleqa                  | General    | Math       |   ✗   |  25.1% |  25.1% |  24.8% |  25.0%
-   162 | simpleqa                  | General    | General    |   ✓   |  25.0% |  25.2% |  24.8% |  25.1%
-   163 | simpleqa                  | General    | Math       |   ✗   |  25.1% |  25.1% |  24.8% |  25.0%
-   164 | simpleqa                  | General    | Math       |   ✗   |  25.2% |  24.9% |  24.8% |  25.1%
-   165 | simpleqa                  | General    | Expert3    |   ✗   |  25.0% |  25.0% |  24.8% |  25.2%
-   166 | simpleqa                  | General    | Math       |   ✗   |  25.1% |  25.1% |  24.9% |  24.9%
-   167 | gpqa                      | General    | General    |   ✓   |  24.5% |  25.8% |  24.7% |  24.9%
-   168 | gpqa                      | General    | General    |   ✓   |  24.4% |  25.8% |  24.6% |  25.2%
-   169 | gpqa                      | General    | General    |   ✓   |  24.5% |  25.6% |  24.6% |  25.2%
-   170 | gpqa                      | General    | General    |   ✓   |  24.4% |  25.7% |  24.7% |  25.3%
-   171 | gpqa                      | General    | General    |   ✓   |  24.2% |  25.8% |  25.0% |  25.0%
-   172 | gpqa                      | General    | General    |   ✓   |  24.5% |  26.1% |  24.3% |  25.1%
-   173 | gpqa                      | General    | General    |   ✓   |  24.7% |  25.9% |  24.7% |  24.8%
-   174 | gpqa                      | General    | General    |   ✓   |  24.4% |  25.8% |  24.7% |  25.2%
-   175 | gpqa                      | General    | General    |   ✓   |  24.4% |  25.7% |  24.7% |  25.2%
-   176 | gpqa                      | General    | General    |   ✓   |  24.1% |  26.0% |  24.8% |  25.1%
-   177 | gpqa                      | General    | General    |   ✓   |  24.6% |  25.7% |  24.6% |  25.0%
-   178 | gpqa                      | General    | General    |   ✓   |  24.5% |  25.8% |  25.0% |  24.6%
-   179 | gpqa                      | General    | General    |   ✓   |  24.5% |  25.7% |  24.5% |  25.2%
-   180 | gpqa                      | General    | General    |   ✓   |  24.5% |  25.8% |  24.6% |  25.0%
-   181 | gpqa                      | General    | General    |   ✓   |  24.3% |  25.7% |  24.6% |  25.3%
-   182 | gpqa                      | General    | General    |   ✓   |  23.7% |  25.7% |  25.0% |  25.5%
-   183 | ifeval                    | General    | Code       |   ✗   |  24.1% |  25.6% |  26.0% |  24.3%
-   184 | ifeval                    | General    | Code       |   ✗   |  24.0% |  25.6% |  25.9% |  24.5%
-   185 | ifeval                    | General    | General    |   ✓   |  24.0% |  25.8% |  25.7% |  24.5%
-   186 | ifeval                    | General    | Code       |   ✗   |  24.2% |  25.5% |  25.9% |  24.4%
-   187 | ifeval                    | General    | Code       |   ✗   |  24.1% |  25.6% |  25.9% |  24.5%
-   188 | ifeval                    | General    | Code       |   ✗   |  24.1% |  25.4% |  25.9% |  24.6%
-   189 | ifeval                    | General    | General    |   ✓   |  23.7% |  25.7% |  25.4% |  25.2%
+   Seq | Source Domain             | Expected | Majority | Match |  Math% |   Gen% |  Code% | (E0)%  | (E1)%  | (E2)%  | (E3)%
+----------------------------------------------------------------------------------------------------------------------------------
+     0 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.8% |  25.2% |  24.0% |  25.8% |  25.2% |  25.0%
+     1 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.7% |  25.4% |  23.9% |  25.9% |  25.4% |  24.8%
+     2 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.8% |  51.0% |  25.2% |  23.8% |  26.1% |  25.2% |  24.9%
+     3 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  51.0% |  25.1% |  23.9% |  26.1% |  25.1% |  24.9%
+     4 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.8% |  51.0% |  25.1% |  23.8% |  26.1% |  25.1% |  25.0%
+     5 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.8% |  51.0% |  25.2% |  23.8% |  26.1% |  25.2% |  24.9%
+     6 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.0% |  24.0% |  26.0% |  25.0% |  24.9%
+     7 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  51.0% |  25.0% |  24.0% |  26.3% |  25.0% |  24.8%
+     8 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.1% |  24.0% |  26.0% |  25.1% |  24.9%
+     9 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.1% |  24.0% |  26.0% |  25.1% |  24.8%
+    10 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.8% |  25.2% |  24.0% |  26.1% |  25.2% |  24.7%
+    11 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.1% |  24.0% |  26.1% |  25.1% |  24.8%
+    12 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.9% |  25.2% |  23.9% |  26.0% |  25.2% |  24.9%
+    13 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.1% |  51.0% |  25.0% |  24.1% |  26.0% |  25.0% |  25.0%
+    14 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.1% |  51.0% |  24.9% |  24.1% |  26.0% |  24.9% |  25.0%
+    15 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.2% |  24.0% |  26.0% |  25.2% |  24.8%
+    16 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  51.1% |  25.0% |  23.9% |  26.2% |  25.0% |  24.9%
+    17 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.1% |  50.8% |  25.1% |  24.1% |  26.0% |  25.1% |  24.8%
+    18 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.9% |  25.2% |  23.9% |  26.1% |  25.2% |  24.8%
+    19 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.9% |  25.2% |  23.9% |  26.0% |  25.2% |  24.9%
+    20 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  51.0% |  25.0% |  23.9% |  26.1% |  25.0% |  24.9%
+    21 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.8% |  51.0% |  25.2% |  23.8% |  26.1% |  25.2% |  24.9%
+    22 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  51.0% |  25.0% |  24.0% |  26.2% |  25.0% |  24.9%
+    23 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.8% |  50.9% |  25.3% |  23.8% |  26.1% |  25.3% |  24.8%
+    24 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.9% |  25.2% |  23.9% |  26.1% |  25.2% |  24.8%
+    25 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.8% |  25.2% |  24.0% |  26.0% |  25.2% |  24.7%
+    26 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.8% |  25.2% |  24.0% |  25.9% |  25.2% |  24.9%
+    27 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.7% |  25.3% |  24.0% |  26.0% |  25.3% |  24.7%
+    28 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  51.1% |  25.0% |  23.9% |  26.1% |  25.0% |  25.0%
+    29 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  51.0% |  25.0% |  24.0% |  26.2% |  25.0% |  24.9%
+    30 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.1% |  50.8% |  25.1% |  24.1% |  26.1% |  25.1% |  24.7%
+    31 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  51.1% |  25.0% |  23.9% |  26.3% |  25.0% |  24.8%
+    32 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.8% |  25.3% |  23.9% |  26.0% |  25.3% |  24.8%
+    33 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.9% |  25.1% |  23.9% |  26.0% |  25.1% |  25.0%
+    34 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.1% |  50.8% |  25.1% |  24.1% |  26.0% |  25.1% |  24.8%
+    35 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.1% |  24.0% |  26.0% |  25.1% |  24.9%
+    36 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  51.1% |  24.9% |  24.0% |  26.2% |  24.9% |  24.9%
+    37 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  51.0% |  25.2% |  23.9% |  26.2% |  25.2% |  24.8%
+    38 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.1% |  24.0% |  26.1% |  25.1% |  24.8%
+    39 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  51.0% |  24.9% |  24.0% |  26.2% |  24.9% |  24.9%
+    40 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.9% |  50.9% |  25.2% |  23.9% |  25.9% |  25.2% |  24.9%
+    41 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  24.0% |  50.9% |  25.1% |  24.0% |  26.2% |  25.1% |  24.7%
+    42 | mj_finemath_gsm8k         | Math     | General  |   ✗   |  23.8% |  50.9% |  25.3% |  23.8% |  26.2% |  25.3% |  24.8%
+    43 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.3% |  25.3% |  24.3% |  26.1% |  25.3% |  24.2%
+    44 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.2% |  25.2% |  24.2%
+    45 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.3% |  24.4% |  26.2% |  25.3% |  24.2%
+    46 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.1% |  25.2% |  24.2%
+    47 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.6% |  50.4% |  25.0% |  24.6% |  26.2% |  25.0% |  24.2%
+    48 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.1% |  25.4% |  24.4% |  26.1% |  25.4% |  24.0%
+    49 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.3% |  24.4% |  26.2% |  25.3% |  24.2%
+    50 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.3% |  25.2% |  24.5% |  26.1% |  25.2% |  24.1%
+    51 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.3% |  25.2% |  24.5% |  26.1% |  25.2% |  24.2%
+    52 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.2% |  50.4% |  25.4% |  24.2% |  26.1% |  25.4% |  24.2%
+    53 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.4% |  25.2% |  24.3% |  26.2% |  25.2% |  24.3%
+    54 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.3% |  25.2% |  24.5% |  26.2% |  25.2% |  24.0%
+    55 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.1% |  25.2% |  24.3%
+    56 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.2% |  50.4% |  25.4% |  24.2% |  26.2% |  25.4% |  24.2%
+    57 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.5% |  25.1% |  24.4% |  26.2% |  25.1% |  24.3%
+    58 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.5% |  25.2% |  24.4% |  26.2% |  25.2% |  24.3%
+    59 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.6% |  50.5% |  24.8% |  24.6% |  26.2% |  24.8% |  24.3%
+    60 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.1% |  25.2% |  24.3%
+    61 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.3% |  25.3% |  24.4% |  26.1% |  25.3% |  24.2%
+    62 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.1% |  25.2% |  24.3%
+    63 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.5% |  25.3% |  24.3% |  26.3% |  25.3% |  24.2%
+    64 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.4% |  25.2% |  24.5% |  26.1% |  25.2% |  24.2%
+    65 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.2% |  25.4% |  24.3% |  26.1% |  25.4% |  24.1%
+    66 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.5% |  25.0% |  24.5% |  26.2% |  25.0% |  24.3%
+    67 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.2% |  50.6% |  25.2% |  24.2% |  26.4% |  25.2% |  24.2%
+    68 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.3% |  25.3% |  24.4% |  26.1% |  25.3% |  24.2%
+    69 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.4% |  25.2% |  24.5% |  26.2% |  25.2% |  24.1%
+    70 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.0% |  25.2% |  24.3%
+    71 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.3% |  25.3% |  24.3% |  26.1% |  25.3% |  24.2%
+    72 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.1% |  25.5% |  24.4% |  26.0% |  25.5% |  24.1%
+    73 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.1% |  24.4% |  26.2% |  25.1% |  24.2%
+    74 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.5% |  25.1% |  24.4% |  26.2% |  25.1% |  24.3%
+    75 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.4% |  25.1% |  24.5% |  26.2% |  25.1% |  24.2%
+    76 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.5% |  25.1% |  24.4% |  26.3% |  25.1% |  24.1%
+    77 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.5% |  25.3% |  24.3% |  26.2% |  25.3% |  24.3%
+    78 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.5% |  50.2% |  25.3% |  24.5% |  26.1% |  25.3% |  24.1%
+    79 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.5% |  25.2% |  24.3% |  26.3% |  25.2% |  24.2%
+    80 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.6% |  25.0% |  24.4% |  26.1% |  25.0% |  24.4%
+    81 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.2% |  50.8% |  24.9% |  24.2% |  26.4% |  24.9% |  24.5%
+    82 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.0% |  25.5% |  24.4% |  26.0% |  25.5% |  24.1%
+    83 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.3% |  25.4% |  24.3% |  26.2% |  25.4% |  24.2%
+    84 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.2% |  25.2% |  24.2%
+    85 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.6% |  50.4% |  25.0% |  24.6% |  26.1% |  25.0% |  24.3%
+    86 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.2% |  25.4% |  24.4% |  26.2% |  25.4% |  24.0%
+    87 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.6% |  50.2% |  25.2% |  24.6% |  26.1% |  25.2% |  24.1%
+    88 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.5% |  25.2% |  24.4% |  26.2% |  25.2% |  24.2%
+    89 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.5% |  25.1% |  24.4% |  26.1% |  25.1% |  24.4%
+    90 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.2% |  50.4% |  25.4% |  24.2% |  26.0% |  25.4% |  24.4%
+    91 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.4% |  50.4% |  25.2% |  24.4% |  26.2% |  25.2% |  24.2%
+    92 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.3% |  50.5% |  25.2% |  24.3% |  26.2% |  25.2% |  24.3%
+    93 | mj_finemath_minerva       | Math     | General  |   ✗   |  24.0% |  51.2% |  24.8% |  24.0% |  25.8% |  24.8% |  25.4%
+    94 | starcoder_humaneval       | Code     | General  |   ✗   |  24.3% |  50.2% |  25.5% |  24.3% |  26.3% |  25.5% |  23.9%
+    95 | starcoder_humaneval       | Code     | General  |   ✗   |  24.5% |  50.0% |  25.5% |  24.5% |  26.0% |  25.5% |  24.0%
+    96 | starcoder_humaneval       | Code     | General  |   ✗   |  24.5% |  50.1% |  25.4% |  24.5% |  26.2% |  25.4% |  23.8%
+    97 | starcoder_humaneval       | Code     | General  |   ✗   |  24.4% |  50.0% |  25.7% |  24.4% |  26.1% |  25.7% |  23.9%
+    98 | starcoder_humaneval       | Code     | General  |   ✗   |  24.5% |  50.2% |  25.3% |  24.5% |  26.3% |  25.3% |  23.9%
+    99 | starcoder_humaneval       | Code     | General  |   ✗   |  24.4% |  50.2% |  25.4% |  24.4% |  26.4% |  25.4% |  23.7%
+   100 | starcoder_humaneval       | Code     | General  |   ✗   |  24.2% |  50.2% |  25.6% |  24.2% |  26.3% |  25.6% |  24.0%
+   101 | starcoder_humaneval       | Code     | General  |   ✗   |  23.6% |  50.6% |  25.8% |  23.6% |  26.0% |  25.8% |  24.6%
+   102 | starcoder_mbpp            | Code     | General  |   ✗   |  24.3% |  50.5% |  25.2% |  24.3% |  26.1% |  25.2% |  24.4%
+   103 | starcoder_mbpp            | Code     | General  |   ✗   |  24.4% |  50.5% |  25.1% |  24.4% |  26.0% |  25.1% |  24.5%
+   104 | starcoder_mbpp            | Code     | General  |   ✗   |  24.4% |  50.5% |  25.1% |  24.4% |  26.1% |  25.1% |  24.4%
+   105 | starcoder_mbpp            | Code     | General  |   ✗   |  24.4% |  50.4% |  25.1% |  24.4% |  26.0% |  25.1% |  24.5%
+   106 | starcoder_mbpp            | Code     | General  |   ✗   |  24.5% |  50.4% |  25.1% |  24.5% |  26.0% |  25.1% |  24.4%
+   107 | starcoder_mbpp            | Code     | General  |   ✗   |  24.1% |  50.5% |  25.4% |  24.1% |  25.9% |  25.4% |  24.5%
+   108 | mmlu                      | General  | General  |   ✓   |  24.2% |  50.6% |  25.2% |  24.2% |  26.5% |  25.2% |  24.1%
+   109 | mmlu                      | General  | General  |   ✓   |  24.1% |  50.4% |  25.5% |  24.1% |  25.9% |  25.5% |  24.4%
+   110 | mmlu                      | General  | General  |   ✓   |  23.9% |  50.5% |  25.6% |  23.9% |  24.9% |  25.6% |  25.6%
+   111 | mmlu                      | General  | General  |   ✓   |  23.8% |  50.6% |  25.6% |  23.8% |  25.1% |  25.6% |  25.5%
+   112 | mmlu                      | General  | General  |   ✓   |  23.8% |  50.6% |  25.6% |  23.8% |  25.6% |  25.6% |  25.0%
+   113 | mmlu                      | General  | General  |   ✓   |  23.8% |  50.7% |  25.4% |  23.8% |  25.8% |  25.4% |  24.9%
+   114 | mmlu                      | General  | General  |   ✓   |  24.2% |  50.4% |  25.4% |  24.2% |  25.5% |  25.4% |  24.9%
+   115 | mmlu                      | General  | General  |   ✓   |  24.6% |  49.9% |  25.5% |  24.6% |  25.3% |  25.5% |  24.6%
+   116 | mmlu                      | General  | General  |   ✓   |  24.2% |  50.4% |  25.4% |  24.2% |  25.1% |  25.4% |  25.3%
+   117 | mmlu                      | General  | General  |   ✓   |  23.8% |  50.9% |  25.2% |  23.8% |  25.0% |  25.2% |  25.9%
+   118 | mmlu                      | General  | General  |   ✓   |  23.9% |  50.5% |  25.6% |  23.9% |  24.7% |  25.6% |  25.8%
+   119 | mmlu                      | General  | General  |   ✓   |  23.9% |  50.7% |  25.3% |  23.9% |  24.8% |  25.3% |  26.0%
+   120 | mmlu                      | General  | General  |   ✓   |  24.0% |  50.9% |  25.2% |  24.0% |  25.2% |  25.2% |  25.6%
+   121 | mmlu                      | General  | General  |   ✓   |  24.2% |  50.9% |  24.9% |  24.2% |  25.4% |  24.9% |  25.5%
+   122 | mmlu                      | General  | General  |   ✓   |  24.3% |  50.8% |  24.9% |  24.3% |  25.3% |  24.9% |  25.5%
+   123 | mmlu                      | General  | General  |   ✓   |  24.2% |  51.0% |  24.8% |  24.2% |  25.6% |  24.8% |  25.4%
+   124 | mmlu                      | General  | General  |   ✓   |  24.2% |  51.3% |  24.6% |  24.2% |  25.9% |  24.6% |  25.4%
+   125 | mmlu                      | General  | General  |   ✓   |  23.6% |  50.7% |  25.7% |  23.6% |  25.7% |  25.7% |  25.0%
+   126 | bbh                       | General  | General  |   ✓   |  24.9% |  50.4% |  24.8% |  24.9% |  25.7% |  24.8% |  24.7%
+   127 | bbh                       | General  | General  |   ✓   |  24.3% |  50.6% |  25.1% |  24.3% |  25.3% |  25.1% |  25.3%
+   128 | bbh                       | General  | General  |   ✓   |  24.4% |  50.5% |  25.1% |  24.4% |  25.4% |  25.1% |  25.1%
+   129 | bbh                       | General  | General  |   ✓   |  24.0% |  50.7% |  25.3% |  24.0% |  25.4% |  25.3% |  25.3%
+   130 | bbh                       | General  | General  |   ✓   |  24.2% |  50.4% |  25.5% |  24.2% |  25.2% |  25.5% |  25.2%
+   131 | bbh                       | General  | General  |   ✓   |  24.2% |  50.7% |  25.1% |  24.2% |  25.3% |  25.1% |  25.4%
+   132 | bbh                       | General  | General  |   ✓   |  24.2% |  50.4% |  25.3% |  24.2% |  25.2% |  25.3% |  25.3%
+   133 | bbh                       | General  | General  |   ✓   |  24.1% |  50.6% |  25.3% |  24.1% |  25.4% |  25.3% |  25.2%
+   134 | bbh                       | General  | General  |   ✓   |  24.0% |  50.6% |  25.3% |  24.0% |  25.1% |  25.3% |  25.5%
+   135 | bbh                       | General  | General  |   ✓   |  24.2% |  50.5% |  25.3% |  24.2% |  25.2% |  25.3% |  25.3%
+   136 | bbh                       | General  | General  |   ✓   |  24.2% |  50.6% |  25.2% |  24.2% |  25.3% |  25.2% |  25.2%
+   137 | bbh                       | General  | General  |   ✓   |  24.6% |  49.7% |  25.7% |  24.6% |  25.0% |  25.7% |  24.8%
+   138 | bbh                       | General  | General  |   ✓   |  25.0% |  48.7% |  26.2% |  25.0% |  24.5% |  26.2% |  24.2%
+   139 | bbh                       | General  | General  |   ✓   |  25.0% |  48.8% |  26.2% |  25.0% |  24.5% |  26.2% |  24.3%
+   140 | bbh                       | General  | General  |   ✓   |  25.0% |  48.8% |  26.2% |  25.0% |  24.6% |  26.2% |  24.2%
+   141 | bbh                       | General  | General  |   ✓   |  25.1% |  48.7% |  26.2% |  25.1% |  24.6% |  26.2% |  24.2%
+   142 | bbh                       | General  | General  |   ✓   |  25.0% |  48.8% |  26.2% |  25.0% |  24.5% |  26.2% |  24.3%
+   143 | bbh                       | General  | General  |   ✓   |  24.7% |  49.2% |  26.1% |  24.7% |  24.8% |  26.1% |  24.3%
+   144 | bbh                       | General  | General  |   ✓   |  24.0% |  50.2% |  25.9% |  24.0% |  25.6% |  25.9% |  24.6%
+   145 | bbh                       | General  | General  |   ✓   |  24.0% |  50.1% |  25.9% |  24.0% |  25.6% |  25.9% |  24.4%
+   146 | bbh                       | General  | General  |   ✓   |  24.0% |  50.1% |  25.9% |  24.0% |  25.6% |  25.9% |  24.5%
+   147 | bbh                       | General  | General  |   ✓   |  24.0% |  50.1% |  25.9% |  24.0% |  25.7% |  25.9% |  24.5%
+   148 | bbh                       | General  | General  |   ✓   |  23.9% |  50.5% |  25.6% |  23.9% |  26.2% |  25.6% |  24.3%
+   149 | bbh                       | General  | General  |   ✓   |  24.0% |  51.2% |  24.9% |  24.0% |  25.8% |  24.9% |  25.4%
+   150 | popqa                     | General  | General  |   ✓   |  24.8% |  49.4% |  25.8% |  24.8% |  25.0% |  25.8% |  24.3%
+   151 | popqa                     | General  | General  |   ✓   |  24.7% |  49.5% |  25.8% |  24.7% |  25.1% |  25.8% |  24.3%
+   152 | popqa                     | General  | General  |   ✓   |  24.7% |  49.5% |  25.8% |  24.7% |  25.1% |  25.8% |  24.4%
+   153 | popqa                     | General  | General  |   ✓   |  24.8% |  49.4% |  25.8% |  24.8% |  25.1% |  25.8% |  24.3%
+   154 | popqa                     | General  | General  |   ✓   |  25.2% |  49.3% |  25.5% |  25.2% |  24.9% |  25.5% |  24.4%
+   155 | popqa                     | General  | General  |   ✓   |  25.2% |  49.2% |  25.5% |  25.2% |  24.9% |  25.5% |  24.3%
+   156 | popqa                     | General  | General  |   ✓   |  25.3% |  49.2% |  25.5% |  25.3% |  24.9% |  25.5% |  24.3%
+   157 | popqa                     | General  | General  |   ✓   |  25.4% |  49.2% |  25.4% |  25.4% |  24.9% |  25.4% |  24.3%
+   158 | popqa                     | General  | General  |   ✓   |  24.3% |  50.6% |  25.1% |  24.3% |  25.3% |  25.1% |  25.3%
+   159 | simpleqa                  | General  | General  |   ✓   |  25.1% |  50.3% |  24.7% |  25.1% |  25.2% |  24.7% |  25.1%
+   160 | simpleqa                  | General  | General  |   ✓   |  25.2% |  50.0% |  24.8% |  25.2% |  25.0% |  24.8% |  25.0%
+   161 | simpleqa                  | General  | General  |   ✓   |  25.1% |  50.1% |  24.8% |  25.1% |  25.1% |  24.8% |  25.0%
+   162 | simpleqa                  | General  | General  |   ✓   |  25.0% |  50.2% |  24.8% |  25.0% |  25.2% |  24.8% |  25.1%
+   163 | simpleqa                  | General  | General  |   ✓   |  25.1% |  50.1% |  24.8% |  25.1% |  25.1% |  24.8% |  25.0%
+   164 | simpleqa                  | General  | General  |   ✓   |  25.2% |  50.0% |  24.8% |  25.2% |  24.9% |  24.8% |  25.1%
+   165 | simpleqa                  | General  | General  |   ✓   |  25.0% |  50.2% |  24.8% |  25.0% |  25.0% |  24.8% |  25.2%
+   166 | simpleqa                  | General  | General  |   ✓   |  25.1% |  50.0% |  24.9% |  25.1% |  25.1% |  24.9% |  24.9%
+   167 | gpqa                      | General  | General  |   ✓   |  24.5% |  50.7% |  24.7% |  24.5% |  25.8% |  24.7% |  24.9%
+   168 | gpqa                      | General  | General  |   ✓   |  24.4% |  50.9% |  24.6% |  24.4% |  25.8% |  24.6% |  25.2%
+   169 | gpqa                      | General  | General  |   ✓   |  24.5% |  50.8% |  24.6% |  24.5% |  25.6% |  24.6% |  25.2%
+   170 | gpqa                      | General  | General  |   ✓   |  24.4% |  50.9% |  24.7% |  24.4% |  25.7% |  24.7% |  25.3%
+   171 | gpqa                      | General  | General  |   ✓   |  24.2% |  50.8% |  25.0% |  24.2% |  25.8% |  25.0% |  25.0%
+   172 | gpqa                      | General  | General  |   ✓   |  24.5% |  51.1% |  24.3% |  24.5% |  26.1% |  24.3% |  25.1%
+   173 | gpqa                      | General  | General  |   ✓   |  24.7% |  50.7% |  24.7% |  24.7% |  25.9% |  24.7% |  24.8%
+   174 | gpqa                      | General  | General  |   ✓   |  24.4% |  50.9% |  24.7% |  24.4% |  25.8% |  24.7% |  25.2%
+   175 | gpqa                      | General  | General  |   ✓   |  24.4% |  50.9% |  24.7% |  24.4% |  25.7% |  24.7% |  25.2%
+   176 | gpqa                      | General  | General  |   ✓   |  24.1% |  51.1% |  24.8% |  24.1% |  26.0% |  24.8% |  25.1%
+   177 | gpqa                      | General  | General  |   ✓   |  24.6% |  50.8% |  24.6% |  24.6% |  25.7% |  24.6% |  25.0%
+   178 | gpqa                      | General  | General  |   ✓   |  24.5% |  50.4% |  25.0% |  24.5% |  25.8% |  25.0% |  24.6%
+   179 | gpqa                      | General  | General  |   ✓   |  24.5% |  50.9% |  24.5% |  24.5% |  25.7% |  24.5% |  25.2%
+   180 | gpqa                      | General  | General  |   ✓   |  24.5% |  50.8% |  24.6% |  24.5% |  25.8% |  24.6% |  25.0%
+   181 | gpqa                      | General  | General  |   ✓   |  24.3% |  51.1% |  24.6% |  24.3% |  25.7% |  24.6% |  25.3%
+   182 | gpqa                      | General  | General  |   ✓   |  23.7% |  51.2% |  25.0% |  23.7% |  25.7% |  25.0% |  25.5%
+   183 | ifeval                    | General  | General  |   ✓   |  24.1% |  49.9% |  26.0% |  24.1% |  25.6% |  26.0% |  24.3%
+   184 | ifeval                    | General  | General  |   ✓   |  24.0% |  50.1% |  25.9% |  24.0% |  25.6% |  25.9% |  24.5%
+   185 | ifeval                    | General  | General  |   ✓   |  24.0% |  50.3% |  25.7% |  24.0% |  25.8% |  25.7% |  24.5%
+   186 | ifeval                    | General  | General  |   ✓   |  24.2% |  50.0% |  25.9% |  24.2% |  25.5% |  25.9% |  24.4%
+   187 | ifeval                    | General  | General  |   ✓   |  24.1% |  50.1% |  25.9% |  24.1% |  25.6% |  25.9% |  24.5%
+   188 | ifeval                    | General  | General  |   ✓   |  24.1% |  50.0% |  25.9% |  24.1% |  25.4% |  25.9% |  24.6%
+   189 | ifeval                    | General  | General  |   ✓   |  23.7% |  50.9% |  25.4% |  23.7% |  25.7% |  25.4% |  25.2%
 
 ====================================================================================================
 DISAGREEMENT ANALYSIS
 ====================================================================================================
 
-Found 155 sequences where router majority differs from source-based expectation:
+Found 108 sequences where router majority differs from source-based expectation:
 
 ----------------------------------------------------------------------------------------------------
 Seq 0: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=25.8%, Code=25.2%, Expert3=25.0%
+  Combined Domain Probs: Math=24.0%, General=50.8%, Code=25.2%
+  Per-Expert Probs: E0=24.0%, E1=25.8%, E2=25.2%, E3=25.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 1: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=25.9%, Code=25.4%, Expert3=24.8%
+  Combined Domain Probs: Math=23.9%, General=50.7%, Code=25.4%
+  Per-Expert Probs: E0=23.9%, E1=25.9%, E2=25.4%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 2: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.8%, General=26.1%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=23.8%, General=51.0%, Code=25.2%
+  Per-Expert Probs: E0=23.8%, E1=26.1%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 3: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.1%, Code=25.1%, Expert3=24.9%
+  Combined Domain Probs: Math=23.9%, General=51.0%, Code=25.1%
+  Per-Expert Probs: E0=23.9%, E1=26.1%, E2=25.1%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 4: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.8%, General=26.1%, Code=25.1%, Expert3=25.0%
+  Combined Domain Probs: Math=23.8%, General=51.0%, Code=25.1%
+  Per-Expert Probs: E0=23.8%, E1=26.1%, E2=25.1%, E3=25.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 5: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.8%, General=26.1%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=23.8%, General=51.0%, Code=25.2%
+  Per-Expert Probs: E0=23.8%, E1=26.1%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 6: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.0%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.0%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.0%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 7: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.3%, Code=25.0%, Expert3=24.8%
+  Combined Domain Probs: Math=24.0%, General=51.0%, Code=25.0%
+  Per-Expert Probs: E0=24.0%, E1=26.3%, E2=25.0%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 8: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.1%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.1%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 9: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.1%, Expert3=24.8%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.1%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 10: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.1%, Code=25.2%, Expert3=24.7%
+  Combined Domain Probs: Math=24.0%, General=50.8%, Code=25.2%
+  Per-Expert Probs: E0=24.0%, E1=26.1%, E2=25.2%, E3=24.7%
 
 ----------------------------------------------------------------------------------------------------
 Seq 11: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.1%, Code=25.1%, Expert3=24.8%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=24.0%, E1=26.1%, E2=25.1%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 12: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.0%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=23.9%, General=50.9%, Code=25.2%
+  Per-Expert Probs: E0=23.9%, E1=26.0%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 13: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.1%, General=26.0%, Code=25.0%, Expert3=25.0%
+  Combined Domain Probs: Math=24.1%, General=51.0%, Code=25.0%
+  Per-Expert Probs: E0=24.1%, E1=26.0%, E2=25.0%, E3=25.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 14: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.1%, General=26.0%, Code=24.9%, Expert3=25.0%
+  Combined Domain Probs: Math=24.1%, General=51.0%, Code=24.9%
+  Per-Expert Probs: E0=24.1%, E1=26.0%, E2=24.9%, E3=25.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 15: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.2%, Expert3=24.8%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.2%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.2%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 16: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.2%, Code=25.0%, Expert3=24.9%
+  Combined Domain Probs: Math=23.9%, General=51.1%, Code=25.0%
+  Per-Expert Probs: E0=23.9%, E1=26.2%, E2=25.0%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 17: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.1%, General=26.0%, Code=25.1%, Expert3=24.8%
+  Combined Domain Probs: Math=24.1%, General=50.8%, Code=25.1%
+  Per-Expert Probs: E0=24.1%, E1=26.0%, E2=25.1%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 18: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.1%, Code=25.2%, Expert3=24.8%
+  Combined Domain Probs: Math=23.9%, General=50.9%, Code=25.2%
+  Per-Expert Probs: E0=23.9%, E1=26.1%, E2=25.2%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 19: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.0%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=23.9%, General=50.9%, Code=25.2%
+  Per-Expert Probs: E0=23.9%, E1=26.0%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 20: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.1%, Code=25.0%, Expert3=24.9%
+  Combined Domain Probs: Math=23.9%, General=51.0%, Code=25.0%
+  Per-Expert Probs: E0=23.9%, E1=26.1%, E2=25.0%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 21: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.8%, General=26.1%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=23.8%, General=51.0%, Code=25.2%
+  Per-Expert Probs: E0=23.8%, E1=26.1%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 22: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.2%, Code=25.0%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=51.0%, Code=25.0%
+  Per-Expert Probs: E0=24.0%, E1=26.2%, E2=25.0%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 23: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.8%, General=26.1%, Code=25.3%, Expert3=24.8%
+  Combined Domain Probs: Math=23.8%, General=50.9%, Code=25.3%
+  Per-Expert Probs: E0=23.8%, E1=26.1%, E2=25.3%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 24: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.1%, Code=25.2%, Expert3=24.8%
+  Combined Domain Probs: Math=23.9%, General=50.9%, Code=25.2%
+  Per-Expert Probs: E0=23.9%, E1=26.1%, E2=25.2%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 25: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.2%, Expert3=24.7%
+  Combined Domain Probs: Math=24.0%, General=50.8%, Code=25.2%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.2%, E3=24.7%
 
 ----------------------------------------------------------------------------------------------------
 Seq 26: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=25.9%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=50.8%, Code=25.2%
+  Per-Expert Probs: E0=24.0%, E1=25.9%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 27: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.3%, Expert3=24.7%
+  Combined Domain Probs: Math=24.0%, General=50.7%, Code=25.3%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.3%, E3=24.7%
 
 ----------------------------------------------------------------------------------------------------
 Seq 28: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.1%, Code=25.0%, Expert3=25.0%
+  Combined Domain Probs: Math=23.9%, General=51.1%, Code=25.0%
+  Per-Expert Probs: E0=23.9%, E1=26.1%, E2=25.0%, E3=25.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 29: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.2%, Code=25.0%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=51.0%, Code=25.0%
+  Per-Expert Probs: E0=24.0%, E1=26.2%, E2=25.0%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 30: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.1%, General=26.1%, Code=25.1%, Expert3=24.7%
+  Combined Domain Probs: Math=24.1%, General=50.8%, Code=25.1%
+  Per-Expert Probs: E0=24.1%, E1=26.1%, E2=25.1%, E3=24.7%
 
 ----------------------------------------------------------------------------------------------------
 Seq 31: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.3%, Code=25.0%, Expert3=24.8%
+  Combined Domain Probs: Math=23.9%, General=51.1%, Code=25.0%
+  Per-Expert Probs: E0=23.9%, E1=26.3%, E2=25.0%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 32: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.0%, Code=25.3%, Expert3=24.8%
+  Combined Domain Probs: Math=23.9%, General=50.8%, Code=25.3%
+  Per-Expert Probs: E0=23.9%, E1=26.0%, E2=25.3%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 33: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.0%, Code=25.1%, Expert3=25.0%
+  Combined Domain Probs: Math=23.9%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=23.9%, E1=26.0%, E2=25.1%, E3=25.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 34: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.1%, General=26.0%, Code=25.1%, Expert3=24.8%
+  Combined Domain Probs: Math=24.1%, General=50.8%, Code=25.1%
+  Per-Expert Probs: E0=24.1%, E1=26.0%, E2=25.1%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 35: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.0%, Code=25.1%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=24.0%, E1=26.0%, E2=25.1%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 36: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.2%, Code=24.9%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=51.1%, Code=24.9%
+  Per-Expert Probs: E0=24.0%, E1=26.2%, E2=24.9%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 37: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=26.2%, Code=25.2%, Expert3=24.8%
+  Combined Domain Probs: Math=23.9%, General=51.0%, Code=25.2%
+  Per-Expert Probs: E0=23.9%, E1=26.2%, E2=25.2%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 38: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.1%, Code=25.1%, Expert3=24.8%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=24.0%, E1=26.1%, E2=25.1%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 39: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.2%, Code=24.9%, Expert3=24.9%
+  Combined Domain Probs: Math=24.0%, General=51.0%, Code=24.9%
+  Per-Expert Probs: E0=24.0%, E1=26.2%, E2=24.9%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 40: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.9%, General=25.9%, Code=25.2%, Expert3=24.9%
+  Combined Domain Probs: Math=23.9%, General=50.9%, Code=25.2%
+  Per-Expert Probs: E0=23.9%, E1=25.9%, E2=25.2%, E3=24.9%
 
 ----------------------------------------------------------------------------------------------------
 Seq 41: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=24.0%, General=26.2%, Code=25.1%, Expert3=24.7%
+  Combined Domain Probs: Math=24.0%, General=50.9%, Code=25.1%
+  Per-Expert Probs: E0=24.0%, E1=26.2%, E2=25.1%, E3=24.7%
 
 ----------------------------------------------------------------------------------------------------
 Seq 42: mj_finemath_gsm8k
   Expected: Math, Got: General
-  Probability Distribution: Math=23.8%, General=26.2%, Code=25.3%, Expert3=24.8%
+  Combined Domain Probs: Math=23.8%, General=50.9%, Code=25.3%
+  Per-Expert Probs: E0=23.8%, E1=26.2%, E2=25.3%, E3=24.8%
 
 ----------------------------------------------------------------------------------------------------
 Seq 43: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.3%, General=26.1%, Code=25.3%, Expert3=24.2%
+  Combined Domain Probs: Math=24.3%, General=50.3%, Code=25.3%
+  Per-Expert Probs: E0=24.3%, E1=26.1%, E2=25.3%, E3=24.2%
 
 ----------------------------------------------------------------------------------------------------
 Seq 44: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.4%, General=26.2%, Code=25.2%, Expert3=24.2%
+  Combined Domain Probs: Math=24.4%, General=50.4%, Code=25.2%
+  Per-Expert Probs: E0=24.4%, E1=26.2%, E2=25.2%, E3=24.2%
 
 ----------------------------------------------------------------------------------------------------
 Seq 45: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.4%, General=26.2%, Code=25.3%, Expert3=24.2%
+  Combined Domain Probs: Math=24.4%, General=50.4%, Code=25.3%
+  Per-Expert Probs: E0=24.4%, E1=26.2%, E2=25.3%, E3=24.2%
 
 ----------------------------------------------------------------------------------------------------
 Seq 46: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.4%, General=26.1%, Code=25.2%, Expert3=24.2%
+  Combined Domain Probs: Math=24.4%, General=50.4%, Code=25.2%
+  Per-Expert Probs: E0=24.4%, E1=26.1%, E2=25.2%, E3=24.2%
 
 ----------------------------------------------------------------------------------------------------
 Seq 47: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.6%, General=26.2%, Code=25.0%, Expert3=24.2%
+  Combined Domain Probs: Math=24.6%, General=50.4%, Code=25.0%
+  Per-Expert Probs: E0=24.6%, E1=26.2%, E2=25.0%, E3=24.2%
 
 ----------------------------------------------------------------------------------------------------
 Seq 48: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.4%, General=26.1%, Code=25.4%, Expert3=24.0%
+  Combined Domain Probs: Math=24.4%, General=50.1%, Code=25.4%
+  Per-Expert Probs: E0=24.4%, E1=26.1%, E2=25.4%, E3=24.0%
 
 ----------------------------------------------------------------------------------------------------
 Seq 49: mj_finemath_minerva
   Expected: Math, Got: General
-  Probability Distribution: Math=24.4%, General=26.2%, Code=25.3%, Expert3=24.2%
+  Combined Domain Probs: Math=24.4%, General=50.4%, Code=25.3%
+  Per-Expert Probs: E0=24.4%, E1=26.2%, E2=25.3%, E3=24.2%
 
 
-... and 105 more disagreements
+... and 58 more disagreements
