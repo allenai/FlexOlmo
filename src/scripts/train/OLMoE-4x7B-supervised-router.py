@@ -155,8 +155,8 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     
     # Use get_mixture_dataset_config_by_domain to split by domain labels
     # This ensures each domain (starcoder, mj_finemath4plus, etc.) becomes its own source
-    # Disable file validation to avoid metadata count mismatch with add_source_name_metadata
-    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=False)
+    # Enable file validation to skip corrupted files (e.g., tulu-3-sft-personas-math-grade has bad files)
+    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=True)
     dataset_config.source_mixture_config = source_mixture_config
     dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
