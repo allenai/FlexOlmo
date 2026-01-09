@@ -31,6 +31,46 @@ from collections import defaultdict
 import numpy as np
 
 
+def load_tokenizer():
+    """Load tokenizer for decoding sequences."""
+    try:
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained("allenai/dolma2-tokenizer")
+        print("Loaded tokenizer: allenai/dolma2-tokenizer")
+        return tokenizer
+    except Exception as e:
+        print(f"Warning: Could not load tokenizer: {e}")
+        return None
+
+
+def load_sequence_text(data_dir: Path, seq_idx: int, domain_files: list, tokenizer, sequence_length: int = 4096) -> str:
+    """Load and decode the text for a specific sequence index."""
+    if tokenizer is None:
+        return "[Tokenizer not available]"
+    
+    try:
+        # Find which file and offset this sequence is in
+        current_seq_idx = 0
+        for domain_label, file_path in domain_files:
+            full_path = data_dir / file_path
+            if full_path.exists():
+                data = np.load(full_path)
+                num_seqs = len(data) // sequence_length
+                if current_seq_idx <= seq_idx < current_seq_idx + num_seqs:
+                    # Found the file, extract the sequence
+                    local_idx = seq_idx - current_seq_idx
+                    start = local_idx * sequence_length
+                    end = start + sequence_length
+                    token_ids = data[start:end].astype(np.int64)
+                    # Decode to text
+                    text = tokenizer.decode(token_ids, skip_special_tokens=False)
+                    return text
+                current_seq_idx += num_seqs
+    except Exception as e:
+        return f"[Error loading text: {e}]"
+    return "[Sequence not found]"
+
+
 # Expert mapping
 # Note: Expert 3 is also General, so we combine 1+3 for "General" category
 EXPERT_NAMES = {0: "Math", 1: "General", 2: "Code", 3: "General2"}
@@ -67,7 +107,7 @@ def losses_to_distribution(loss_sums):
     return inv_losses / inv_losses.sum()
 
 
-def analyze_labels_aggregate(labels_dir: str, data_dir: str, output_path: str):
+def analyze_labels_aggregate(labels_dir: str, data_dir: str, output_path: str, show_text: bool = True):
     """Analyze per-token labels using aggregate-then-inverse approach."""
     
     labels_dir = Path(labels_dir)
@@ -75,6 +115,9 @@ def analyze_labels_aggregate(labels_dir: str, data_dir: str, output_path: str):
     
     print(f"Analyzing labels from: {labels_dir}")
     print("Using inverse loss normalization (1/loss / sum(1/loss))")
+    
+    # Load tokenizer if we want to show text
+    tokenizer = load_tokenizer() if show_text else None
     
     # Load labeled indices
     labeled_indices_path = labels_dir / "labeled_indices.npy"
@@ -224,7 +267,10 @@ def analyze_labels_aggregate(labels_dir: str, data_dir: str, output_path: str):
         domain_token_counts,
         overall_loss_sums, 
         overall_token_count,
-        num_experts
+        num_experts,
+        data_dir,
+        domain_files,
+        tokenizer
     )
     
     print(f"\nAnalysis written to: {output_path}")
@@ -237,7 +283,10 @@ def write_analysis_output(
     domain_token_counts: dict,
     overall_loss_sums: dict,
     overall_token_count: int,
-    num_experts: int
+    num_experts: int,
+    data_dir: Path = None,
+    domain_files: list = None,
+    tokenizer = None
 ):
     """Write analysis results to file."""
     
@@ -370,19 +419,39 @@ def write_analysis_output(
         disagreements = [r for r in results if not r.get("agrees", True)]
         
         if disagreements:
-            f.write(f"Found {len(disagreements)} sequences where aggregate-softmax majority differs from expected:\n\n")
+            f.write(f"Found {len(disagreements)} sequences where aggregate majority differs from expected:\n\n")
             
-            for r in disagreements[:50]:
+            # Show first 20 disagreements with full text
+            for r in disagreements[:20]:
                 f.write("-" * 100 + "\n")
                 f.write(f"Seq {r['seq_idx']}: {r['domain']}\n")
                 f.write(f"  Expected: {r['expected_domain']}, Got: {r['majority_domain']}\n")
                 domain_probs = r.get("domain_dist_pcts", {})
-                f.write(f"  Domain Dist: Math={domain_probs.get('Math', 0):.1f}%, General={domain_probs.get('General', 0):.1f}%, Code={domain_probs.get('Code', 0):.1f}%\n\n")
+                f.write(f"  Domain Dist: Math={domain_probs.get('Math', 0):.1f}%, General={domain_probs.get('General', 0):.1f}%, Code={domain_probs.get('Code', 0):.1f}%\n")
+                
+                # Load and display sequence text
+                if tokenizer is not None and data_dir is not None and domain_files is not None:
+                    text = load_sequence_text(data_dir, r['seq_idx'], domain_files, tokenizer)
+                    # Show first 800 chars and last 400 chars
+                    if len(text) > 1400:
+                        text_preview = text[:800] + "\n\n  [...middle truncated...]\n\n" + text[-400:]
+                    else:
+                        text_preview = text
+                    # Indent the text
+                    text_lines = text_preview.split('\n')
+                    indented = '\n'.join('    ' + line for line in text_lines)
+                    f.write(f"\n  SEQUENCE TEXT:\n{indented}\n")
+                f.write("\n")
             
-            if len(disagreements) > 50:
-                f.write(f"\n... and {len(disagreements) - 50} more disagreements\n")
+            if len(disagreements) > 20:
+                f.write(f"\n... and {len(disagreements) - 20} more disagreements (text not shown)\n")
+                f.write("\nRemaining disagreement summaries:\n")
+                for r in disagreements[20:]:
+                    domain_probs = r.get("domain_dist_pcts", {})
+                    f.write(f"  Seq {r['seq_idx']}: {r['domain']} - Expected: {r['expected_domain']}, Got: {r['majority_domain']} ")
+                    f.write(f"(Math={domain_probs.get('Math', 0):.1f}%, Gen={domain_probs.get('General', 0):.1f}%, Code={domain_probs.get('Code', 0):.1f}%)\n")
         else:
-            f.write("All sequences agree between source-based and aggregate-softmax labels!\n")
+            f.write("All sequences agree between source-based and aggregate labels!\n")
 
 
 def main():
@@ -393,9 +462,14 @@ def main():
                         help="Directory containing the eval benchmark data and mix file")
     parser.add_argument("--output", type=str, default="expert_label_analysis_aggregate.txt",
                         help="Output file for analysis results")
+    parser.add_argument("--show_text", action="store_true", default=True,
+                        help="Show decoded text for disagreement sequences (default: True)")
+    parser.add_argument("--no_text", action="store_true",
+                        help="Don't show decoded text for disagreement sequences")
     args = parser.parse_args()
     
-    analyze_labels_aggregate(args.labels_dir, args.data_dir, args.output)
+    show_text = args.show_text and not args.no_text
+    analyze_labels_aggregate(args.labels_dir, args.data_dir, args.output, show_text=show_text)
 
 
 if __name__ == "__main__":
