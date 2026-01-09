@@ -149,49 +149,39 @@ def build_train_module_config(common: CommonComponents) -> SoftLabelRouterTrainM
 
 
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
-    """Build dataset config using eval_benchmark_mix files directly.
+    """Build dataset config using router_training_mix (full 5B token dataset).
     
-    Similar to OLMoE-4x7B-supervised-router-eval-benchmark.py.
+    Similar to OLMoE-4x7B-supervised-router.py.
     """
+    from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
+    from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
+
     dataset_config = common.dataset
     
-    # Base directory for eval benchmark data (can be overridden via --dataset.mix_base_dir)
+    # Use router_training_mix by default, but allow override via --dataset.mix
     import os
-    base_dir = os.environ.get("FLEXOLMO_DATA_DIR", "/weka/oe-training-default/sanjaya/eval_benchmark_data")
+    mix_override = os.environ.get("FLEXOLMO_DATASET_MIX")
+    if mix_override:
+        dataset_config.mix = mix_override
+        log.info(f"Using mix from FLEXOLMO_DATASET_MIX: {mix_override}")
+    elif dataset_config.mix is None:
+        dataset_config.mix = CustomDataMix.router_training_mix
+        log.info(f"Using default mix: router_training_mix")
+    else:
+        log.info(f"Using pre-configured mix: {dataset_config.mix}")
     
-    # Define the 10 eval benchmark files with their domain labels
-    domain_files = [
-        ("mj_finemath_gsm8k", "mj_finemath_gsm8k/part-00-00000.npy"),
-        ("mj_finemath_minerva", "mj_finemath_minerva/part-00-00000.npy"),
-        ("starcoder_humaneval", "starcoder_humaneval/part-00-00000.npy"),
-        ("starcoder_mbpp", "starcoder_mbpp/part-00-00000.npy"),
-        ("mmlu", "mmlu/part-00-00000.npy"),
-        ("bbh", "bbh/part-00-00000.npy"),
-        ("popqa", "popqa/part-00-00000.npy"),
-        ("simpleqa", "simpleqa/part-00-00000.npy"),
-        ("gpqa", "gpqa/part-00-00000.npy"),
-        ("ifeval", "ifeval/part-00-00000.npy"),
-    ]
+    # Use get_mixture_dataset_config_by_domain to split by domain labels
+    # This ensures each domain (starcoder, mj_finemath4plus, etc.) becomes its own source
+    # Disable file validation to avoid metadata count mismatch with add_source_name_metadata
+    source_mixture_config = get_mixture_dataset_config_by_domain(dataset_config, validate_files=False)
+    dataset_config.source_mixture_config = source_mixture_config
+    dataset_config.mix = None  # Clear mix since we're using source_mixture_config
     
-    # Build paths and metadata lists
-    paths = []
-    metadata = []
-    for domain_label, rel_path in domain_files:
-        full_path = f"{base_dir}/{rel_path}"
-        paths.append(full_path)
-        metadata.append({"source_name": domain_label})
+    # Add source_name metadata so it appears in batches via batch["metadata"]
+    dataset_config = add_source_name_metadata(dataset_config, source_mixture_config)
     
-    # Set paths and metadata directly on the dataset config
-    dataset_config.paths = paths
-    dataset_config.metadata = metadata
-    dataset_config.include_instance_metadata = True
-    
-    # Clear any mix settings (we're using direct paths)
-    dataset_config.mix = None
-    dataset_config.source_mixture_config = None
-    
-    log.info(f"Created direct NumpyDatasetConfig with {len(paths)} files")
-    log.info(f"Domains: {[d for d, _ in domain_files]}")
+    # Note: include_instance_metadata is already set by add_source_name_metadata()
+    # We rely on instance_indices being available in batches (olmo-core default behavior)
     
     return dataset_config
 
@@ -199,8 +189,8 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
 def build_trainer_config(common: CommonComponents) -> TrainerConfig:
     """Build trainer config."""
     trainer_config = common.trainer
-    # Default to 10M tokens
-    trainer_config.max_duration.value = 10_000_000
+    # Default to 5B tokens (full RT mix)
+    trainer_config.max_duration.value = 5_000_000_000
     trainer_config.max_duration.unit = DurationUnit("tokens")
     return trainer_config
 

@@ -23,14 +23,15 @@ set -e
 NUM_NODES=8
 NUM_GPUS=8
 CHECKPOINT="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-experts-sft-math-mixed"
-LABELS_DIR="/weka/oe-training-default/sanjaya/eval_benchmark_data/per_token_labels_sft"
+LABELS_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B_sft_math_mixed"
+MIX_BASE_DIR="/weka/oe-training-default/ai2-llm/"
 
 # Soft label temperature (can be overridden via environment variable)
 BETA="${BETA:-1.0}"
 
 # Training params
-MAX_TOKENS=500000000  # 500M tokens
-BATCH_SIZE=262144     # Global batch size
+MAX_TOKENS=5000000000  # 5B tokens (full RT mix)
+BATCH_SIZE=262144      # Global batch size
 LR=2e-3
 WARMUP_STEPS=100
 
@@ -39,10 +40,11 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 EXPERIMENT_NAME="FlexOlmo-SoftLabelRT-beta${BETA}-${TIMESTAMP}"
 SAVE_FOLDER="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/soft_label_RT_beta${BETA}"
 
-echo "=== Soft Label Router Training ==="
+echo "=== Soft Label Router Training (Full RT Mix) ==="
 echo ""
 echo "Checkpoint:    ${CHECKPOINT}"
 echo "Labels dir:    ${LABELS_DIR}"
+echo "Mix base dir:  ${MIX_BASE_DIR}"
 echo "Beta:          ${BETA}"
 echo "Max tokens:    ${MAX_TOKENS}"
 echo "Learning rate: ${LR}"
@@ -60,6 +62,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-soft-label-router.py ${EXPERIMENT_NAME} \
    --trainer.callbacks.profiler.enabled=false \
+   --dataset.mix_base_dir=${MIX_BASE_DIR} \
    --dataset.include_instance_metadata=true \
    --trainer.max_duration.value=${MAX_TOKENS} \
    --trainer.max_duration.unit=tokens \
