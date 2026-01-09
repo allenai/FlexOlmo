@@ -151,7 +151,7 @@ def build_train_module_config(common: CommonComponents) -> SoftLabelRouterTrainM
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     """Build dataset config using router_training_mix (full 5B token dataset).
     
-    Similar to OLMoE-4x7B-supervised-router.py.
+    Matches OLMoE-4x7B-supervised-router.py pattern exactly.
     """
     from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config_by_domain
     from flexolmo.data.build_dataset_with_source_metadata import add_source_name_metadata
@@ -159,6 +159,7 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
     dataset_config = common.dataset
     
     # Use router_training_mix by default, but allow override via --dataset.mix
+    # Note: Command line overrides happen AFTER this function, so we check env var
     import os
     mix_override = os.environ.get("FLEXOLMO_DATASET_MIX")
     if mix_override:
