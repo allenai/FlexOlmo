@@ -62,6 +62,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
    --launch.workspace=ai2/flex2 \
    --launch.priority=urgent -- src/scripts/train/OLMoE-4x7B-soft-label-router.py ${EXPERIMENT_NAME} \
    --trainer.callbacks.profiler.enabled=false \
+   --dataset.mix=router_training_mix \
    --dataset.mix_base_dir=${MIX_BASE_DIR} \
    --dataset.include_instance_metadata=true \
    --trainer.max_duration.value=${MAX_TOKENS} \
