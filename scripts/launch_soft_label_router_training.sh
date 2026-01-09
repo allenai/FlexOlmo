@@ -23,7 +23,8 @@ set -e
 NUM_NODES=8
 NUM_GPUS=8
 CHECKPOINT="/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7b-flex-base-merged-math-code-experts-sft-math-mixed"
-LABELS_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B_sft_math_mixed"
+# Use v2 labels with all_expert_losses for soft label training
+LABELS_DIR="/weka/oe-training-default/sanjaya/flexolmo/expert_labels/optimal_labels_per_token_5B_sft_math_mixed_v2"
 MIX_BASE_DIR="/weka/oe-training-default/ai2-llm/"
 
 # Soft label temperature (can be overridden via environment variable)
