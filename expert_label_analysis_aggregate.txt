@@ -349,7 +349,7 @@ PER-SEQUENCE DETAILS
 DISAGREEMENT ANALYSIS
 ====================================================================================================
 
-Found 81 sequences where aggregate-softmax majority differs from expected:
+Found 81 sequences where aggregate majority differs from expected:
 
 ----------------------------------------------------------------------------------------------------
 Seq 2: mj_finemath_gsm8k
@@ -451,155 +451,68 @@ Seq 93: mj_finemath_minerva
   Expected: Math, Got: General
   Domain Dist: Math=39.3%, General=40.3%, Code=20.4%
 
-----------------------------------------------------------------------------------------------------
-Seq 96: starcoder_humaneval
-  Expected: Code, Got: General
-  Domain Dist: Math=33.0%, General=33.5%, Code=33.5%
 
-----------------------------------------------------------------------------------------------------
-Seq 97: starcoder_humaneval
-  Expected: Code, Got: General
-  Domain Dist: Math=33.1%, General=33.5%, Code=33.4%
+... and 61 more disagreements (text not shown)
 
-----------------------------------------------------------------------------------------------------
-Seq 98: starcoder_humaneval
-  Expected: Code, Got: General
-  Domain Dist: Math=33.0%, General=33.7%, Code=33.3%
-
-----------------------------------------------------------------------------------------------------
-Seq 99: starcoder_humaneval
-  Expected: Code, Got: Math
-  Domain Dist: Math=33.3%, General=33.3%, Code=33.3%
-
-----------------------------------------------------------------------------------------------------
-Seq 101: starcoder_humaneval
-  Expected: Code, Got: Math
-  Domain Dist: Math=34.1%, General=33.2%, Code=32.7%
-
-----------------------------------------------------------------------------------------------------
-Seq 103: starcoder_mbpp
-  Expected: Code, Got: Math
-  Domain Dist: Math=34.1%, General=33.2%, Code=32.8%
-
-----------------------------------------------------------------------------------------------------
-Seq 104: starcoder_mbpp
-  Expected: Code, Got: General
-  Domain Dist: Math=33.6%, General=34.1%, Code=32.3%
-
-----------------------------------------------------------------------------------------------------
-Seq 105: starcoder_mbpp
-  Expected: Code, Got: Math
-  Domain Dist: Math=33.6%, General=33.4%, Code=32.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 106: starcoder_mbpp
-  Expected: Code, Got: General
-  Domain Dist: Math=33.4%, General=33.7%, Code=32.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 107: starcoder_mbpp
-  Expected: Code, Got: Math
-  Domain Dist: Math=34.4%, General=33.4%, Code=32.3%
-
-----------------------------------------------------------------------------------------------------
-Seq 109: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=34.0%, General=33.2%, Code=32.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 112: mmlu
-  Expected: General, Got: Code
-  Domain Dist: Math=32.8%, General=33.2%, Code=34.0%
-
-----------------------------------------------------------------------------------------------------
-Seq 115: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=33.8%, General=33.3%, Code=32.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 117: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=34.1%, General=33.2%, Code=32.7%
-
-----------------------------------------------------------------------------------------------------
-Seq 118: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=33.6%, General=33.3%, Code=33.0%
-
-----------------------------------------------------------------------------------------------------
-Seq 119: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=33.7%, General=33.4%, Code=32.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 124: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=33.6%, General=33.3%, Code=33.1%
-
-----------------------------------------------------------------------------------------------------
-Seq 125: mmlu
-  Expected: General, Got: Math
-  Domain Dist: Math=35.2%, General=32.8%, Code=32.0%
-
-----------------------------------------------------------------------------------------------------
-Seq 127: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.0%, General=33.3%, Code=33.7%
-
-----------------------------------------------------------------------------------------------------
-Seq 128: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.1%, General=33.2%, Code=33.7%
-
-----------------------------------------------------------------------------------------------------
-Seq 129: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.4%, General=32.9%, Code=33.6%
-
-----------------------------------------------------------------------------------------------------
-Seq 130: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.4%, General=32.8%, Code=33.8%
-
-----------------------------------------------------------------------------------------------------
-Seq 131: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.2%, General=32.8%, Code=34.0%
-
-----------------------------------------------------------------------------------------------------
-Seq 132: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.5%, General=32.5%, Code=33.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 133: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.3%, General=33.3%, Code=33.4%
-
-----------------------------------------------------------------------------------------------------
-Seq 134: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.3%, General=32.9%, Code=33.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 135: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.2%, General=32.9%, Code=33.9%
-
-----------------------------------------------------------------------------------------------------
-Seq 136: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.0%, General=33.3%, Code=33.7%
-
-----------------------------------------------------------------------------------------------------
-Seq 137: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=33.2%, General=33.1%, Code=33.7%
-
-----------------------------------------------------------------------------------------------------
-Seq 138: bbh
-  Expected: General, Got: Code
-  Domain Dist: Math=32.5%, General=33.5%, Code=34.0%
-
-
-... and 31 more disagreements
+Remaining disagreement summaries:
+  Seq 96: starcoder_humaneval - Expected: Code, Got: General (Math=33.0%, Gen=33.5%, Code=33.5%)
+  Seq 97: starcoder_humaneval - Expected: Code, Got: General (Math=33.1%, Gen=33.5%, Code=33.4%)
+  Seq 98: starcoder_humaneval - Expected: Code, Got: General (Math=33.0%, Gen=33.7%, Code=33.3%)
+  Seq 99: starcoder_humaneval - Expected: Code, Got: Math (Math=33.3%, Gen=33.3%, Code=33.3%)
+  Seq 101: starcoder_humaneval - Expected: Code, Got: Math (Math=34.1%, Gen=33.2%, Code=32.7%)
+  Seq 103: starcoder_mbpp - Expected: Code, Got: Math (Math=34.1%, Gen=33.2%, Code=32.8%)
+  Seq 104: starcoder_mbpp - Expected: Code, Got: General (Math=33.6%, Gen=34.1%, Code=32.3%)
+  Seq 105: starcoder_mbpp - Expected: Code, Got: Math (Math=33.6%, Gen=33.4%, Code=32.9%)
+  Seq 106: starcoder_mbpp - Expected: Code, Got: General (Math=33.4%, Gen=33.7%, Code=32.9%)
+  Seq 107: starcoder_mbpp - Expected: Code, Got: Math (Math=34.4%, Gen=33.4%, Code=32.3%)
+  Seq 109: mmlu - Expected: General, Got: Math (Math=34.0%, Gen=33.2%, Code=32.9%)
+  Seq 112: mmlu - Expected: General, Got: Code (Math=32.8%, Gen=33.2%, Code=34.0%)
+  Seq 115: mmlu - Expected: General, Got: Math (Math=33.8%, Gen=33.3%, Code=32.9%)
+  Seq 117: mmlu - Expected: General, Got: Math (Math=34.1%, Gen=33.2%, Code=32.7%)
+  Seq 118: mmlu - Expected: General, Got: Math (Math=33.6%, Gen=33.3%, Code=33.0%)
+  Seq 119: mmlu - Expected: General, Got: Math (Math=33.7%, Gen=33.4%, Code=32.9%)
+  Seq 124: mmlu - Expected: General, Got: Math (Math=33.6%, Gen=33.3%, Code=33.1%)
+  Seq 125: mmlu - Expected: General, Got: Math (Math=35.2%, Gen=32.8%, Code=32.0%)
+  Seq 127: bbh - Expected: General, Got: Code (Math=33.0%, Gen=33.3%, Code=33.7%)
+  Seq 128: bbh - Expected: General, Got: Code (Math=33.1%, Gen=33.2%, Code=33.7%)
+  Seq 129: bbh - Expected: General, Got: Code (Math=33.4%, Gen=32.9%, Code=33.6%)
+  Seq 130: bbh - Expected: General, Got: Code (Math=33.4%, Gen=32.8%, Code=33.8%)
+  Seq 131: bbh - Expected: General, Got: Code (Math=33.2%, Gen=32.8%, Code=34.0%)
+  Seq 132: bbh - Expected: General, Got: Code (Math=33.5%, Gen=32.5%, Code=33.9%)
+  Seq 133: bbh - Expected: General, Got: Code (Math=33.3%, Gen=33.3%, Code=33.4%)
+  Seq 134: bbh - Expected: General, Got: Code (Math=33.3%, Gen=32.9%, Code=33.9%)
+  Seq 135: bbh - Expected: General, Got: Code (Math=33.2%, Gen=32.9%, Code=33.9%)
+  Seq 136: bbh - Expected: General, Got: Code (Math=33.0%, Gen=33.3%, Code=33.7%)
+  Seq 137: bbh - Expected: General, Got: Code (Math=33.2%, Gen=33.1%, Code=33.7%)
+  Seq 138: bbh - Expected: General, Got: Code (Math=32.5%, Gen=33.5%, Code=34.0%)
+  Seq 139: bbh - Expected: General, Got: Code (Math=32.8%, Gen=33.4%, Code=33.8%)
+  Seq 141: bbh - Expected: General, Got: Code (Math=32.6%, Gen=33.5%, Code=33.9%)
+  Seq 142: bbh - Expected: General, Got: Code (Math=32.5%, Gen=33.6%, Code=33.9%)
+  Seq 143: bbh - Expected: General, Got: Code (Math=32.6%, Gen=33.6%, Code=33.8%)
+  Seq 144: bbh - Expected: General, Got: Math (Math=33.5%, Gen=33.0%, Code=33.5%)
+  Seq 145: bbh - Expected: General, Got: Code (Math=33.4%, Gen=32.8%, Code=33.7%)
+  Seq 146: bbh - Expected: General, Got: Code (Math=33.4%, Gen=32.9%, Code=33.6%)
+  Seq 147: bbh - Expected: General, Got: Math (Math=33.4%, Gen=33.1%, Code=33.4%)
+  Seq 148: bbh - Expected: General, Got: Math (Math=34.2%, Gen=32.6%, Code=33.3%)
+  Seq 149: bbh - Expected: General, Got: Math (Math=39.6%, Gen=31.7%, Code=28.7%)
+  Seq 151: popqa - Expected: General, Got: Math (Math=33.7%, Gen=33.5%, Code=32.8%)
+  Seq 152: popqa - Expected: General, Got: Math (Math=34.0%, Gen=33.4%, Code=32.6%)
+  Seq 153: popqa - Expected: General, Got: Math (Math=33.9%, Gen=33.7%, Code=32.4%)
+  Seq 154: popqa - Expected: General, Got: Math (Math=33.9%, Gen=33.8%, Code=32.3%)
+  Seq 157: popqa - Expected: General, Got: Math (Math=33.7%, Gen=33.7%, Code=32.6%)
+  Seq 161: simpleqa - Expected: General, Got: Code (Math=32.5%, Gen=33.7%, Code=33.8%)
+  Seq 162: simpleqa - Expected: General, Got: Code (Math=33.1%, Gen=33.4%, Code=33.5%)
+  Seq 165: simpleqa - Expected: General, Got: Code (Math=32.3%, Gen=33.8%, Code=33.9%)
+  Seq 166: simpleqa - Expected: General, Got: Code (Math=32.5%, Gen=33.7%, Code=33.8%)
+  Seq 168: gpqa - Expected: General, Got: Code (Math=33.0%, Gen=33.5%, Code=33.5%)
+  Seq 171: gpqa - Expected: General, Got: Code (Math=33.3%, Gen=33.3%, Code=33.4%)
+  Seq 173: gpqa - Expected: General, Got: Code (Math=33.3%, Gen=33.1%, Code=33.6%)
+  Seq 176: gpqa - Expected: General, Got: Code (Math=32.9%, Gen=33.4%, Code=33.6%)
+  Seq 178: gpqa - Expected: General, Got: Code (Math=33.2%, Gen=33.3%, Code=33.4%)
+  Seq 181: gpqa - Expected: General, Got: Code (Math=33.3%, Gen=33.1%, Code=33.6%)
+  Seq 182: gpqa - Expected: General, Got: Code (Math=27.9%, Gen=34.4%, Code=37.7%)
+  Seq 184: ifeval - Expected: General, Got: Code (Math=33.8%, Gen=31.8%, Code=34.4%)
+  Seq 185: ifeval - Expected: General, Got: Code (Math=33.3%, Gen=32.3%, Code=34.4%)
+  Seq 186: ifeval - Expected: General, Got: Code (Math=34.0%, Gen=31.2%, Code=34.8%)
+  Seq 187: ifeval - Expected: General, Got: Math (Math=33.9%, Gen=32.3%, Code=33.8%)
+  Seq 188: ifeval - Expected: General, Got: Code (Math=33.4%, Gen=32.2%, Code=34.4%)
