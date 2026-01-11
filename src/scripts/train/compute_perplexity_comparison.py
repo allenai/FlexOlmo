@@ -161,14 +161,25 @@ def analyze_eval_labels(labels_dir: Path, data_dir: Path) -> Dict:
     return results
 
 
+def get_domain_category(domain_label: str) -> str:
+    """Map domain label to category (Math, Code, General)."""
+    domain_lower = domain_label.lower()
+    if domain_lower.startswith("mj_finemath"):
+        return "Math"
+    elif domain_lower.startswith("starcoder") or "code" in domain_lower:
+        return "Code"
+    else:
+        return "General"
+
+
 def compute_training_perplexity(
     checkpoint_path: str,
     mix_name: str,
     mix_base_dir: str,
-    num_seqs: int = 100,
+    num_seqs_per_domain: int = 50,
     expert_indices: Tuple[int, ...] = (0, 1, 2),
 ) -> Dict:
-    """Compute perplexity on training data by running inference."""
+    """Compute perplexity on training data by running inference, broken down by domain."""
     
     import torch
     import torch.nn.functional as F
@@ -200,32 +211,56 @@ def compute_training_perplexity(
     
     # Load checkpoint
     checkpoint_dir = Path(checkpoint_path)
-    if (checkpoint_dir / "model").exists():
+    
+    # Check for distributed checkpoint format (.distcp files)
+    distcp_files = list(checkpoint_dir.glob("*.distcp"))
+    if distcp_files:
+        # Distributed checkpoint - use load_model_and_optim_state directly on the directory
+        log.info(f"Loading distributed checkpoint from {checkpoint_dir}")
         load_model_and_optim_state(checkpoint_dir, model)
-    else:
-        # Try loading as a single file
+    elif (checkpoint_dir / "model").exists():
+        # Checkpoint with model subdirectory
+        load_model_and_optim_state(checkpoint_dir, model)
+    elif checkpoint_dir.is_file():
+        # Single file checkpoint
         state_dict = torch.load(checkpoint_path, map_location="cpu")
         if "model" in state_dict:
             model.load_state_dict(state_dict["model"])
         else:
             model.load_state_dict(state_dict)
+    else:
+        raise ValueError(f"Could not determine checkpoint format for: {checkpoint_path}")
     
     model = model.to(device=device, dtype=dtype)
     model.eval()
     
-    log.info(f"Model loaded, building dataset...")
+    log.info(f"Model loaded, loading data by domain...")
     
-    # Build dataset
-    dataset_config = NumpyDatasetConfig(
-        sequence_length=4096,
-        tokenizer=TokenizerConfig.dolma2(),
-        mix=CustomDataMix(mix_name),
-        mix_base_dir=mix_base_dir,
-        include_instance_metadata=False,
-    )
-    dataset = dataset_config.build()
+    # Load mix file to get domain-specific files
+    mix_file_path = Path(__file__).parent.parent.parent / "flexolmo" / "data" / "mixes" / f"{mix_name}.txt"
+    if not mix_file_path.exists():
+        # Try alternate path
+        mix_file_path = Path("src/flexolmo/data/mixes") / f"{mix_name}.txt"
     
-    log.info(f"Dataset built, computing perplexity on {num_seqs} sequences...")
+    # Parse mix file by domain category
+    domain_files = {"Math": [], "Code": [], "General": []}
+    
+    if mix_file_path.exists():
+        with open(mix_file_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    parts = line.split(",")
+                    if len(parts) >= 2:
+                        domain_label, file_path = parts[0], parts[1]
+                        category = get_domain_category(domain_label)
+                        domain_files[category].append((domain_label, file_path))
+        
+        log.info(f"Found files by category:")
+        for cat, files in domain_files.items():
+            log.info(f"  {cat}: {len(files)} files")
+    else:
+        log.warning(f"Mix file not found: {mix_file_path}, will sample randomly")
     
     # ForcedExpertRouter context manager
     class ForcedExpertRouter:
@@ -247,7 +282,7 @@ def compute_training_perplexity(
                     def make_forced_forward(forced_expert, n_experts):
                         def forced_forward(x, *, loss_div_factor=None):
                             batch_size, seq_len = x.shape[:2]
-                            top_k = 4  # Assuming top_k=4
+                            top_k = 4
                             
                             forced_indices = torch.full(
                                 (batch_size, seq_len, top_k), 
@@ -277,49 +312,110 @@ def compute_training_perplexity(
             for name, module in self.routers:
                 module.forward = self.original_forwards[name]
     
-    # Collect losses per expert
-    expert_losses = {e: [] for e in expert_indices}
-    
-    with torch.no_grad():
-        for seq_idx in range(min(num_seqs, len(dataset))):
-            batch = dataset[seq_idx]
-            input_ids = torch.tensor(batch["input_ids"], dtype=torch.long).unsqueeze(0).to(device)
-            
-            for expert_idx in expert_indices:
-                with ForcedExpertRouter(model, expert_idx):
-                    output = model(input_ids)
-                    logits = output.logits if hasattr(output, 'logits') else output
-                    
-                    # Compute per-token loss
-                    shift_logits = logits[:, :-1, :].contiguous()
-                    shift_labels = input_ids[:, 1:].contiguous()
-                    
-                    per_token_loss = F.cross_entropy(
-                        shift_logits.view(-1, shift_logits.size(-1)),
-                        shift_labels.view(-1),
-                        reduction='none',
-                    )
-                    
-                    expert_losses[expert_idx].extend(per_token_loss.cpu().numpy().tolist())
-            
-            if (seq_idx + 1) % 10 == 0:
-                log.info(f"Processed {seq_idx + 1}/{num_seqs} sequences")
-    
-    # Compute perplexities
+    # Collect losses per domain category and expert
     results = {
-        "num_sequences": num_seqs,
-        "num_tokens": len(expert_losses[expert_indices[0]]),
-        "per_expert": {},
+        "num_seqs_per_domain": num_seqs_per_domain,
+        "per_domain": {},
+        "overall": {},
     }
     
-    for e in expert_indices:
-        losses = np.array(expert_losses[e])
-        ppl = compute_perplexity(losses)
-        avg_loss = np.mean(losses)
-        results["per_expert"][EXPERT_NAMES.get(e, f"Expert{e}")] = {
-            "perplexity": float(ppl),
-            "avg_loss": float(avg_loss),
+    overall_losses = {e: [] for e in expert_indices}
+    
+    for category in ["Math", "Code", "General"]:
+        log.info(f"\nProcessing {category} data...")
+        
+        if not domain_files[category]:
+            log.warning(f"No files found for {category}, skipping")
+            continue
+        
+        # Sample files for this category
+        import random
+        random.seed(42)
+        sampled_files = random.sample(
+            domain_files[category], 
+            min(len(domain_files[category]), num_seqs_per_domain)
+        )
+        
+        category_losses = {e: [] for e in expert_indices}
+        seqs_processed = 0
+        
+        for domain_label, file_path in sampled_files:
+            full_path = Path(mix_base_dir) / file_path
+            if not full_path.exists():
+                continue
+            
+            try:
+                data = np.load(full_path)
+                num_seqs_in_file = len(data) // 4096
+                
+                if num_seqs_in_file == 0:
+                    continue
+                
+                # Take first sequence from each file
+                input_ids = torch.tensor(data[:4096], dtype=torch.long).unsqueeze(0).to(device)
+                
+                with torch.no_grad():
+                    for expert_idx in expert_indices:
+                        with ForcedExpertRouter(model, expert_idx):
+                            output = model(input_ids)
+                            logits = output.logits if hasattr(output, 'logits') else output
+                            
+                            shift_logits = logits[:, :-1, :].contiguous()
+                            shift_labels = input_ids[:, 1:].contiguous()
+                            
+                            per_token_loss = F.cross_entropy(
+                                shift_logits.view(-1, shift_logits.size(-1)),
+                                shift_labels.view(-1),
+                                reduction='none',
+                            )
+                            
+                            losses_list = per_token_loss.cpu().numpy().tolist()
+                            category_losses[expert_idx].extend(losses_list)
+                            overall_losses[expert_idx].extend(losses_list)
+                
+                seqs_processed += 1
+                if seqs_processed % 10 == 0:
+                    log.info(f"  Processed {seqs_processed}/{len(sampled_files)} sequences")
+                
+                if seqs_processed >= num_seqs_per_domain:
+                    break
+                    
+            except Exception as e:
+                log.warning(f"Error loading {file_path}: {e}")
+                continue
+        
+        # Compute perplexity for this category
+        results["per_domain"][category] = {
+            "num_sequences": seqs_processed,
+            "num_tokens": len(category_losses[expert_indices[0]]) if category_losses[expert_indices[0]] else 0,
+            "per_expert": {},
         }
+        
+        for e in expert_indices:
+            if category_losses[e]:
+                losses = np.array(category_losses[e])
+                ppl = compute_perplexity(losses)
+                avg_loss = np.mean(losses)
+                results["per_domain"][category]["per_expert"][EXPERT_NAMES.get(e, f"Expert{e}")] = {
+                    "perplexity": float(ppl),
+                    "avg_loss": float(avg_loss),
+                }
+        
+        log.info(f"  {category}: {seqs_processed} sequences, {results['per_domain'][category]['num_tokens']:,} tokens")
+    
+    # Compute overall perplexity
+    results["overall"]["num_tokens"] = len(overall_losses[expert_indices[0]]) if overall_losses[expert_indices[0]] else 0
+    results["overall"]["per_expert"] = {}
+    
+    for e in expert_indices:
+        if overall_losses[e]:
+            losses = np.array(overall_losses[e])
+            ppl = compute_perplexity(losses)
+            avg_loss = np.mean(losses)
+            results["overall"]["per_expert"][EXPERT_NAMES.get(e, f"Expert{e}")] = {
+                "perplexity": float(ppl),
+                "avg_loss": float(avg_loss),
+            }
     
     return results
 
@@ -352,29 +448,68 @@ def print_results(eval_results: Dict, training_results: Optional[Dict] = None):
     
     if training_results:
         print("\n" + "-" * 80)
-        print("ROUTER TRAINING MIX (PRE-TRAINING DATA)")
+        print("ROUTER TRAINING MIX (PRE-TRAINING DATA) - BY DOMAIN")
         print("-" * 80)
-        print(f"Sequences sampled: {training_results['num_sequences']}")
-        print(f"Total tokens: {training_results['num_tokens']:,}")
+        print(f"Sequences per domain: {training_results['num_seqs_per_domain']}")
+        print(f"Total tokens: {training_results['overall'].get('num_tokens', 0):,}")
         
-        print("\nPerplexity by Expert:")
+        # Overall perplexity
+        print("\nOverall Perplexity by Expert:")
         print(f"  {'Expert':<12} | {'Perplexity':>12} | {'Avg Loss':>12}")
         print(f"  {'-'*12}-+-{'-'*12}-+-{'-'*12}")
-        for expert, stats in training_results["per_expert"].items():
+        for expert, stats in training_results["overall"].get("per_expert", {}).items():
             print(f"  {expert:<12} | {stats['perplexity']:>12.2f} | {stats['avg_loss']:>12.4f}")
+        
+        # Per-domain breakdown
+        print("\nPerplexity by Domain and Expert (TRAINING DATA):")
+        for domain in ["Math", "Code", "General"]:
+            if domain in training_results.get("per_domain", {}):
+                domain_stats = training_results["per_domain"][domain]
+                print(f"\n  {domain} (training data):")
+                print(f"    Sequences: {domain_stats.get('num_sequences', 0)}, Tokens: {domain_stats.get('num_tokens', 0):,}")
+                for expert, stats in domain_stats.get("per_expert", {}).items():
+                    print(f"    {expert:<10}: PPL={stats['perplexity']:>8.2f}, AvgLoss={stats['avg_loss']:.4f}")
     
     # Comparison summary
     print("\n" + "=" * 80)
     print("COMPARISON SUMMARY")
     print("=" * 80)
     
-    # Find which expert has lowest perplexity on each domain
-    print("\nBest expert (lowest perplexity) per eval domain:")
+    # Find which expert has lowest perplexity on each eval domain
+    print("\nBest expert (lowest perplexity) per EVAL domain:")
     for domain in sorted(eval_results["per_domain"].keys()):
         domain_stats = eval_results["per_domain"][domain]
         best_expert = min(domain_stats.keys(), key=lambda e: domain_stats[e]["perplexity"])
         best_ppl = domain_stats[best_expert]["perplexity"]
         print(f"  {domain:<25}: {best_expert} (PPL={best_ppl:.2f})")
+    
+    if training_results and "per_domain" in training_results:
+        print("\nBest expert (lowest perplexity) per TRAINING domain:")
+        for domain in ["Math", "Code", "General"]:
+            if domain in training_results["per_domain"]:
+                domain_stats = training_results["per_domain"][domain].get("per_expert", {})
+                if domain_stats:
+                    best_expert = min(domain_stats.keys(), key=lambda e: domain_stats[e]["perplexity"])
+                    best_ppl = domain_stats[best_expert]["perplexity"]
+                    print(f"  {domain:<25}: {best_expert} (PPL={best_ppl:.2f})")
+        
+        # Specialization analysis
+        print("\n" + "-" * 60)
+        print("SPECIALIZATION CHECK:")
+        print("-" * 60)
+        print("Expected: Math expert should have lowest PPL on Math data,")
+        print("          Code expert on Code data, General expert on General data.")
+        print("")
+        
+        expected_best = {"Math": "Math", "Code": "Code", "General": "General"}
+        for domain in ["Math", "Code", "General"]:
+            if domain in training_results["per_domain"]:
+                domain_stats = training_results["per_domain"][domain].get("per_expert", {})
+                if domain_stats:
+                    best_expert = min(domain_stats.keys(), key=lambda e: domain_stats[e]["perplexity"])
+                    expected = expected_best[domain]
+                    match = "✓" if best_expert == expected else "✗"
+                    print(f"  {domain} data: Best={best_expert}, Expected={expected} {match}")
 
 
 def main():
@@ -395,8 +530,8 @@ def main():
                         help="Training mix name")
     parser.add_argument("--training_mix_base_dir", type=str, default="/weka/oe-training-default/ai2-llm/",
                         help="Training mix base directory")
-    parser.add_argument("--num_training_seqs", type=int, default=100,
-                        help="Number of training sequences to sample")
+    parser.add_argument("--num_seqs_per_domain", type=int, default=50,
+                        help="Number of sequences to sample PER DOMAIN (Math, Code, General)")
     
     # Output
     parser.add_argument("--output", type=str, default=None,
@@ -420,7 +555,7 @@ def main():
             args.checkpoint,
             args.training_mix,
             args.training_mix_base_dir,
-            args.num_training_seqs,
+            args.num_seqs_per_domain,
         )
     
     # Print results
