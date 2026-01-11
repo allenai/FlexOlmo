@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
 """
-Analyze per-token expert labels using AGGREGATE-THEN-SOFTMAX approach.
+Analyze per-token expert labels using AGGREGATE-THEN-REPORT approach.
 
-This script differs from analyze_expert_labels.py in how it computes expert distribution:
-
-OLD approach (argmin-then-aggregate):
-  - For each token: pick expert with min loss (winner-take-all)
-  - Aggregate: count how many tokens each expert "won"
-  - Problem: loses granularity when losses are close
-
-NEW approach (aggregate-then-softmax):
+This script reports RAW TOTAL LOSSES per expert (no normalization):
   - For each token: keep all expert losses
   - Aggregate: sum losses per expert across all tokens
-  - Convert: softmax(-summed_losses) to get distribution
-  - Benefit: captures cumulative advantage, preserves magnitude differences
+  - Report: raw total losses (lower loss = better expert for that data)
 
 Usage:
     python src/scripts/train/analyze_expert_labels_aggregate.py \
@@ -88,33 +80,19 @@ def get_expected_domain(domain_label: str) -> str:
         return "General"
 
 
-def losses_to_distribution(loss_sums):
-    """Convert summed losses to probability distribution via inverse normalization.
-    
-    Uses 1/loss normalized - probability is inversely proportional to loss.
-    Lower loss = higher probability, preserves relative differences without
-    exponential amplification.
-    """
-    losses = np.array(loss_sums)
-    
-    # Handle edge case of zero or negative losses
-    losses = np.maximum(losses, 1e-10)
-    
-    # Inverse loss: lower loss = higher weight
-    inv_losses = 1.0 / losses
-    
-    # Normalize to sum to 1
-    return inv_losses / inv_losses.sum()
+def get_raw_losses(loss_sums):
+    """Return raw losses as numpy array."""
+    return np.array(loss_sums)
 
 
 def analyze_labels_aggregate(labels_dir: str, data_dir: str, output_path: str, show_text: bool = True):
-    """Analyze per-token labels using aggregate-then-inverse approach."""
+    """Analyze per-token labels - reporting raw total losses per expert."""
     
     labels_dir = Path(labels_dir)
     data_dir = Path(data_dir)
     
     print(f"Analyzing labels from: {labels_dir}")
-    print("Using inverse loss normalization (1/loss / sum(1/loss))")
+    print("Reporting RAW TOTAL LOSSES per expert (no normalization)")
     
     # Load tokenizer if we want to show text
     tokenizer = load_tokenizer() if show_text else None
@@ -213,36 +191,33 @@ def analyze_labels_aggregate(labels_dir: str, data_dir: str, output_path: str, s
         seq_loss_sums = all_expert_losses.sum(axis=0)  # Shape: (num_experts,)
         total_tokens = all_expert_losses.shape[0]
         
-        # Convert to distribution for this sequence
-        seq_distribution = losses_to_distribution(seq_loss_sums)
-        
-        # Compute combined domain distribution (Math, General=E1+E3, Code)
+        # Compute combined domain losses (Math, General=E1+E3, Code)
         if num_experts >= 4:
-            domain_dist = {
-                "Math": float(seq_distribution[0]),
-                "General": float(seq_distribution[1] + seq_distribution[3]),
-                "Code": float(seq_distribution[2]),
+            domain_losses = {
+                "Math": float(seq_loss_sums[0]),
+                "General": float(seq_loss_sums[1] + seq_loss_sums[3]),
+                "Code": float(seq_loss_sums[2]),
             }
         else:
-            domain_dist = {
-                "Math": float(seq_distribution[0]),
-                "General": float(seq_distribution[1]),
-                "Code": float(seq_distribution[2]) if num_experts > 2 else 0.0,
+            domain_losses = {
+                "Math": float(seq_loss_sums[0]),
+                "General": float(seq_loss_sums[1]),
+                "Code": float(seq_loss_sums[2]) if num_experts > 2 else 0.0,
             }
         
-        # Determine majority domain
-        majority_domain = max(domain_dist, key=domain_dist.get)
-        agrees = (majority_domain == expected_domain)
+        # Determine best domain (lowest loss = best)
+        best_domain = min(domain_losses, key=domain_losses.get)
+        agrees = (best_domain == expected_domain)
         
         # Store per-sequence result
         result = {
             "seq_idx": seq_idx,
             "domain": domain,
             "expected_domain": expected_domain,
-            "majority_domain": majority_domain,
+            "best_domain": best_domain,
             "agrees": agrees,
-            "expert_dist_pcts": {e: float(seq_distribution[e] * 100) for e in range(num_experts)},
-            "domain_dist_pcts": {d: v * 100 for d, v in domain_dist.items()},
+            "expert_losses": {e: float(seq_loss_sums[e]) for e in range(num_experts)},
+            "domain_losses": domain_losses,
             "total_tokens": total_tokens,
         }
         results.append(result)
@@ -292,14 +267,13 @@ def write_analysis_output(
     
     with open(output_path, "w") as f:
         f.write("=" * 100 + "\n")
-        f.write("PER-TOKEN EXPERT LABEL ANALYSIS (AGGREGATE-THEN-NORMALIZE)\n")
+        f.write("PER-TOKEN EXPERT LABEL ANALYSIS (RAW TOTAL LOSSES)\n")
         f.write("=" * 100 + "\n\n")
         
-        f.write("This analysis uses the AGGREGATE-THEN-INVERSE approach:\n")
+        f.write("This analysis reports RAW TOTAL LOSSES per expert:\n")
         f.write("  1. Sum losses per expert across all tokens\n")
-        f.write("  2. Convert to distribution via inverse normalization: (1/loss) / sum(1/loss)\n")
-        f.write("  3. Lower loss = higher probability (inversely proportional)\n")
-        f.write("  4. No exponential amplification - preserves actual proportions\n\n")
+        f.write("  2. Report raw totals (lower loss = better expert for that data)\n")
+        f.write("  3. No normalization applied\n\n")
         
         f.write("Expert Mapping:\n")
         f.write("  Expert 0 = Math\n")
@@ -316,30 +290,35 @@ def write_analysis_output(
         f.write(f"Total sequences analyzed: {len(results)}\n")
         f.write(f"Total tokens: {overall_token_count:,}\n\n")
         
-        # Convert overall loss sums to distribution
-        overall_dist = losses_to_distribution(
-            [overall_loss_sums[e] for e in range(num_experts)]
-        )
+        # Get raw overall losses
+        overall_losses = get_raw_losses([overall_loss_sums[e] for e in range(num_experts)])
         
-        f.write("Per-Expert Distribution (from aggregate softmax):\n")
+        f.write("Per-Expert Total Losses:\n")
         for e in range(num_experts):
             name = EXPERT_NAMES.get(e, f"Expert{e}")
-            f.write(f"  {name:10} (Expert {e}): {overall_dist[e]*100:5.2f}%\n")
+            f.write(f"  {name:10} (Expert {e}): {overall_losses[e]:,.2f}\n")
         
-        # Combined domain distribution
+        # Combined domain losses
         if num_experts >= 4:
-            math_pct = overall_dist[0] * 100
-            general_pct = (overall_dist[1] + overall_dist[3]) * 100
-            code_pct = overall_dist[2] * 100
+            math_loss = overall_losses[0]
+            general_loss = overall_losses[1] + overall_losses[3]
+            code_loss = overall_losses[2]
         else:
-            math_pct = overall_dist[0] * 100
-            general_pct = overall_dist[1] * 100
-            code_pct = overall_dist[2] * 100 if num_experts > 2 else 0
+            math_loss = overall_losses[0]
+            general_loss = overall_losses[1]
+            code_loss = overall_losses[2] if num_experts > 2 else 0
         
-        f.write("\nCombined Domain Distribution:\n")
-        f.write(f"  Math       (E0):     {math_pct:5.2f}%\n")
-        f.write(f"  General    (E1+E3):  {general_pct:5.2f}%\n")
-        f.write(f"  Code       (E2):     {code_pct:5.2f}%\n")
+        f.write("\nCombined Domain Total Losses:\n")
+        f.write(f"  Math       (E0):     {math_loss:,.2f}\n")
+        f.write(f"  General    (E1+E3):  {general_loss:,.2f}\n")
+        f.write(f"  Code       (E2):     {code_loss:,.2f}\n")
+        
+        # Also show average loss per token for easier comparison
+        f.write("\nAverage Loss Per Token:\n")
+        for e in range(num_experts):
+            name = EXPERT_NAMES.get(e, f"Expert{e}")
+            avg_loss = overall_losses[e] / overall_token_count if overall_token_count > 0 else 0
+            f.write(f"  {name:10} (Expert {e}): {avg_loss:.4f}\n")
         
         # Agreement analysis
         valid_results = [r for r in results if r.get("agrees") is not None]
@@ -360,34 +339,42 @@ def write_analysis_output(
             token_count = domain_token_counts[domain]
             expected = get_expected_domain(domain)
             
-            # Convert domain loss sums to distribution
-            domain_dist = losses_to_distribution(
-                [loss_sums[e] for e in range(num_experts)]
-            )
+            # Get raw domain losses
+            domain_raw_losses = get_raw_losses([loss_sums[e] for e in range(num_experts)])
             
             f.write(f"Domain: {domain}\n")
             f.write(f"  Expected Category: {expected}\n")
             f.write(f"  Total tokens: {token_count:,}\n")
             
-            f.write(f"  Per-expert distribution:\n")
+            f.write(f"  Per-expert total losses:\n")
             for e in range(num_experts):
                 name = EXPERT_NAMES.get(e, f"Expert{e}")
-                f.write(f"    {name:10} (E{e}): {domain_dist[e]*100:5.2f}%\n")
+                f.write(f"    {name:10} (E{e}): {domain_raw_losses[e]:,.2f}\n")
             
-            # Combined domain distribution
+            f.write(f"  Per-expert avg loss per token:\n")
+            for e in range(num_experts):
+                name = EXPERT_NAMES.get(e, f"Expert{e}")
+                avg = domain_raw_losses[e] / token_count if token_count > 0 else 0
+                f.write(f"    {name:10} (E{e}): {avg:.4f}\n")
+            
+            # Combined domain losses
             if num_experts >= 4:
-                math_d = domain_dist[0] * 100
-                general_d = (domain_dist[1] + domain_dist[3]) * 100
-                code_d = domain_dist[2] * 100
+                math_l = domain_raw_losses[0]
+                general_l = domain_raw_losses[1] + domain_raw_losses[3]
+                code_l = domain_raw_losses[2]
             else:
-                math_d = domain_dist[0] * 100
-                general_d = domain_dist[1] * 100
-                code_d = domain_dist[2] * 100 if num_experts > 2 else 0
+                math_l = domain_raw_losses[0]
+                general_l = domain_raw_losses[1]
+                code_l = domain_raw_losses[2] if num_experts > 2 else 0
             
-            f.write(f"  Combined domain distribution:\n")
-            f.write(f"    Math    (E0):   {math_d:5.2f}%{' <-- expected' if expected == 'Math' else ''}\n")
-            f.write(f"    General (E1+3): {general_d:5.2f}%{' <-- expected' if expected == 'General' else ''}\n")
-            f.write(f"    Code    (E2):   {code_d:5.2f}%{' <-- expected' if expected == 'Code' else ''}\n")
+            # Find best (lowest loss)
+            domain_losses_dict = {"Math": math_l, "General": general_l, "Code": code_l}
+            best = min(domain_losses_dict, key=domain_losses_dict.get)
+            
+            f.write(f"  Combined domain total losses:\n")
+            f.write(f"    Math    (E0):   {math_l:,.2f}{' <-- lowest (best)' if best == 'Math' else ''}{' <-- expected' if expected == 'Math' else ''}\n")
+            f.write(f"    General (E1+3): {general_l:,.2f}{' <-- lowest (best)' if best == 'General' else ''}{' <-- expected' if expected == 'General' else ''}\n")
+            f.write(f"    Code    (E2):   {code_l:,.2f}{' <-- lowest (best)' if best == 'Code' else ''}{' <-- expected' if expected == 'Code' else ''}\n")
             f.write("\n")
         
         f.write("=" * 100 + "\n")
@@ -395,21 +382,21 @@ def write_analysis_output(
         f.write("=" * 100 + "\n\n")
         
         # Header
-        f.write(f"{'Seq':>6} | {'Source Domain':25} | {'Expected':8} | {'Majority':8} | {'Match':5} |  Math% |   Gen% |  Code%")
+        f.write(f"{'Seq':>6} | {'Source Domain':25} | {'Expected':8} | {'Best':8} | {'Match':5} | {'Math Loss':>12} | {'Gen Loss':>12} | {'Code Loss':>12}")
         if num_experts >= 4:
-            f.write(" | (E0)%  | (E1)%  | (E2)%  | (E3)%")
+            f.write(f" | {'E0':>10} | {'E1':>10} | {'E2':>10} | {'E3':>10}")
         f.write("\n")
-        f.write("-" * 130 + "\n")
+        f.write("-" * 160 + "\n")
         
         for r in sorted(results, key=lambda x: x["seq_idx"]):
             match_str = "✓" if r["agrees"] else "✗"
-            domain_probs = r.get("domain_dist_pcts", {})
-            expert_probs = r.get("expert_dist_pcts", {})
+            domain_losses = r.get("domain_losses", {})
+            expert_losses = r.get("expert_losses", {})
             
-            line = f"{r['seq_idx']:>6} | {r['domain']:25} | {r['expected_domain']:8} | {r['majority_domain']:8} | {match_str:^5} "
-            line += f"| {domain_probs.get('Math', 0):5.1f}% | {domain_probs.get('General', 0):5.1f}% | {domain_probs.get('Code', 0):5.1f}%"
+            line = f"{r['seq_idx']:>6} | {r['domain']:25} | {r['expected_domain']:8} | {r['best_domain']:8} | {match_str:^5} "
+            line += f"| {domain_losses.get('Math', 0):12.2f} | {domain_losses.get('General', 0):12.2f} | {domain_losses.get('Code', 0):12.2f}"
             if num_experts >= 4:
-                line += f" | {expert_probs.get(0, 0):5.1f}% | {expert_probs.get(1, 0):5.1f}% | {expert_probs.get(2, 0):5.1f}% | {expert_probs.get(3, 0):5.1f}%"
+                line += f" | {expert_losses.get(0, 0):10.2f} | {expert_losses.get(1, 0):10.2f} | {expert_losses.get(2, 0):10.2f} | {expert_losses.get(3, 0):10.2f}"
             f.write(line + "\n")
         
         f.write("\n" + "=" * 100 + "\n")
@@ -419,15 +406,15 @@ def write_analysis_output(
         disagreements = [r for r in results if not r.get("agrees", True)]
         
         if disagreements:
-            f.write(f"Found {len(disagreements)} sequences where aggregate majority differs from expected:\n\n")
+            f.write(f"Found {len(disagreements)} sequences where lowest-loss expert differs from expected:\n\n")
             
             # Show first 20 disagreements with full text
             for r in disagreements[:20]:
                 f.write("-" * 100 + "\n")
                 f.write(f"Seq {r['seq_idx']}: {r['domain']}\n")
-                f.write(f"  Expected: {r['expected_domain']}, Got: {r['majority_domain']}\n")
-                domain_probs = r.get("domain_dist_pcts", {})
-                f.write(f"  Domain Dist: Math={domain_probs.get('Math', 0):.1f}%, General={domain_probs.get('General', 0):.1f}%, Code={domain_probs.get('Code', 0):.1f}%\n")
+                f.write(f"  Expected: {r['expected_domain']}, Got: {r['best_domain']}\n")
+                domain_losses = r.get("domain_losses", {})
+                f.write(f"  Domain Losses: Math={domain_losses.get('Math', 0):.2f}, General={domain_losses.get('General', 0):.2f}, Code={domain_losses.get('Code', 0):.2f}\n")
                 
                 # Load and display sequence text
                 if tokenizer is not None and data_dir is not None and domain_files is not None:
@@ -447,15 +434,15 @@ def write_analysis_output(
                 f.write(f"\n... and {len(disagreements) - 20} more disagreements (text not shown)\n")
                 f.write("\nRemaining disagreement summaries:\n")
                 for r in disagreements[20:]:
-                    domain_probs = r.get("domain_dist_pcts", {})
-                    f.write(f"  Seq {r['seq_idx']}: {r['domain']} - Expected: {r['expected_domain']}, Got: {r['majority_domain']} ")
-                    f.write(f"(Math={domain_probs.get('Math', 0):.1f}%, Gen={domain_probs.get('General', 0):.1f}%, Code={domain_probs.get('Code', 0):.1f}%)\n")
+                    domain_losses = r.get("domain_losses", {})
+                    f.write(f"  Seq {r['seq_idx']}: {r['domain']} - Expected: {r['expected_domain']}, Got: {r['best_domain']} ")
+                    f.write(f"(Math={domain_losses.get('Math', 0):.2f}, Gen={domain_losses.get('General', 0):.2f}, Code={domain_losses.get('Code', 0):.2f})\n")
         else:
             f.write("All sequences agree between source-based and aggregate labels!\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze per-token expert labels using aggregate-then-inverse normalization")
+    parser = argparse.ArgumentParser(description="Analyze per-token expert labels - report raw total losses per expert")
     parser.add_argument("--labels_dir", type=str, required=True,
                         help="Directory containing per-token labels (seq_*.npz files with all_expert_losses)")
     parser.add_argument("--data_dir", type=str, required=True,
