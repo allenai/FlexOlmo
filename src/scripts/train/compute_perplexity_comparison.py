@@ -345,8 +345,10 @@ def compute_training_perplexity(
                 continue
             
             try:
-                # Files are raw binary arrays with uint32 token IDs (vocab size ~100k)
+                # All training data files are raw binary uint32 arrays (no numpy header)
+                # This matches how olmo_core loads them based on vocab_size > 65535
                 data = np.memmap(full_path, dtype=np.uint32, mode='r')
+                
                 num_seqs_in_file = len(data) // 4096
                 
                 if num_seqs_in_file == 0:
