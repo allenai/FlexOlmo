@@ -179,7 +179,11 @@ def compute_training_perplexity(
     num_seqs_per_domain: int = 50,
     expert_indices: Tuple[int, ...] = (0, 1, 2),
 ) -> Dict:
-    """Compute perplexity on training data by running inference, broken down by domain."""
+    """Compute perplexity on training data by running inference, broken down by domain.
+    
+    Uses NumpyDatasetConfig.build() to properly load data, mirroring how
+    generate_expert_labels_per_token.py and other training scripts work.
+    """
     
     import torch
     import torch.nn.functional as F
@@ -236,13 +240,16 @@ def compute_training_perplexity(
     
     log.info(f"Model loaded, loading data by domain...")
     
+    # Tokenizer config (same as used in generate_expert_labels_per_token.py)
+    tokenizer_config = TokenizerConfig.dolma2()
+    
     # Load mix file to get domain-specific files
     mix_file_path = Path(__file__).parent.parent.parent / "flexolmo" / "data" / "mixes" / f"{mix_name}.txt"
     if not mix_file_path.exists():
         # Try alternate path
         mix_file_path = Path("src/flexolmo/data/mixes") / f"{mix_name}.txt"
     
-    # Parse mix file by domain category
+    # Parse mix file by domain category  
     domain_files = {"Math": [], "Code": [], "General": []}
     
     if mix_file_path.exists():
@@ -254,7 +261,9 @@ def compute_training_perplexity(
                     if len(parts) >= 2:
                         domain_label, file_path = parts[0], parts[1]
                         category = get_domain_category(domain_label)
-                        domain_files[category].append((domain_label, file_path))
+                        # Build full path
+                        full_path = f"{mix_base_dir}/{file_path}" if not file_path.startswith("/") else file_path
+                        domain_files[category].append(full_path)
         
         log.info(f"Found files by category:")
         for cat, files in domain_files.items():
@@ -331,31 +340,60 @@ def compute_training_perplexity(
         # Sample files for this category
         import random
         random.seed(42)
-        sampled_files = random.sample(
+        sampled_paths = random.sample(
             domain_files[category], 
-            min(len(domain_files[category]), num_seqs_per_domain)
+            min(len(domain_files[category]), num_seqs_per_domain * 2)  # Sample more in case some fail
         )
+        
+        # Build dataset for this category using NumpyDatasetConfig
+        # This properly handles dtype detection based on vocab size (same as training)
+        log.info(f"  Building dataset from {len(sampled_paths)} paths...")
+        try:
+            dataset_config = NumpyDatasetConfig(
+                tokenizer=tokenizer_config,
+                paths=sampled_paths,
+                sequence_length=4096,
+                include_instance_metadata=False,
+            )
+            dataset = dataset_config.build()
+            log.info(f"  Dataset built with {len(dataset)} sequences")
+        except Exception as e:
+            log.warning(f"  Failed to build dataset for {category}: {e}")
+            continue
         
         category_losses = {e: [] for e in expert_indices}
         seqs_processed = 0
+        vocab_size = 100352
         
-        for domain_label, file_path in sampled_files:
-            full_path = Path(mix_base_dir) / file_path
-            if not full_path.exists():
-                continue
+        # Process sequences from the dataset
+        indices_to_process = list(range(min(len(dataset), num_seqs_per_domain * 2)))
+        random.shuffle(indices_to_process)
+        
+        for idx in indices_to_process:
+            if seqs_processed >= num_seqs_per_domain:
+                break
             
             try:
-                # All training data files are raw binary uint32 arrays (no numpy header)
-                # This matches how olmo_core loads them based on vocab_size > 65535
-                data = np.memmap(full_path, dtype=np.uint32, mode='r')
+                # Get item from dataset (proper olmo_core loading)
+                item = dataset[idx]
+                if isinstance(item, dict):
+                    input_ids = item["input_ids"]
+                else:
+                    input_ids = item
                 
-                num_seqs_in_file = len(data) // 4096
+                # Convert to tensor if needed
+                if not isinstance(input_ids, torch.Tensor):
+                    input_ids = torch.tensor(input_ids, dtype=torch.long)
+                else:
+                    input_ids = input_ids.long()
                 
-                if num_seqs_in_file == 0:
+                # Skip corrupted items (token IDs >= vocab_size)
+                max_id = input_ids.max().item()
+                if max_id >= vocab_size:
+                    log.warning(f"  Skipping corrupted item {idx}: max token ID {max_id} >= vocab_size")
                     continue
                 
-                # Take first sequence from each file
-                input_ids = torch.tensor(data[:4096].astype(np.int64), dtype=torch.long).unsqueeze(0).to(device)
+                input_ids = input_ids.unsqueeze(0).to(device)
                 
                 with torch.no_grad():
                     for expert_idx in expert_indices:
@@ -372,19 +410,16 @@ def compute_training_perplexity(
                                 reduction='none',
                             )
                             
-                            losses_list = per_token_loss.cpu().numpy().tolist()
+                            losses_list = per_token_loss.float().cpu().numpy().tolist()
                             category_losses[expert_idx].extend(losses_list)
                             overall_losses[expert_idx].extend(losses_list)
                 
                 seqs_processed += 1
                 if seqs_processed % 10 == 0:
-                    log.info(f"  Processed {seqs_processed}/{len(sampled_files)} sequences")
-                
-                if seqs_processed >= num_seqs_per_domain:
-                    break
+                    log.info(f"  Processed {seqs_processed}/{num_seqs_per_domain} sequences")
                     
             except Exception as e:
-                log.warning(f"Error loading {file_path}: {e}")
+                log.warning(f"  Error processing item {idx}: {e}")
                 continue
         
         # Compute perplexity for this category
