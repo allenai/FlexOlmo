@@ -345,14 +345,15 @@ def compute_training_perplexity(
                 continue
             
             try:
-                data = np.load(full_path, allow_pickle=True)
+                # Files are raw binary arrays with uint32 token IDs (vocab size ~100k)
+                data = np.memmap(full_path, dtype=np.uint32, mode='r')
                 num_seqs_in_file = len(data) // 4096
                 
                 if num_seqs_in_file == 0:
                     continue
                 
                 # Take first sequence from each file
-                input_ids = torch.tensor(data[:4096], dtype=torch.long).unsqueeze(0).to(device)
+                input_ids = torch.tensor(data[:4096].astype(np.int64), dtype=torch.long).unsqueeze(0).to(device)
                 
                 with torch.no_grad():
                     for expert_idx in expert_indices:
