@@ -180,8 +180,10 @@ def compute_training_perplexity(
     from olmo_core.distributed.checkpoint import load_model_and_optim_state
     from olmo_core.nn.transformer import TransformerConfig
     from olmo_core.nn.moe.router import MoERouter
-    from flexolmo.internal.model_utils import *  # noqa
     from flexolmo.data.mixes import CustomDataMix
+    
+    # Import model_utils to register olmoe_nx7b on TransformerConfig
+    import flexolmo.internal.model_utils  # noqa: F401 - side effect import
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dtype = torch.bfloat16
