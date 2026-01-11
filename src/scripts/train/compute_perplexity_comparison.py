@@ -345,7 +345,7 @@ def compute_training_perplexity(
                 continue
             
             try:
-                data = np.load(full_path)
+                data = np.load(full_path, allow_pickle=True)
                 num_seqs_in_file = len(data) // 4096
                 
                 if num_seqs_in_file == 0:
