@@ -1,0 +1,271 @@
+{
+  "eval_benchmark": {
+    "total_sequences": 190,
+    "total_tokens": 737100,
+    "overall": {
+      "Math": {
+        "perplexity": 7964.886889353566,
+        "avg_loss": 8.98279802128331,
+        "num_tokens": 737100
+      },
+      "General": {
+        "perplexity": 8740.721512271362,
+        "avg_loss": 9.075748018133739,
+        "num_tokens": 737100
+      },
+      "Code": {
+        "perplexity": 8369.792791258207,
+        "avg_loss": 9.032384407055005,
+        "num_tokens": 737100
+      }
+    },
+    "per_domain": {
+      "bbh": {
+        "Math": {
+          "perplexity": 6106.861408284287,
+          "avg_loss": 8.717168239054422,
+          "num_tokens": 94185
+        },
+        "General": {
+          "perplexity": 6464.521654685916,
+          "avg_loss": 8.774084298474119,
+          "num_tokens": 94185
+        },
+        "Code": {
+          "perplexity": 5736.085809618483,
+          "avg_loss": 8.654532342003417,
+          "num_tokens": 94185
+        }
+      },
+      "gpqa": {
+        "Math": {
+          "perplexity": 14510.719956039442,
+          "avg_loss": 9.5826429625687,
+          "num_tokens": 61425
+        },
+        "General": {
+          "perplexity": 11514.610153028498,
+          "avg_loss": 9.351371956104469,
+          "num_tokens": 61425
+        },
+        "Code": {
+          "perplexity": 11574.813089804973,
+          "avg_loss": 9.356586731075028,
+          "num_tokens": 61425
+        }
+      },
+      "ifeval": {
+        "Math": {
+          "perplexity": 4856.359438329085,
+          "avg_loss": 8.488044349425296,
+          "num_tokens": 24570
+        },
+        "General": {
+          "perplexity": 5465.882395726138,
+          "avg_loss": 8.60628085065577,
+          "num_tokens": 24570
+        },
+        "Code": {
+          "perplexity": 3720.3033275089997,
+          "avg_loss": 8.221560483595972,
+          "num_tokens": 24570
+        }
+      },
+      "mj_finemath_gsm8k": {
+        "Math": {
+          "perplexity": 7019.208311425858,
+          "avg_loss": 8.856405714509986,
+          "num_tokens": 171990
+        },
+        "General": {
+          "perplexity": 8301.95460066851,
+          "avg_loss": 9.024246260116763,
+          "num_tokens": 171990
+        },
+        "Code": {
+          "perplexity": 6994.854561156732,
+          "avg_loss": 8.852930095054512,
+          "num_tokens": 171990
+        }
+      },
+      "mj_finemath_minerva": {
+        "Math": {
+          "perplexity": 8096.709177899369,
+          "avg_loss": 8.999212983775342,
+          "num_tokens": 204750
+        },
+        "General": {
+          "perplexity": 10652.422834123081,
+          "avg_loss": 9.273542641426035,
+          "num_tokens": 204750
+        },
+        "Code": {
+          "perplexity": 9873.271182666498,
+          "avg_loss": 9.19758650433304,
+          "num_tokens": 204750
+        }
+      },
+      "mmlu": {
+        "Math": {
+          "perplexity": 8717.523478548723,
+          "avg_loss": 9.073090471812451,
+          "num_tokens": 69615
+        },
+        "General": {
+          "perplexity": 8520.499589084846,
+          "avg_loss": 9.050230255320798,
+          "num_tokens": 69615
+        },
+        "Code": {
+          "perplexity": 10103.056129958373,
+          "avg_loss": 9.220593244183691,
+          "num_tokens": 69615
+        }
+      },
+      "popqa": {
+        "Math": {
+          "perplexity": 3953.968700461983,
+          "avg_loss": 8.282475087781675,
+          "num_tokens": 32760
+        },
+        "General": {
+          "perplexity": 3944.129623991316,
+          "avg_loss": 8.279983581306006,
+          "num_tokens": 32760
+        },
+        "Code": {
+          "perplexity": 6158.3232481446175,
+          "avg_loss": 8.725559819497905,
+          "num_tokens": 32760
+        }
+      },
+      "simpleqa": {
+        "Math": {
+          "perplexity": 14346.087697126582,
+          "avg_loss": 9.571232549669688,
+          "num_tokens": 28665
+        },
+        "General": {
+          "perplexity": 10039.526839512477,
+          "avg_loss": 9.214285264596585,
+          "num_tokens": 28665
+        },
+        "Code": {
+          "perplexity": 10673.295754312772,
+          "avg_loss": 9.27550017704374,
+          "num_tokens": 28665
+        }
+      },
+      "starcoder_humaneval": {
+        "Math": {
+          "perplexity": 14001.834596246956,
+          "avg_loss": 9.546943642601134,
+          "num_tokens": 28665
+        },
+        "General": {
+          "perplexity": 13858.769022506807,
+          "avg_loss": 9.53667345368465,
+          "num_tokens": 28665
+        },
+        "Code": {
+          "perplexity": 13818.216328838498,
+          "avg_loss": 9.533743024508658,
+          "num_tokens": 28665
+        }
+      },
+      "starcoder_mbpp": {
+        "Math": {
+          "perplexity": 8922.402305749612,
+          "avg_loss": 9.096320506102872,
+          "num_tokens": 20475
+        },
+        "General": {
+          "perplexity": 9655.60821517625,
+          "avg_loss": 9.175294187718114,
+          "num_tokens": 20475
+        },
+        "Code": {
+          "perplexity": 12519.291352840186,
+          "avg_loss": 9.435026041841333,
+          "num_tokens": 20475
+        }
+      }
+    }
+  },
+  "training_mix": {
+    "num_seqs_per_domain": 100,
+    "per_domain": {
+      "Math": {
+        "num_sequences": 100,
+        "num_tokens": 409500,
+        "per_expert": {
+          "Math": {
+            "perplexity": 5649.287849285729,
+            "avg_loss": 8.63928477182202
+          },
+          "General": {
+            "perplexity": 7615.326915370697,
+            "avg_loss": 8.937918194856982
+          },
+          "Code": {
+            "perplexity": 6515.712449309034,
+            "avg_loss": 8.781971838807886
+          }
+        }
+      },
+      "Code": {
+        "num_sequences": 100,
+        "num_tokens": 409500,
+        "per_expert": {
+          "Math": {
+            "perplexity": 18405.735185569298,
+            "avg_loss": 9.82041758989822
+          },
+          "General": {
+            "perplexity": 18397.656732810574,
+            "avg_loss": 9.819978584009503
+          },
+          "Code": {
+            "perplexity": 12144.386352024196,
+            "avg_loss": 9.40462231336059
+          }
+        }
+      },
+      "General": {
+        "num_sequences": 100,
+        "num_tokens": 409500,
+        "per_expert": {
+          "Math": {
+            "perplexity": 10722.658233765294,
+            "avg_loss": 9.28011437345308
+          },
+          "General": {
+            "perplexity": 9067.536330952888,
+            "avg_loss": 9.112455877871158
+          },
+          "Code": {
+            "perplexity": 8753.265130314518,
+            "avg_loss": 9.077182067495853
+          }
+        }
+      }
+    },
+    "overall": {
+      "num_tokens": 1228500,
+      "per_expert": {
+        "Math": {
+          "perplexity": 10369.308107310097,
+          "avg_loss": 9.246605578391106
+        },
+        "General": {
+          "perplexity": 10830.457168325636,
+          "avg_loss": 9.290117552245881
+        },
+        "Code": {
+          "perplexity": 8847.811387359825,
+          "avg_loss": 9.087925406554778
+        }
+      }
+    }
+  }
+}
