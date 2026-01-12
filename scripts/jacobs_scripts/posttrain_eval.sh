@@ -58,13 +58,22 @@
 
 # # 32768
 
+# "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_5b-router_sft_all_mixed/step1128-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_20b-router_sft_all_mixed/step1128-hf"
 MODEL_PATHS=(
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-code-anneal-no-eb-5B/step620-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-5B/step620-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_20b_sft-router_sft_all_mixed/step1128-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_50b_sft-router_sft_all_mixed/step1128-hf"
 )
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
-    MODEL_NAME=$(basename "$(dirname "$MODEL_PATH")")
+    BASENAME=$(basename "$MODEL_PATH")
+    
+    # Check if basename matches stepXXX-hf pattern
+    if [[ "$BASENAME" =~ ^step[0-9]+-hf$ ]]; then
+        MODEL_NAME=$(basename "$(dirname "$MODEL_PATH")")
+    else
+        MODEL_NAME=$(echo "$BASENAME" | sed 's/-hf$//')
+    fi
     
     echo "Submitting eval for: $MODEL_NAME"
     uv run python scripts/submit_eval_jobs.py \

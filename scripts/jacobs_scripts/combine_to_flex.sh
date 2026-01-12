@@ -18,10 +18,26 @@ CODE_MIX_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/f
 MATH_MIX_SFT_NO_ANNEAL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed-on-base-no-anneal/step1062
 CODE_MIX_SFT_NO_ANNEAL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-base-no-anneal/step620-unsharded
 CKPT_DIR=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft
+OLMO3_CODE=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-5B/step620
+# OLMO3_CODE_20B=/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-20B/step38147
+OLMO3_CODE_20B_WITH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-20B/step620
+OLMO3_CODE_50B=/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-50B/step95368
+OLMO3_CODE_50B_WITH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620
+
+# uv sync --extra all
+# uv pip install -e ../Olmo-core
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_20B_WITH_SFT $MATH_BASE \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_mixed-code_mixed_olmo3_20b_ann_with_sft-math_base_again &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_50B_WITH_SFT $MATH_BASE \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_mixed-code_mixed_olmo3_50b_ann_with_sft-math_base_again
+
 
 # Define configurations as "expert1,expert2,expert3|output_path"
 CONFIGS=(
-    "${MATH_BASE},${MATH_MIX_SFT},${CODE_MIX_SFT_NO_ANNEAL}|${CKPT_DIR}/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_no_ann"
+    "${MATH_BASE},${MATH_MIX_SFT},${OLMO3_CODE}|${CKPT_DIR}/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_olmo3_5b_ann"
 )
 
 for config in "${CONFIGS[@]}"; do
@@ -34,9 +50,3 @@ for config in "${CONFIGS[@]}"; do
         -m "$E1" "$E2" "$E3" \
         -t "$OUTPUT"
 done
-
-uv sync --extra all
-uv pip install -e ./Olmo-core
-uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
-    -m $MATH_BASE $MATH_MIX_SFT $CODE_MIX_SFT $MATH_BASE \
-    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_mixed-code_mixed-math_base_again
