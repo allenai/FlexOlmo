@@ -37,7 +37,7 @@ from flexolmo.internal.common import (
     print_model_params,
 )
 from flexolmo.internal.model_utils import *  # noqa
-from flexolmo.internal.train_utils import train
+from flexolmo.internal.train_utils import train, finetune
 
 SEQUENCE_LENGTH = 4096
 
@@ -126,14 +126,29 @@ if __name__ == "__main__":
     print(sys.argv)
     if len(sys.argv) < 2:
         print(f"Usage: torchrun [OPTS..] {sys.argv[0]} [dry_run] run_name [OVERRIDES...]")
+        print(f"       torchrun [OPTS..] {sys.argv[0]} finetune checkpoint_path run_name [OVERRIDES...]")
         sys.exit(1)
 
     dry_run = is_dry_run(sys.argv)
-
-    if dry_run:
+    
+    # Check for finetune mode (loads checkpoint without trainer state - allows different dataset)
+    finetune_mode = "finetune" in sys.argv
+    finetune_checkpoint = None
+    if finetune_mode:
+        # Remove 'finetune' from argv and get checkpoint path
+        argv = [arg for arg in sys.argv if arg != "finetune"]
+        if len(argv) < 3:
+            print(f"Usage for finetune: torchrun [OPTS..] {sys.argv[0]} finetune checkpoint_path run_name [OVERRIDES...]")
+            sys.exit(1)
+        finetune_checkpoint = argv[1]
+        run_name = argv[2]
+        overrides = argv[3:]
+    elif dry_run:
         _, run_name, *overrides = sys.argv[1:]
     else:
         run_name, *overrides = sys.argv[1:]
+
+    if not dry_run:
         prepare_training_environment()
 
     try:
@@ -154,6 +169,11 @@ if __name__ == "__main__":
         print_model_params(config)
         if dry_run:
             sys.exit(0)  # Exit early for dry run
-        train(config)
+        
+        if finetune_mode:
+            log.info(f"Finetuning from checkpoint: {finetune_checkpoint} (without trainer state)")
+            finetune(finetune_checkpoint, config)
+        else:
+            train(config)
     finally:
         teardown_training_environment()
