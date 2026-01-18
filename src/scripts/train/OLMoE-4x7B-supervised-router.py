@@ -140,18 +140,18 @@ def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
 
     dataset_config = common.dataset
     
-    # Use router_training_mix by default, but allow override via --dataset.mix
-    # Note: Command line overrides happen AFTER this function, so we check env var
+    # ALWAYS use router_training_mix for supervised router training
+    # The checkpoint may have a different mix (e.g., OLMoE-mix-0824) baked in, so we override it
     import os
     mix_override = os.environ.get("FLEXOLMO_DATASET_MIX")
     if mix_override:
         dataset_config.mix = mix_override
         log.info(f"Using mix from FLEXOLMO_DATASET_MIX: {mix_override}")
-    elif dataset_config.mix is None:
-        dataset_config.mix = CustomDataMix.router_training_mix
-        log.info(f"Using default mix: router_training_mix")
     else:
-        log.info(f"Using pre-configured mix: {dataset_config.mix}")
+        # Always override to router_training_mix (checkpoint may have different default)
+        old_mix = dataset_config.mix
+        dataset_config.mix = CustomDataMix.router_training_mix
+        log.info(f"Overriding mix from '{old_mix}' to 'router_training_mix'")
     
     # Use get_mixture_dataset_config_by_domain to split by domain labels
     # This ensures each domain (starcoder, mj_finemath4plus, etc.) becomes its own source
