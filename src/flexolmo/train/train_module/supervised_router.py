@@ -169,6 +169,16 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
             log.info(f"[Router Training] Skipped supervision for layers: {sorted(set(skipped_layers))}")
         log.info(f"[Router Training] Patched {patched_count} routers for supervised loss computation")
     
+    def _is_soft_labels(self, labels: torch.Tensor) -> bool:
+        """
+        Check if labels are soft (probability distributions) vs hard (one-hot).
+        
+        Soft labels have values between 0 and 1 (not all exactly 0 or 1).
+        """
+        # Check if any value is between 0 and 1 (exclusive)
+        is_soft = bool(((labels > 0) & (labels < 1)).any().item())
+        return is_soft
+    
     def _compute_supervised_loss_during_forward(
         self,
         router_logits: torch.Tensor,
@@ -179,9 +189,14 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         """
         Compute supervised loss during forward pass.
         
-        Supports both:
-        - Per-sequence labels: shape (batch_size, num_experts) one-hot encoded
+        Supports:
+        - Per-sequence hard labels: shape (batch_size, num_experts) one-hot encoded
+        - Per-sequence soft labels: shape (batch_size, num_experts) probability distribution
         - Per-token labels: shape (batch_size, seq_len) or (batch_size, seq_len-1) with expert IDs
+        
+        For soft labels (probability distributions), uses soft cross-entropy:
+            L = -Σ_e q(e) log p_θ(e)
+        For hard labels (one-hot), uses standard cross-entropy.
         """
         if isinstance(router_logits, DTensor):
             router_logits = get_full_tensor(router_logits)
@@ -208,9 +223,53 @@ class SupervisedRouterTrainModule(TransformerTrainModule):
         
         # Determine if per-token or per-sequence labels
         if expert_labels.dim() == 2 and expert_labels.shape[-1] == num_experts:
-            # Per-sequence labels: one-hot encoded (batch_size, num_experts)
-            expert_indices = expert_labels.argmax(dim=-1).long()  # (batch_size,)
-            expert_indices = expert_indices.repeat_interleave(seq_len)  # (batch_size * seq_len,)
+            # Per-sequence labels: (batch_size, num_experts)
+            # Check if soft labels (probability distribution) or hard labels (one-hot)
+            is_soft = self._is_soft_labels(expert_labels)
+            
+            if is_soft:
+                # Soft labels: use soft cross-entropy (KL divergence)
+                # Expand soft labels to all tokens: (batch_size, num_experts) -> (batch_size * seq_len, num_experts)
+                soft_labels_expanded = expert_labels.unsqueeze(1).expand(-1, seq_len, -1).reshape(-1, num_experts)
+                
+                # Align number of experts if needed
+                if soft_labels_expanded.shape[-1] > num_experts_logits:
+                    soft_labels_expanded = soft_labels_expanded[:, :num_experts_logits]
+                    # Re-normalize
+                    soft_labels_expanded = soft_labels_expanded / soft_labels_expanded.sum(dim=-1, keepdim=True).clamp(min=1e-10)
+                elif soft_labels_expanded.shape[-1] < num_experts_logits:
+                    # Pad with zeros
+                    padding = torch.zeros(soft_labels_expanded.shape[0], num_experts_logits - soft_labels_expanded.shape[-1],
+                                        dtype=soft_labels_expanded.dtype, device=soft_labels_expanded.device)
+                    soft_labels_expanded = torch.cat([soft_labels_expanded, padding], dim=-1)
+                
+                # Log soft label usage once
+                if not hasattr(self, '_logged_soft_labels'):
+                    self._logged_soft_labels = True
+                    log.info(f"[Router Training] Using SOFT labels (soft cross-entropy). "
+                            f"Example label: {expert_labels[0].tolist()}")
+                
+                # Soft cross-entropy: L = -Σ_e q(e) log p_θ(e)
+                router_log_probs = F.log_softmax(router_logits_flat, dim=-1)
+                router_loss = -(soft_labels_expanded * router_log_probs).sum(dim=-1).sum()
+                
+                num_tokens = router_logits_flat.shape[0]
+                if loss_div_factor is not None:
+                    router_loss = router_loss / (loss_div_factor if isinstance(loss_div_factor, torch.Tensor) else float(loss_div_factor))
+                else:
+                    router_loss = router_loss / num_tokens
+                
+                return router_loss
+            else:
+                # Hard labels: convert one-hot to indices
+                expert_indices = expert_labels.argmax(dim=-1).long()  # (batch_size,)
+                expert_indices = expert_indices.repeat_interleave(seq_len)  # (batch_size * seq_len,)
+                
+                # Log hard label usage once
+                if not hasattr(self, '_logged_hard_labels'):
+                    self._logged_hard_labels = True
+                    log.info(f"[Router Training] Using HARD labels (standard cross-entropy). "
+                            f"Example label: {expert_labels[0].tolist()}")
         elif expert_labels.dim() == 2:
             # Per-token labels: (batch_size, token_len) with expert IDs
             token_len = expert_labels.shape[1]
