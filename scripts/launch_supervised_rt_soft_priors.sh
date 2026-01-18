@@ -17,7 +17,7 @@ set -e
 
 PYTHONPATH=/weka/oe-training-default/sanjaya/FlexOlmo/src:$PYTHONPATH \
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
-   --launch.name=FlexOlmo-4x7B-SoftPrior-RT \
+   --launch.name=FlexOlmo-4x7B-SoftPrior-RT-v2 \
    --launch.num_nodes=8 \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
