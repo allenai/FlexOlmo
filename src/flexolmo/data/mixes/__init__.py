@@ -59,6 +59,8 @@ class CustomDataMix(DataMixBase):
     # 2x7B router training mixes
     math_general_rt_mix = "math_general_rt_mix"
     code_general_rt_mix = "code_general_rt_mix"
+
+    olmo3_code = "olmo3_code"
     
     # 4x7B supervised router training mix (with one-hot labels)
     router_training_mix_labeled = "router_training_mix_labeled"
