@@ -17,8 +17,10 @@ from olmo_core.nn.moe.router import MoERouter as MoERouterBase
 from olmo_core.nn.moe.router import (
     MoERouterConfig,
     MoERouterType,
+    MoERouterGatingFunction,
     _uniform_expert_assignment,
 )
+from olmo_core.nn.moe.loss import MoELoadBalancingLossGranularity
 
 from torch.distributed import DeviceMesh
 from torch.distributed.tensor import Replicate, Shard, distribute_tensor
@@ -132,6 +134,10 @@ class MoERouterWithExpertBias(MoERouter):
         normalize_expert_weights: Optional[float] = None,
         uniform_expert_assignment: bool = False,
         bias_gamma: Optional[float] = None,
+        gating_function: MoERouterGatingFunction = MoERouterGatingFunction.softmax,
+        lb_loss_weight: Optional[float] = None,
+        lb_loss_granularity: MoELoadBalancingLossGranularity = MoELoadBalancingLossGranularity.local_batch,
+        z_loss_weight: Optional[float] = None,
         init_device: str = "cpu",
     ):
         super().__init__(
@@ -142,6 +148,10 @@ class MoERouterWithExpertBias(MoERouter):
             normalize_expert_weights=normalize_expert_weights,
             uniform_expert_assignment=uniform_expert_assignment,
             bias_gamma=bias_gamma,
+            gating_function=gating_function,
+            lb_loss_weight=lb_loss_weight,
+            lb_loss_granularity=lb_loss_granularity,
+            z_loss_weight=z_loss_weight,
             init_device=init_device,
         )
 
