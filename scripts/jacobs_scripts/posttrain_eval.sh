@@ -60,18 +60,43 @@
 
 # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_5b-router_sft_all_mixed/step1128-hf"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_20b-router_sft_all_mixed/step1128-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test-math_base-math_5b_sft-code_5b_sft-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test_frozen_router-math_base-math_5b_sft-code_5b_sft-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-NO-frozen-router-mixed-sft-router/step1062-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-frozen-router-mixed-sft-router/step1062-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-code-frozen-router-mixed-sft-router/step620-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test-math_base-math_50b_sft-code_50b_sft-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert/grpo_math_only_flexolmo-2x7b-math-expert__1__1768451642_checkpoints/step_50/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert/grpo_math_only_flexolmo-2x7b-math-expert__1__1768451642_checkpoints/step_100/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert/grpo_math_only_flexolmo-2x7b-math-expert__1__1768451642_checkpoints/step_150/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert/grpo_math_only_flexolmo-2x7b-math-expert__1__1768451642_checkpoints/step_200/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_50/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_100/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_150/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_200/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_250/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_300/"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-50b_olmo3_code_anneal-tool_use_only/step422-hf"
 MODEL_PATHS=(
-"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_20b_sft-router_sft_all_mixed/step1128-hf"
-"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_50b_sft-router_sft_all_mixed/step1128-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-tool_use_general_mix/step888-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-BASE-tool_use_general_mix/step888-hf"
 )
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
     BASENAME=$(basename "$MODEL_PATH")
     
-    # Check if basename matches stepXXX-hf pattern
-    if [[ "$BASENAME" =~ ^step[0-9]+-hf$ ]]; then
+    if [[ "$BASENAME" =~ ^step_[0-9]+$ ]]; then
+        # RL checkpoint case: extract experiment name and step
+        STEP_NUM="$BASENAME"
+        CHECKPOINTS_DIR=$(dirname "$MODEL_PATH")
+        EXPERIMENT_DIR=$(dirname "$CHECKPOINTS_DIR")
+        EXPERIMENT_NAME=$(basename "$EXPERIMENT_DIR")
+        MODEL_NAME="${EXPERIMENT_NAME}_${STEP_NUM}"
+    elif [[ "$BASENAME" =~ ^step[0-9]+-hf$ ]]; then
+        # SFT checkpoint with step number
         MODEL_NAME=$(basename "$(dirname "$MODEL_PATH")")
     else
+        # Direct model path (no step directory)
         MODEL_NAME=$(echo "$BASENAME" | sed 's/-hf$//')
     fi
     

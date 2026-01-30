@@ -56,9 +56,9 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
             "blocks.*.feed_forward_norm.*",
             "lm_head.*",
             # "blocks.*.feed_forward_moe.experts*", # TODO: uncomment if you only want to train the router.
-            "blocks.*.feed_forward_moe.router.*", # testing freezing the router
-            "blocks.*.feed_forward_moe.gate.*",
-            "blocks.*.feed_forward_moe.gating.*"
+            # "blocks.*.feed_forward_moe.router.*", # testing freezing the router
+            # "blocks.*.feed_forward_moe.gate.*",
+            # "blocks.*.feed_forward_moe.gating.*"
         ],
     )
 

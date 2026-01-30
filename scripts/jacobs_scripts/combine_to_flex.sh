@@ -24,6 +24,22 @@ OLMO3_CODE_20B_WITH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/fle
 OLMO3_CODE_50B=/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-50B/step95368
 OLMO3_CODE_50B_WITH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620
 
+# router training tests
+MATH_5B_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-NO-frozen-router-mixed-sft-router/step1062
+MATH_5B_SFT_FROZEN_ROUTER=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-frozen-router-mixed-sft-router/step1062
+CODE_5B_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-5B/step620/
+CODE_5B_SFT_FROZEN_ROUTER=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-code-frozen-router-mixed-sft-router/step620
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_50B_WITH_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test-math_base-math_50b_sft-code_50b_sft 
+    &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $MATH_BASE $MATH_5B_SFT_FROZEN_ROUTER $CODE_5B_SFT_FROZEN_ROUTER \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test_frozen_router-math_base-math_5b_sft-code_5b_sft
+
+
 # uv sync --extra all
 # uv pip install -e ../Olmo-core
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
@@ -31,8 +47,8 @@ uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_mixed-code_mixed_olmo3_20b_ann_with_sft-math_base_again &&
 
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
-    -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_50B_WITH_SFT $MATH_BASE \
-    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_mixed-code_mixed_olmo3_50b_ann_with_sft-math_base_again
+    -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_50B_WITH_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_olmo3_50b_ann_with_sft
 
 
 # Define configurations as "expert1,expert2,expert3|output_path"
