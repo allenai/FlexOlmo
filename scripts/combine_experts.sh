@@ -3,21 +3,16 @@
 # export DATA_ROOT="http://flexolmo-data.org"
 export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints
 
-PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/sanjaya/olmo2-7B-sft/math_expert_sft_mixed/step1062
-EXPERT_1=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
-EXPERT_2=/weka/oe-training-default/ai2-llm/checkpoints/sanjaya/olmo2-7B-sft/code_expert/step150
+PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
+EXPERT_1=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen
+EXPERT_2=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-olmo3-code-pretrainednonFFN-frozen/step11921
 EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
 # Add other experts
 
-python src/scripts/upcycle/dense_to_expert_moe.py \
-    -m ${PUBLIC_EXPERT} ${EXPERT_1} \
-    -t ${CHECKPOINTS}/merged-2x7B-general-math-2
-
-# 2x7B Model 2: Expert 2 (EXPERT_2) + Expert 3 (EXPERT_3)
-echo "Creating 2x7B Model 2: Expert 2 + Expert 3"
-python src/scripts/upcycle/dense_to_expert_moe.py \
-    -m ${EXPERT_2} ${EXPERT_3} \
-    -t ${CHECKPOINTS}/merged-2x7B-general-code-2
+# Create 4x7B model by merging all 4 experts
+python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m ${PUBLIC_EXPERT} -m ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
+    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-4x7B-pretrained-experts-olmo3code
 
 # Optional router training on proxy data (provided by data owners)
 
