@@ -1,7 +1,7 @@
-# This will read stream data from the public endpoints by default, but that might be a lot slower
-# than reading data locally.
-# export DATA_ROOT="http://flexolmo-data.org"
-export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints
+#!/bin/bash
+# Beaker launch script for combining experts into a 4x7B FlexOlmo model
+
+CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints
 
 PUBLIC_EXPERT=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921
 EXPERT_1=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
@@ -17,8 +17,8 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
     --launch.workspace=ai2/flex2 \
     --launch.priority=urgent -- \
     src/scripts/upcycle/merge_experts_to_flexolmo.py \
-    -m ${PUBLIC_EXPERT} -m ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
-    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-4x7B-pretrained-experts-olmo3code
+    --models ${PUBLIC_EXPERT} ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
+    --target ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-4x7B-pretrained-experts-olmo3code
 
 # Optional router training on proxy data (provided by data owners)
 
