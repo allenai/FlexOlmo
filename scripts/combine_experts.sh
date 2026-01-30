@@ -3,14 +3,20 @@
 # export DATA_ROOT="http://flexolmo-data.org"
 export CHECKPOINTS=/weka/oe-training-default/sanjaya/flexolmo/checkpoints
 
-PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
-EXPERT_1=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen
-EXPERT_2=/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-olmo3-code-pretrainednonFFN-frozen/step11921
+PUBLIC_EXPERT=${CHECKPOINTS}/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921
+EXPERT_1=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
+EXPERT_2=${CHECKPOINTS}/OLMo2-7B-from-posttrained-olmo3-code-pretrainednonFFN-frozen/step11921
 EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350
 # Add other experts
 
 # Create 4x7B model by merging all 4 experts
-python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
+    --launch.num_nodes=1 \
+    --launch.num_gpus=1 \
+    --launch.budget=ai2/oe-oceo \
+    --launch.workspace=ai2/flex2 \
+    --launch.priority=urgent -- \
+    src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m ${PUBLIC_EXPERT} -m ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
     -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-4x7B-pretrained-experts-olmo3code
 
