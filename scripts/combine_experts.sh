@@ -14,7 +14,7 @@ python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
     --launch.name=FlexOlmo-4x7B-MergePretrainedExpertsNewCode \
     --launch.num_nodes=1 \
     --launch.num_gpus=1 \
-    --launch.budget=ai2/oe-oceo \
+    --launch.budget=ai2/oceo \
     --launch.workspace=ai2/flex2 \
     --launch.priority=urgent -- \
     src/scripts/upcycle/merge_experts_to_flexolmo.py \
