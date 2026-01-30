@@ -182,23 +182,18 @@ if __name__ == "__main__":
                     )
                 log.info(f"Copying key {dense_key} to {key} in MoE model")
                 if "expert" in key:
-                    # bp()
-                    dim = int(expert_state_dict[dense_key].shape[0] / 2)
+                    # MoE stores weights as [num_experts * d_model, hidden_size]
+                    # Dense stores weights as [hidden_size, d_model]
+                    # Need to transpose dense weights before copying
+                    dense_weight = expert_state_dict[dense_key].T  # Transpose: [hidden_size, d_model] -> [d_model, hidden_size]
+                    expert_dim = dense_weight.shape[0]  # d_model = 4096
+                    
                     if expert == 0:
-                        # get the first half of the dense weights
-                        moe_state_dict[key][dim * (expert) : dim * (expert + 1), :] = (
-                            expert_state_dict[dense_key][:dim, :]
-                        )
+                        # For expert 0, just copy the transposed weights
+                        moe_state_dict[key][expert_dim * expert : expert_dim * (expert + 1), :] = dense_weight
                     else:
-                        # get the second half of the dense weights
-                        # check if expert is actually frozen for the first part
-                        assert torch.equal(
-                            moe_state_dict[key][dim * (0) : dim * (0 + 1), :],
-                            expert_state_dict[dense_key][:dim, :],
-                        ), f"First part of the dense weights are not frozen: {key}"
-                        moe_state_dict[key][dim * (expert) : dim * (expert + 1), :] = (
-                            expert_state_dict[dense_key][dim:, :]
-                        )
+                        # For other experts, copy the transposed weights
+                        moe_state_dict[key][expert_dim * expert : expert_dim * (expert + 1), :] = dense_weight
                 elif "router" in key:
                     dim = int(expert_state_dict[dense_key].shape[0] / 2)
                     if expert == 0:
