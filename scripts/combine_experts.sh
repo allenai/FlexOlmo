@@ -11,6 +11,7 @@ EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_fl
 
 # Create 4x7B model by merging all 4 experts
 python src/scripts/beaker/launch.py launch ai2/jupiter-cirrascale-2 \
+    --launch.name=FlexOlmo-4x7B-MergePretrainedExpertsNewCode \
     --launch.num_nodes=1 \
     --launch.num_gpus=1 \
     --launch.budget=ai2/oe-oceo \
