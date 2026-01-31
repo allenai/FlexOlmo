@@ -12,7 +12,7 @@ EXPERT_3=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_fl
 # Create 4x7B model by merging all 4 experts
 python src/scripts/upcycle/dense_to_expert_moe.py \
     -m ${PUBLIC_EXPERT} ${EXPERT_1} ${EXPERT_2} ${EXPERT_3} \
-    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-4x7B-pretrained-experts-olmo3code
+    -t ${CHECKPOINTS}/OLMo2-7b-flex-base-merged-4x7B-sft-experts-olmo3code
 
 # Optional router training on proxy data (provided by data owners)
 
