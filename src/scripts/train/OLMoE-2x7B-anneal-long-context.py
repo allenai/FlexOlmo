@@ -38,7 +38,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 32768
+SEQUENCE_LENGTH = 4096 # 32768
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             #      OptimGroupOverride(params=["embeddings.weight"], opts=dict(weight_decay=0.0))
             #  ], # swj check
         ),
-        compile_model=False,
+        compile_model=True,
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
