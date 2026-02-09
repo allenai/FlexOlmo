@@ -72,7 +72,7 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
 
 MATH_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base
 
-MODEL_NAME=flex-2x7B-long_context-64k-5b
+MODEL_NAME=flex-2x7B-long_context-32k-5b
 uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_nodes=8 \
    --launch.num_gpus=8 \
@@ -86,7 +86,8 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --trainer.max_duration.unit=tokens \
    --trainer.load_path=${MATH_EXPERT} \
    --model.block.feed_forward_moe.router.top_k=2 \
-   --train_module.rank_microbatch_size=65536 \
+   --train_module.rank_microbatch_size=32768 \
    --train_module.scheduler.warmup_steps=2000 \
    --train_module.optim.lr=9e-4 \
-   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/$MODEL_NAME
+   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/$MODEL_NAME \
+   --train_module.compile_model=false
