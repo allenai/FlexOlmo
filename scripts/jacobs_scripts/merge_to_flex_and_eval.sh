@@ -10,26 +10,30 @@ CODE_MIX_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/f
 MATH_MIX_SFT_NO_ANNEAL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed-on-base-no-anneal/step1062
 CODE_MIX_SFT_NO_ANNEAL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-base-no-anneal/step620-unsharded
 CKPT_DIR=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft
+OLMO3_CODE=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-5B/step620
+OLMO3_CODE_20B=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-20B/step620
 
-# CONFIGS=(
-#     "${MATH_BASE},${MATH_MIX_SFT},${CODE_MIX_SFT_NO_ANNEAL}|${CKPT_DIR}/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_no_ann"
-# )
+CONFIGS=(
+    "${MATH_BASE},${MATH_MIX_SFT},${OLMO3_CODE}|${CKPT_DIR}/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_olmo3_5b_anneal"
+)
 
-# for config in "${CONFIGS[@]}"; do
-#     EXPERTS="${config%|*}"
-#     OUTPUT="${config#*|}"
+for config in "${CONFIGS[@]}"; do
+    EXPERTS="${config%|*}"
+    OUTPUT="${config#*|}"
     
-#     IFS=',' read -r E1 E2 E3 <<< "$EXPERTS"
+    IFS=',' read -r E1 E2 E3 <<< "$EXPERTS"
     
-#     python src/scripts/upcycle/merge_experts_to_flexolmo.py \
-#         -m "$E1" "$E2" "$E3" \
-#         -t "$OUTPUT"
-# done
+    python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+        -m "$E1" "$E2" "$E3" \
+        -t "$OUTPUT"
+done
 
 cd ../Olmo-core
 
+
 MODEL_PATHS=(
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-router_sft_all_mixed-2k/step1128"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_50b_sft-router_sft_all_mixed-1_active_expert/step1128"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_50b_sft-router_sft_all_mixed-2_active_expert/step1128"
 )
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
