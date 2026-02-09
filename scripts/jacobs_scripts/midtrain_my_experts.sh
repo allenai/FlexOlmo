@@ -89,5 +89,5 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --train_module.rank_microbatch_size=32768 \
    --train_module.scheduler.warmup_steps=2000 \
    --train_module.optim.lr=9e-4 \
-   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/$MODEL_NAME #\
-   # --train_module.compile_model=false
+   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/$MODEL_NAME \
+   --train_module.compile_model=false
