@@ -78,7 +78,7 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py $MODEL_NAME \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal-long-context.py $MODEL_NAME \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.mix=long_context \
