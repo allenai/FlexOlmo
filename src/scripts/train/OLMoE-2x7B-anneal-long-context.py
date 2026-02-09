@@ -38,7 +38,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 4096 # 32768
+SEQUENCE_LENGTH = 8192 # 32768
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
 
 def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrainModuleConfig:
     return FreezeTransformerTrainModuleConfig(
-        rank_microbatch_size=2 * 4096,
+        rank_microbatch_size=SEQUENCE_LENGTH,
         max_sequence_length=common.dataset.effective_sequence_length,
         freeze_experts="first_half",
         optim=AdamWConfig(
