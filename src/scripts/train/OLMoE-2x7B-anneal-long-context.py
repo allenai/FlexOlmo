@@ -23,6 +23,10 @@ from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
     TransformerDataParallelWrappingStrategy,
     TransformerExpertParallelConfig,
 )
+from olmo_core.train.train_module import (
+    TransformerActivationCheckpointingConfig,
+    TransformerActivationCheckpointingMode,
+)
 from rich import print
 
 from flexolmo.internal.common import (
@@ -78,6 +82,9 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             #  ], # swj check
         ),
         compile_model=True,
+        ac_config=TransformerActivationCheckpointingConfig(
+            mode=TransformerActivationCheckpointingMode.full,
+        ),
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
