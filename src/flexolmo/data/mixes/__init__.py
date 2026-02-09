@@ -58,6 +58,7 @@ class CustomDataMix(DataMixBase):
     # jacob's new data
     olmo3_code = "olmo3_code"
     olmo3_math = "olmo3_math"
+    long_context = "long_context"
     
     # glob-based mixtures
     code_glob = "code_glob"

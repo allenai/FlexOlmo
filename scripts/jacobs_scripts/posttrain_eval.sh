@@ -77,9 +77,40 @@
 "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_250/"
 "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620-hf/grpo_code_only_flexolmo-2x7b-code-expert/grpo_code_only_flexolmo-2x7b-code-expert__1__1768452402_checkpoints/step_300/"
 "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-50b_olmo3_code_anneal-tool_use_only/step422-hf"
-MODEL_PATHS=(
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-tool_use_general_mix/step888-hf"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-BASE-tool_use_general_mix/step888-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math_anneal-general_sft/step470-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-no_anneal-tool_use_general_mix/step888-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-olmo3_math-mixed-sft/step1062-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-olmo3_50b_code_anneal_mixed_SFT_TEST/step620-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_50"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_100"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_150"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_200"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_250"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_300"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_350"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_400"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_450"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze/grpo_math_only_flexolmo-2x7b-math-expert-no-freeze__1__1770083026_checkpoints/step_500"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-olmo3_code_50b_sft-router_sft_general_only/step394-hf"
+MODEL_PATHS=(
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_50"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_100"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_150"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_200"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_250"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_300"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_350"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test-high-lr__1__1770186458_checkpoints/step_400"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_50"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_100"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_150"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_200"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_250"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_300"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_350"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test/grpo_math_only_flexolmo-2x7b-math-expert-freeze-test__1__1770173615_checkpoints/step_400"
 )
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
@@ -107,7 +138,7 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
         --cluster ai2/saturn \
         --is_tuned \
         --workspace ai2/flex2 \
-        --priority urgent \
+        --priority high \
         --preemptible \
         --use_hf_tokenizer_template \
         --run_oe_eval_experiments \
@@ -116,5 +147,6 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
         --oe_eval_max_length 4096 \
         --process_output r1_style \
         --skip_oi_evals \
-        --beaker_image jacobm/oe-eval-flex-olmo-9-29-5
+        --beaker_image jacobm/oe-eval-flex-olmo-9-29-5 \
+        --oe_eval_tasks "minerva_math::hamish_zs_reasoning_deepseek,gsm8k::zs_cot_latex_deepseek" 
 done
