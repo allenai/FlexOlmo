@@ -19,6 +19,7 @@ from olmo_core.train import (
     teardown_training_environment,
 )
 from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
+    TransformerContextParallelConfig,
     TransformerDataParallelConfig,
     TransformerDataParallelWrappingStrategy,
     TransformerExpertParallelConfig,
@@ -42,7 +43,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 8192 # 32768
+SEQUENCE_LENGTH = 65536
 
 log = logging.getLogger(__name__)
 
@@ -81,16 +82,18 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             #      OptimGroupOverride(params=["embeddings.weight"], opts=dict(weight_decay=0.0))
             #  ], # swj check
         ),
-        compile_model=True,
+        compile_model=False,
         ac_config=TransformerActivationCheckpointingConfig(
-            mode=TransformerActivationCheckpointingMode.full,
+            mode=TransformerActivationCheckpointingMode.selected_modules,
+            modules=["attention"],
         ),
+        cp_config=TransformerContextParallelConfig.zig_zag(degree=4),
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=32,  # TODO: set this to number of GPUs / num_experts, 32 when using 8 nodes
+            num_replicas=8,  # 64 GPUs / CP(4) / EP(2) = 8
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
