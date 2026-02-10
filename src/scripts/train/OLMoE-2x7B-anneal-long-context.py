@@ -43,7 +43,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 32768 # 65536
+SEQUENCE_LENGTH = 8192 # 32768 # 65536
 
 log = logging.getLogger(__name__)
 
