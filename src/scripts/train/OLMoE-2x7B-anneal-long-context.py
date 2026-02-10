@@ -55,7 +55,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
         num_experts=2,
         # lb_loss_weight=0,
         z_loss_weight=0.001,
-        use_flash=True,  # required for context parallelism
+        # use_flash=True,  # required for context parallelism
         freeze_params=[
             "embeddings.*",
             "blocks.*.attention*",
