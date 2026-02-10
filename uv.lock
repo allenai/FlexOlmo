@@ -1182,6 +1182,7 @@ dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "rich" },
+    { name = "ring-flash-attn" },
     { name = "safetensors" },
     { name = "torch" },
 ]
@@ -1213,7 +1214,6 @@ all = [
     { name = "pytest-sphinx" },
     { name = "pytest-xdist" },
     { name = "rank-bm25" },
-    { name = "ring-flash-attn" },
     { name = "ruff" },
     { name = "s3fs" },
     { name = "sentence-transformers" },
@@ -1289,7 +1289,6 @@ train = [
     { name = "ai2-olmo-core" },
     { name = "huggingface-hub" },
     { name = "protobuf" },
-    { name = "ring-flash-attn" },
     { name = "torchao" },
     { name = "torchvision" },
 ]
@@ -1333,7 +1332,7 @@ requires-dist = [
     { name = "rank-bm25", marker = "extra == 'extraction'" },
     { name = "requests" },
     { name = "rich" },
-    { name = "ring-flash-attn", marker = "extra == 'train'" },
+    { name = "ring-flash-attn" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "s3fs", marker = "extra == 'embeddings'" },
     { name = "s3fs", marker = "extra == 'eval'" },
