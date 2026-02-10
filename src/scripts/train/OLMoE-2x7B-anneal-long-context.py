@@ -83,18 +83,19 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             #      OptimGroupOverride(params=["embeddings.weight"], opts=dict(weight_decay=0.0))
             #  ], # swj check
         ),
-        compile_model=False,
+        compile_model=True,
         ac_config=TransformerActivationCheckpointingConfig(
             mode=TransformerActivationCheckpointingMode.selected_modules,
             modules=["attention"],
         ),
-        cp_config=TransformerContextParallelConfig.zig_zag(degree=4),
+        # cp_config=TransformerContextParallelConfig.zig_zag(degree=4),
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=8,  # 64 GPUs / CP(4) / EP(2) = 8
+            num_replicas=32,
+            # num_replicas=8,  # 64 GPUs / CP(4) / EP(2) = 8
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
