@@ -22,6 +22,7 @@ dependencies = [
     "omegaconf",
     "safetensors",
     "importlib_resources",
+    "ring-flash-attn",
 ]
 
 [project.urls]
@@ -66,7 +67,6 @@ train = [
     "torchao>=0.9.0",
     "torchvision>=0.21.0",
     "protobuf==5.29.4",
-    "ring-flash-attn",
 ]
 eval = [
     "s3fs",

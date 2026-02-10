@@ -43,7 +43,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 65536
+SEQUENCE_LENGTH = 32768 # 65536
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
         num_experts=2,
         # lb_loss_weight=0,
         z_loss_weight=0.001,
-        # use_flash=True,  # required for context parallelism
+        use_flash=True,  # required for context parallelism
         freeze_params=[
             "embeddings.*",
             "blocks.*.attention*",
@@ -88,14 +88,14 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             mode=TransformerActivationCheckpointingMode.selected_modules,
             modules=["attention"],
         ),
-        # cp_config=TransformerContextParallelConfig.zig_zag(degree=4),
+        cp_config=TransformerContextParallelConfig.zig_zag(degree=4),
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=32,
-            # num_replicas=8,  # 64 GPUs / CP(4) / EP(2) = 8
+            # num_replicas=32,
+            num_replicas=8,  # 64 GPUs / CP(4) / EP(2) = 8
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
