@@ -69,7 +69,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
 
 def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrainModuleConfig:
     return FreezeTransformerTrainModuleConfig(
-        rank_microbatch_size=SEQUENCE_LENGTH,
+        rank_microbatch_size=2*SEQUENCE_LENGTH,
         max_sequence_length=common.dataset.effective_sequence_length,
         freeze_experts="first_half",
         optim=AdamWConfig(
