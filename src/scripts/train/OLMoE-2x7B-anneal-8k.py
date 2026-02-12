@@ -97,7 +97,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
         # ),
         ac_config=TransformerActivationCheckpointingConfig(
             mode=TransformerActivationCheckpointingMode.selected_modules,
-            modules=["attention"],
+            modules=["attention", "feed_forward_norm"],
         ),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
