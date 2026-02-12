@@ -87,7 +87,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=64,  # TODO: set this to number of GPUs / num_experts, 32 when using 8 nodes
+            num_replicas=32,  # TODO: set this to number of GPUs / num_experts, 32 when using 8 nodes
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
@@ -142,7 +142,7 @@ if __name__ == "__main__":
             overrides,
             root_dir=get_root_dir(),
             sequence_length=SEQUENCE_LENGTH,
-            global_batch_size=8 * SEQUENCE_LENGTH,
+            global_batch_size=4 * SEQUENCE_LENGTH,
             include_default_evals=True,
             freeze_embeddings=False,
             model_config_builder=build_model_config,
