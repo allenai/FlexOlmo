@@ -1306,7 +1306,7 @@ requires-dist = [
     { name = "ai2-olmo-core", marker = "extra == 'train'", git = "https://github.com/allenai/OLMo-core?rev=d66967380fc19abed9dfa38944f4e85500a6ee2d" },
     { name = "beaker-gantry", marker = "extra == 'beaker'" },
     { name = "beaker-gantry", marker = "extra == 'eval'" },
-    { name = "beaker-py", marker = "extra == 'beaker'", specifier = ">=1.32.3,<2.0" },
+    { name = "beaker-py", marker = "extra == 'beaker'", specifier = ">=1.32.3" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.1,<26.0" },
     { name = "boto3", marker = "extra == 'dev'" },
     { name = "build", marker = "extra == 'dev'" },
