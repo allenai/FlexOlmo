@@ -54,7 +54,7 @@ dev = [
     "sphinx-autodoc-typehints==1.23.3",
 ]
 beaker = [
-    "beaker-py>=1.32.3,<2.0",
+    "beaker-py>=1.32.3",
     "beaker-gantry",
     "GitPython>=3.0,<4.0",
 ]
