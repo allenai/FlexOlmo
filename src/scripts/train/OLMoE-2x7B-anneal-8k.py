@@ -81,7 +81,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             #      OptimGroupOverride(params=["embeddings.weight"], opts=dict(weight_decay=0.0))
             #  ], # swj check
         ),
-        compile_model=False,
+        compile_model=True,
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
@@ -92,7 +92,8 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
         ac_config=TransformerActivationCheckpointingConfig(
-            mode=TransformerActivationCheckpointingMode.selected_ops,
+            mode=TransformerActivationCheckpointingMode.budget,
+            activation_memory_budget=0.5,  # tune: lower = less memory, more recompute
         ),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
