@@ -93,7 +93,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
         ep_config=TransformerExpertParallelConfig(degree=2),
         ac_config=TransformerActivationCheckpointingConfig(
             mode=TransformerActivationCheckpointingMode.budget,
-            activation_memory_budget=0.5,  # tune: lower = less memory, more recompute
+            activation_memory_budget=0.2,  # tune: lower = less memory, more recompute
         ),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
