@@ -95,10 +95,10 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
         #     mode=TransformerActivationCheckpointingMode.selected_modules,
         #     modules=["attention"],
         # ),
-        # ac_config=TransformerActivationCheckpointingConfig(
-        #     mode=TransformerActivationCheckpointingMode.selected_ops,
-        #     # activation_memory_budget=0.2,  # tune: lower = less memory, more recompute
-        # ),
+        ac_config=TransformerActivationCheckpointingConfig(
+            mode=TransformerActivationCheckpointingMode.budget,
+            activation_memory_budget=0.3,  # tune: lower = less memory, more recompute
+        ),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
             ao=AOFloat8LinearConfig(
