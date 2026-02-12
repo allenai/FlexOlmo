@@ -180,12 +180,12 @@ class FreezeTransformerTrainModule(TransformerTrainModule):
                 # bp()
                 if self.freeze_experts == "first_half":
                     # print("name: ", name, "shape: ", param.shape)
-                    full_grad = get_full_tensor(param.grad)
                     # check whether the param is frozen
                     # print("param.grad: ", param.grad)
                     if param.grad is None:
                         # print(f"{name} grad is None")
                         continue
+                    full_grad = get_full_tensor(param.grad)
                     if "experts" in name:
                         # get_full_tensor(param.grad)[
                         #     : get_full_tensor(param.grad).shape[0] // 2, :
