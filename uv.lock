@@ -98,40 +98,22 @@ dependencies = [
 
 [[package]]
 name = "ai2-olmo-core"
-version = "2.0.1"
-source = { git = "https://github.com/allenai/OLMo-core?rev=ecb14e03f9e5f7374b81cc9f924fd13a4b2482f2#ecb14e03f9e5f7374b81cc9f924fd13a4b2482f2" }
+version = "2.4.0"
+source = { git = "https://github.com/allenai/OLMo-core?rev=d66967380fc19abed9dfa38944f4e85500a6ee2d#d66967380fc19abed9dfa38944f4e85500a6ee2d" }
 dependencies = [
-    { name = "ai2-olmo-eval" },
+    { name = "bettermap" },
     { name = "cached-path" },
+    { name = "dataclass-extensions" },
+    { name = "filelock" },
     { name = "importlib-resources" },
     { name = "numpy" },
-    { name = "omegaconf" },
     { name = "packaging" },
+    { name = "pandas" },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
     { name = "safetensors" },
     { name = "torch" },
-]
-
-[[package]]
-name = "ai2-olmo-eval"
-version = "0.7.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cached-path" },
-    { name = "datasets" },
-    { name = "importlib-resources" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "requests" },
-    { name = "scikit-learn" },
-    { name = "tokenizers" },
-    { name = "torch" },
-    { name = "torchmetrics" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/76/47b810b2c2fe2855c8f9b8bc519f3f4050b3e0b94e4d4de5e233f2d7ec8c/ai2_olmo_eval-0.7.0.tar.gz", hash = "sha256:e0dd0309c34ff0af8837e78708027d78b698601f22e4ee66f28a66d1d5345d1f", size = 51547607, upload-time = "2025-03-10T23:50:46.953Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/18/a8/f8073511bfee9ee3553d4caf013db0489358b69745426854f97b8b0bf08d/ai2_olmo_eval-0.7.0-py3-none-any.whl", hash = "sha256:5a345f5966f9a9a183e0215a6ab9f911372fb41a8cce69e02bd602ebfad67352", size = 51916960, upload-time = "2025-03-10T23:50:43.332Z" },
 ]
 
 [[package]]
@@ -445,6 +427,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/77/e9/df2358efd7659577435e2177bfa69cba6c33216681af51a707193dec162a/beautifulsoup4-4.14.2.tar.gz", hash = "sha256:2a98ab9f944a11acee9cc848508ec28d9228abfd522ef0fad6a02a72e0ded69e", size = 625822, upload-time = "2025-09-29T10:05:42.613Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/94/fe/3aed5d0be4d404d12d36ab97e2f1791424d9ca39c2f754a6285d59a3b01d/beautifulsoup4-4.14.2-py3-none-any.whl", hash = "sha256:5ef6fa3a8cbece8488d66985560f97ed091e22bbc4e9c2338508a9d5de6d4515", size = 106392, upload-time = "2025-09-29T10:05:43.771Z" },
+]
+
+[[package]]
+name = "bettermap"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dill" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/b4/1d74b7740723c1b85f3ae15d7b8d4a3d869f614fb1aa1982ed0055daf0ba/bettermap-1.3.1.tar.gz", hash = "sha256:e25cdaf85c1190eb84e7b1d462fc7ba20c85121d6a6e49178c63491929f6e152", size = 7602, upload-time = "2023-01-05T18:55:08.801Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/8d/84c67a7245e018111d1bcd0e253b37df813ac5d4404716dff43d76dd923e/bettermap-1.3.1-py3-none-any.whl", hash = "sha256:eaf5190cb3f1eadafdbbfef30f0379f9a80a2be93085c5acdfb55e37344305a6", size = 7690, upload-time = "2023-01-05T18:55:07.189Z" },
 ]
 
 [[package]]
@@ -949,6 +943,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dataclass-extensions"
+version = "0.2.12"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/15/949915ee97a4c02a1161cd0a34f3c0022996b1e6b6c123cd974aa2679cac/dataclass_extensions-0.2.12.tar.gz", hash = "sha256:7d07af1d273b19a47aaa9ee4bc3c4266dcd22c9d6908ec0057edf829d1aeabb6", size = 16884, upload-time = "2026-02-11T23:10:23.131Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/6a/ab3cbe301675777247bd9fe52963cdeb612f991b783ab2cb2182061e3d32/dataclass_extensions-0.2.12-py3-none-any.whl", hash = "sha256:5976a52b117aeb4044626f718696384c8191b9b42804d0871b74db374f8d59b8", size = 16628, upload-time = "2026-02-11T23:10:21.562Z" },
+]
+
+[[package]]
 name = "dataproperty"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1300,7 +1303,7 @@ wandb = [
 requires-dist = [
     { name = "accelerate", marker = "extra == 'extraction'" },
     { name = "ai2-olmes", marker = "extra == 'eval'", git = "https://github.com/allenai/olmes?rev=8e2743734066b073c5d8498d1b8220f67a21a2d6" },
-    { name = "ai2-olmo-core", marker = "extra == 'train'", git = "https://github.com/allenai/OLMo-core?rev=ecb14e03f9e5f7374b81cc9f924fd13a4b2482f2" },
+    { name = "ai2-olmo-core", marker = "extra == 'train'", git = "https://github.com/allenai/OLMo-core?rev=d66967380fc19abed9dfa38944f4e85500a6ee2d" },
     { name = "beaker-gantry", marker = "extra == 'beaker'" },
     { name = "beaker-gantry", marker = "extra == 'eval'" },
     { name = "beaker-py", marker = "extra == 'beaker'", specifier = ">=1.32.3,<2.0" },
@@ -2278,20 +2281,6 @@ dependencies = [
     { name = "six" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0e/72/a3add0e4eec4eb9e2569554f7c70f4a3c27712f40e3284d483e88094cc0e/langdetect-1.0.9.tar.gz", hash = "sha256:cbc1fef89f8d062739774bd51eda3da3274006b3661d199c2655f6b3f6d605a0", size = 981474, upload-time = "2021-05-07T07:54:13.562Z" }
-
-[[package]]
-name = "lightning-utilities"
-version = "0.15.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-    { name = "setuptools" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/39/6fc58ca81492db047149b4b8fd385aa1bfb8c28cd7cacb0c7eb0c44d842f/lightning_utilities-0.15.2.tar.gz", hash = "sha256:cdf12f530214a63dacefd713f180d1ecf5d165338101617b4742e8f22c032e24", size = 31090, upload-time = "2025-08-06T13:57:39.242Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/73/3d757cb3fc16f0f9794dd289bcd0c4a031d9cf54d8137d6b984b2d02edf3/lightning_utilities-0.15.2-py3-none-any.whl", hash = "sha256:ad3ab1703775044bbf880dbf7ddaaac899396c96315f3aa1779cec9d618a9841", size = 29431, upload-time = "2025-08-06T13:57:38.046Z" },
-]
 
 [[package]]
 name = "litellm"
@@ -5730,21 +5719,6 @@ source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7d/fe/a24225d30775192a4c5d9cea3ecb95e6adc69d0a8b5ed98eb8e58d362344/torchao-0.9.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:bc708910301a9f98344d43f3fe2aa6d5e1fab706d772b6df47ff05087d664145", size = 5652091, upload-time = "2025-02-28T13:54:15.239Z" },
     { url = "https://files.pythonhosted.org/packages/db/72/01f755514fb61eadc80b974eb4bd4f22f3009b35457773523e3bd497c511/torchao-0.9.0-py3-none-any.whl", hash = "sha256:ea5603c32762f1a9ade1a4dc7b00f5246623b24a28e49e666f614c79a408712a", size = 712541, upload-time = "2025-02-28T13:54:13.671Z" },
-]
-
-[[package]]
-name = "torchmetrics"
-version = "1.8.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "lightning-utilities" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "torch" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/85/2e/48a887a59ecc4a10ce9e8b35b3e3c5cef29d902c4eac143378526e7485cb/torchmetrics-1.8.2.tar.gz", hash = "sha256:cf64a901036bf107f17a524009eea7781c9c5315d130713aeca5747a686fe7a5", size = 580679, upload-time = "2025-09-03T14:00:54.077Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/21/aa0f434434c48490f91b65962b1ce863fdcce63febc166ca9fe9d706c2b6/torchmetrics-1.8.2-py3-none-any.whl", hash = "sha256:08382fd96b923e39e904c4d570f3d49e2cc71ccabd2a94e0f895d1f0dac86242", size = 983161, upload-time = "2025-09-03T14:00:51.921Z" },
 ]
 
 [[package]]
