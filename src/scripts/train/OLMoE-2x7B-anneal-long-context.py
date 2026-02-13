@@ -143,7 +143,9 @@ if __name__ == "__main__":
         _, run_name, *overrides = sys.argv[1:]
     else:
         run_name, *overrides = sys.argv[1:]
-        prepare_training_environment()
+        from datetime import timedelta
+        prepare_training_environment(timeout=timedelta(minutes=60))
+        # prepare_training_environment()
 
     try:
         config = build_experiment_config(
