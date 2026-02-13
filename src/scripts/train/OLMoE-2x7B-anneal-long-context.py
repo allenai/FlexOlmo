@@ -94,8 +94,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            # num_replicas=32,
-            num_replicas=8,  # 64 GPUs / CP(4) / EP(2) = 8
+            shard_degree=2,  # Must match ep_config degree; num_replicas auto-computes from world size
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
