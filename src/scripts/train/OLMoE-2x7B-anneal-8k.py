@@ -81,7 +81,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             #      OptimGroupOverride(params=["embeddings.weight"], opts=dict(weight_decay=0.0))
             #  ], # swj check
         ),
-        compile_model=False,
+        compile_model=True,
         dp_config=TransformerDataParallelConfig(
             name=DataParallelType.hsdp,
             param_dtype=DType.bfloat16,
