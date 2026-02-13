@@ -8,6 +8,7 @@ from olmo_core.data import (
     DataMix,
     NumpyDataLoaderConfig,
     NumpyDatasetConfig,
+    NumpyVSLDatasetConfig,
     # NumpyDatasetType,
     TokenizerConfig,
     VSLCurriculumConfig,
@@ -104,12 +105,10 @@ def build_common_components(
 
     tokenizer_config = TokenizerConfig.dolma2()
 
-    dataset_config = NumpyDatasetConfig.from_data_mix(
+    dataset_config = NumpyVSLDatasetConfig.from_data_mix(
         DataMix.OLMoE_mix_0824,
         tokenizer=tokenizer_config,
         mix_base_dir=root_dir,
-        sequence_length=sequence_length,
-        max_target_sequence_length=max(8192, sequence_length),
         min_sequence_length=min(256, sequence_length),
         max_sequence_length=max(8192, sequence_length),
         vsl_curriculum=VSLCurriculumConfig(
@@ -124,7 +123,7 @@ def build_common_components(
 
     train_module_config = TransformerTrainModuleConfig(
         rank_microbatch_size=2 * sequence_length,
-        max_sequence_length=dataset_config.effective_sequence_length,
+        max_sequence_length=dataset_config.max_sequence_length,
         optim=AdamWConfig(
             lr=9e-4,
             weight_decay=0.1,
@@ -334,25 +333,33 @@ def build_experiment_config(
         config.dataset.mix = override_datamix
         if "," in override_datamix:
             # Comma-separated mixes
-            config.dataset.source_mixture_config = get_mixture_dataset_config(config.dataset)
+            if hasattr(config.dataset, "source_mixture_config"):
+                config.dataset.source_mixture_config = get_mixture_dataset_config(config.dataset)
             config.dataset.mix = None
         elif override_datamix.endswith("_glob"):
             # Glob-based mixtures - set up source_mixture_config directly
-            from olmo_core.data.source_mixture import SourceMixtureDatasetConfig
-            from olmo_core.data.types import NumpyDatasetDType
+            if hasattr(config.dataset, "source_mixture_config"):
+                from olmo_core.data.source_mixture import SourceMixtureDatasetConfig
+                from olmo_core.data.types import NumpyDatasetDType
 
-            source_configs = get_glob_mixture(override_datamix)
-            config.dataset.source_mixture_config = SourceMixtureDatasetConfig(
-                source_configs=source_configs,
-                max_tokens=config.trainer.max_duration.value if config.trainer.max_duration.unit.name == "tokens" else 50_000_000_000,
-                sequence_length=config.dataset.sequence_length,
-                seed=2025,
-                dtype=NumpyDatasetDType(config.dataset.get_dtype().__name__),
-                processes=8,
-            )
+                source_configs = get_glob_mixture(override_datamix)
+                seq_len = (
+                    config.dataset.max_sequence_length
+                    if hasattr(config.dataset, "max_sequence_length")
+                    else config.dataset.sequence_length
+                )
+                config.dataset.source_mixture_config = SourceMixtureDatasetConfig(
+                    source_configs=source_configs,
+                    max_tokens=config.trainer.max_duration.value if config.trainer.max_duration.unit.name == "tokens" else 50_000_000_000,
+                    sequence_length=seq_len,
+                    seed=2025,
+                    dtype=NumpyDatasetDType(config.dataset.get_dtype().__name__),
+                    processes=8,
+                )
             config.dataset.mix = None
         else:
-            config.dataset.source_mixture_config = None
+            if hasattr(config.dataset, "source_mixture_config"):
+                config.dataset.source_mixture_config = None
 
         assert override_datamix_idx is not None
         overrides.pop(override_datamix_idx)
