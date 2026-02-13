@@ -60,6 +60,7 @@ def build_launch_config(
         env_vars=[
             BeakerEnvVar(name="NCCL_DEBUG", value="INFO" if nccl_debug else "WARN"),
             BeakerEnvVar(name="CUDA_LAUNCH_BLOCKING", value="1" if cuda_debug else "0"),
+            BeakerEnvVar(name="GLOO_TIMEOUT_MS", value="1800000"),
         ],
         env_secrets=[
             BeakerEnvSecret(name="GITHUB_TOKEN", secret=f"{beaker_user}_GITHUB_TOKEN"),
