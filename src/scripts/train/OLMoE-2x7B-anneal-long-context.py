@@ -56,6 +56,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
     # return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
         vocab_size=common.tokenizer.padded_vocab_size(),
         num_experts=2,
+        use_flash=True,  # required for ring context parallelism
         # lb_loss_weight=0,
         z_loss_weight=0.001,
         freeze_params=[
