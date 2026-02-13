@@ -99,7 +99,6 @@ class FreezeTransformerTrainModule(TransformerTrainModule):
         z_batch_loss: Optional[torch.Tensor] = None
         if self.z_loss_multiplier is not None:
             z_batch_loss = move_to_device(torch.tensor(0.0), self.device)
-        auxiliary_batch_losses: Dict[str, torch.Tensor] = {}
 
         # Split into micro-batches.
         if self.rank_microbatch_size < (seq_len := batch["input_ids"].shape[1]):
@@ -136,21 +135,6 @@ class FreezeTransformerTrainModule(TransformerTrainModule):
                     assert z_loss is not None
                     z_batch_loss += get_local_tensor(z_loss.detach())
                     del z_loss
-
-                # print("self.trainer.global_step: ", self.trainer.global_step)
-                # Optionally get model auxiliary losses and update the total batch auxiliary losses. , step=self.trainer.global_step
-                # step=self.trainer.global_step
-                auxiliary_losses = self.model.compute_auxiliary_losses(
-                    batch_num_tokens_for_loss, reset=True
-                )
-                for loss_name, loss_val in auxiliary_losses.items():
-                    loss += loss_val
-                    loss_val = get_local_tensor(loss_val.detach())
-                    if loss_name in auxiliary_batch_losses:
-                        auxiliary_batch_losses[loss_name] += loss_val
-                    else:
-                        auxiliary_batch_losses[loss_name] = loss_val
-                del auxiliary_losses
 
                 # Run backward pass.
                 loss.backward()
@@ -220,8 +204,9 @@ class FreezeTransformerTrainModule(TransformerTrainModule):
 
         del batch  # In case this helps with memory utilization.
 
+        self.model.post_batch(dry_run=dry_run)
+
         if dry_run:
-            self.model.reset_auxiliary_losses()
             self.model.reset_auxiliary_metrics()
             return
 
@@ -234,17 +219,8 @@ class FreezeTransformerTrainModule(TransformerTrainModule):
                 ReduceType.mean,
                 namespace="train",
             )
-        for loss_name, loss_val in auxiliary_batch_losses.items():
-            self.record_metric(
-                loss_name,
-                loss_val,
-                ReduceType.mean,
-                namespace="train",
-            )
-
         # And additional metrics.
         for metric_name, (metric_val, reduction) in self.model.compute_auxiliary_metrics(
-            batch_num_tokens_for_loss,
             reset=True,
         ).items():
             self.record_metric(
