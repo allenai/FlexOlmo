@@ -45,7 +45,8 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 65536
+SEQUENCE_LENGTH = 32768 # 65536
+BATCH_SIZE = 1048576
 CP_DEGREE = 4
 
 log = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ if __name__ == "__main__":
             overrides,
             root_dir=get_root_dir(),
             sequence_length=SEQUENCE_LENGTH,
-            global_batch_size=16 * SEQUENCE_LENGTH,  # 16 * 65536 = 1M tokens
+            global_batch_size=BATCH_SIZE,  # 16 * 65536 = 1M tokens
             include_default_evals=True,
             freeze_embeddings=False,
             model_config_builder=build_model_config,
