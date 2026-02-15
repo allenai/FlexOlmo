@@ -14,7 +14,7 @@ requires-python = ">=3.10"
 license = { file = "LICENSE" }
 dependencies = [
     "numpy",
-    "torch>=2.7.0",
+    "torch>=2.7.0,<2.9",
     "cached-path",
     "requests",
     "packaging",
@@ -22,6 +22,7 @@ dependencies = [
     "omegaconf",
     "safetensors",
     "importlib_resources",
+    "ring-flash-attn",
 ]
 
 [project.urls]
@@ -53,7 +54,7 @@ dev = [
     "sphinx-autodoc-typehints==1.23.3",
 ]
 beaker = [
-    "beaker-py>=1.32.3,<2.0",
+    "beaker-py>=1.32.3",
     "beaker-gantry",
     "GitPython>=3.0,<4.0",
 ]
@@ -61,11 +62,11 @@ wandb = [
     "wandb",
 ]
 train = [
-    "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@ecb14e03f9e5f7374b81cc9f924fd13a4b2482f2",
+    "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@d66967380fc19abed9dfa38944f4e85500a6ee2d",
     "huggingface-hub>=0.27.1",
     "torchao>=0.9.0",
     "torchvision>=0.21.0",
-    "protobuf==5.29.4"
+    "protobuf==5.29.4",
 ]
 eval = [
     "s3fs",

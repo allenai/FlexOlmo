@@ -9,23 +9,26 @@ from olmo_core.config import DType
 from olmo_core.data import NumpyDatasetConfig
 from olmo_core.distributed.parallel import DataParallelType
 from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
+
+# from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.optim import AdamWConfig, CosWithWarmup
 from olmo_core.train import (
-    DurationUnit,
     TrainerConfig,
     prepare_training_environment,
     teardown_training_environment,
 )
-
-# from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
 from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
-    TransformerActivationCheckpointingConfig,
-    TransformerActivationCheckpointingMode,
     TransformerDataParallelConfig,
     TransformerDataParallelWrappingStrategy,
     TransformerExpertParallelConfig,
-    TransformerTrainModuleConfig,
+)
+from olmo_core.train.train_module import (
+    TransformerActivationCheckpointingConfig,
+    TransformerActivationCheckpointingMode,
+)
+from olmo_core.train.train_module.transformer.config import (
+    TransformerContextParallelConfig,
 )
 from rich import print
 
@@ -38,36 +41,46 @@ from flexolmo.internal.common import (
 )
 from flexolmo.internal.model_utils import *  # noqa
 from flexolmo.internal.train_utils import train
+from flexolmo.train.train_module.transformer import (
+    FreezeTransformerTrainModuleConfig,
+)
 
-SEQUENCE_LENGTH = 4096
+SEQUENCE_LENGTH = 32768 # 65536
+BATCH_SIZE = 1048576
+CP_DEGREE = 4
 
 log = logging.getLogger(__name__)
 
 
 def build_model_config(common: CommonComponents) -> TransformerConfig:
     return TransformerConfig.olmoe_nx7b(  # type: ignore
+    # return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
         vocab_size=common.tokenizer.padded_vocab_size(),
         num_experts=2,
-        top_k=2,
-        lb_loss_weight=0,
+        use_flash=True,  # required for ring context parallelism
+        # lb_loss_weight=0,
         z_loss_weight=0.001,
         freeze_params=[
             "embeddings.*",
             "blocks.*.attention*",
             "blocks.*.feed_forward_norm.*",
             "lm_head.*",
-            # "blocks.*.feed_forward_moe.experts*",  # TODO: comment if you also want to train the expert weights.
+            # "blocks.*.feed_forward_moe.experts*", # TODO: uncomment if you only want to train the router.
+            # "blocks.*.feed_forward_moe.router.*", # testing freezing the router
+            # "blocks.*.feed_forward_moe.gate.*",
+            # "blocks.*.feed_forward_moe.gating.*"
         ],
     )
 
 
-def build_train_module_config(common: CommonComponents) -> TransformerTrainModuleConfig:
-    return TransformerTrainModuleConfig(
-        rank_microbatch_size=1 * 4096,
+def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrainModuleConfig:
+    return FreezeTransformerTrainModuleConfig(
+        rank_microbatch_size=SEQUENCE_LENGTH,
         max_sequence_length=common.dataset.max_sequence_length,
+        freeze_experts="first_half",
         optim=AdamWConfig(
-            lr=6e-4,
-            weight_decay=0.0,  # 0
+            lr=0.0008236541623533814,  # the base model stopped training at this lr, TODO: set as needed
+            weight_decay=0,  # 0
             betas=(0.9, 0.95),
             fused=True,
             #  group_overrides=[
@@ -75,6 +88,16 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             #  ], # swj check
         ),
         compile_model=True,
+        dp_config=TransformerDataParallelConfig(
+            name=DataParallelType.hsdp,
+            param_dtype=DType.bfloat16,
+            reduce_dtype=DType.float32,
+            wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
+            shard_degree=2,  # Must match ep_config degree; num_replicas auto-computes from world size
+        ),
+        # NOTE: expert parallelism requires either HSDP or tensor parallelism.
+        ep_config=TransformerExpertParallelConfig(degree=2),
+        cp_config=TransformerContextParallelConfig.zig_zag(degree=CP_DEGREE),
         ac_config=TransformerActivationCheckpointingConfig(
             mode=TransformerActivationCheckpointingMode.selected_modules,
             modules=[
@@ -82,16 +105,6 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
                 "blocks.*.feed_forward_moe.experts.*",
             ],
         ),
-        dp_config=TransformerDataParallelConfig(
-            name=DataParallelType.hsdp,
-            param_dtype=DType.bfloat16,
-            reduce_dtype=DType.float32,
-            wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=32,  # For 64 GPUs (8 nodes * 8 GPUs) with 2 experts: 64 / 2 = 32 replicas per expert
-        ),
-        # NOTE: expert parallelism requires either HSDP or tensor parallelism.
-        # The HSDP sharding degree must match the expert parallelism degree (2).
-        ep_config=TransformerExpertParallelConfig(degree=2),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
             ao=AOFloat8LinearConfig(
@@ -101,25 +114,21 @@ def build_train_module_config(common: CommonComponents) -> TransformerTrainModul
             ),
             enabled=False,
         ),
-        z_loss_multiplier=None,
+        z_loss_multiplier=1e-5,  # swj check
         max_grad_norm=1.0,
-        scheduler=CosWithWarmup(warmup_steps=100),  # TODO: set as needed
+        scheduler=CosWithWarmup(warmup_steps=0),  # TODO: set as needed
     )
 
 
 def build_dataset_config(common: CommonComponents) -> NumpyDatasetConfig:
-    from flexolmo.data.mixes import CustomDataMix
-
-    dataset_config = common.dataset
-    dataset_config.mix = CustomDataMix.proxy_combined_public_math_code_news
-    return dataset_config
+    # Glob mixtures are now handled in common.py's build_experiment_config
+    # This function just returns the dataset config as-is
+    return common.dataset
 
 
 def build_trainer_config(common: CommonComponents) -> TrainerConfig:
     trainer_config = common.trainer
     # Add any changes to the trainer configuration here
-    trainer_config.max_duration.value = 5_000_000_000
-    trainer_config.max_duration.unit = DurationUnit("tokens")
     return trainer_config
 
 
@@ -135,7 +144,9 @@ if __name__ == "__main__":
         _, run_name, *overrides = sys.argv[1:]
     else:
         run_name, *overrides = sys.argv[1:]
-        prepare_training_environment()
+        from datetime import timedelta
+        prepare_training_environment(timeout=timedelta(minutes=60))
+        # prepare_training_environment()
 
     try:
         config = build_experiment_config(
@@ -143,7 +154,7 @@ if __name__ == "__main__":
             overrides,
             root_dir=get_root_dir(),
             sequence_length=SEQUENCE_LENGTH,
-            global_batch_size=128 * SEQUENCE_LENGTH,
+            global_batch_size=BATCH_SIZE,  # 16 * 65536 = 1M tokens
             include_default_evals=True,
             freeze_embeddings=False,
             model_config_builder=build_model_config,
@@ -158,4 +169,3 @@ if __name__ == "__main__":
         train(config)
     finally:
         teardown_training_environment()
-

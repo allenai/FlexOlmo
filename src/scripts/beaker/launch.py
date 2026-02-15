@@ -60,6 +60,7 @@ def build_launch_config(
         env_vars=[
             BeakerEnvVar(name="NCCL_DEBUG", value="INFO" if nccl_debug else "WARN"),
             BeakerEnvVar(name="CUDA_LAUNCH_BLOCKING", value="1" if cuda_debug else "0"),
+            BeakerEnvVar(name="GLOO_TIMEOUT_MS", value="1800000"),
         ],
         env_secrets=[
             BeakerEnvSecret(name="GITHUB_TOKEN", secret=f"{beaker_user}_GITHUB_TOKEN"),
@@ -83,6 +84,7 @@ def build_launch_config(
             # Setup python environment.
             "conda shell.bash activate base",
             "pip install -e '.[dev,beaker,wandb,train]'",  # we don't need eval, and it causes dependency conflicts
+            "pip install 'https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiFALSE-cp311-cp311-linux_x86_64.whl'",
             "pip freeze",
             # Move AWS credentials from env to relevant files
             "mkdir -p ~/.aws",

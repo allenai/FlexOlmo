@@ -66,7 +66,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
 def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrainModuleConfig:
     return FreezeTransformerTrainModuleConfig(
         rank_microbatch_size=2 * 4096,
-        max_sequence_length=common.dataset.effective_sequence_length,
+        max_sequence_length=common.dataset.max_sequence_length,
         freeze_experts="first_half",
         optim=AdamWConfig(
             lr=0.0008236541623533814,  # the base model stopped training at this lr, TODO: set as needed
@@ -83,7 +83,7 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            num_replicas=32,  # TODO: set this to number of GPUs / num_experts, 32 when using 8 nodes
+            shard_degree=2,  # Must match ep_config degree; num_replicas auto-computes from world size
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
