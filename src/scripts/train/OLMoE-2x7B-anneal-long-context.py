@@ -45,7 +45,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 16384 # 32768 # 65536
+SEQUENCE_LENGTH = 8192 # 16384 # 32768 # 65536
 BATCH_SIZE = 1048576
 CP_DEGREE = 4
 
