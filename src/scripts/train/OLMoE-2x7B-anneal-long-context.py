@@ -46,7 +46,7 @@ from flexolmo.train.train_module.transformer import (
 )
 
 SEQUENCE_LENGTH = 8192 # 16384 # 32768 # 65536
-BATCH_SIZE = 1048576
+BATCH_SIZE = 524288 # 1048576
 CP_DEGREE = 4
 
 log = logging.getLogger(__name__)
