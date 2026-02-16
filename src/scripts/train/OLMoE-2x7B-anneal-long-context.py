@@ -21,7 +21,6 @@ from olmo_core.train import (
 from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
     TransformerDataParallelConfig,
     TransformerDataParallelWrappingStrategy,
-    TransformerExpertParallelConfig,
 )
 from olmo_core.train.train_module import (
     TransformerActivationCheckpointingConfig,
@@ -89,14 +88,11 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
         ),
         compile_model=True,
         dp_config=TransformerDataParallelConfig(
-            name=DataParallelType.hsdp,
+            name=DataParallelType.fsdp,
             param_dtype=DType.bfloat16,
             reduce_dtype=DType.float32,
             wrapping_strategy=TransformerDataParallelWrappingStrategy.fine_grained,
-            shard_degree=2,  # Must match ep_config degree; num_replicas auto-computes from world size
         ),
-        # NOTE: expert parallelism requires either HSDP or tensor parallelism.
-        ep_config=TransformerExpertParallelConfig(degree=2),
         cp_config=TransformerContextParallelConfig.zig_zag(degree=CP_DEGREE),
         ac_config=TransformerActivationCheckpointingConfig(
             mode=TransformerActivationCheckpointingMode.selected_modules,
