@@ -265,9 +265,20 @@ if __name__ == "__main__":
                         moe_state_dict[key] = moe_state_dict[key] + expert_state_dict[dense_key]
                         averaged_shared_keys.add(key)
                     else:
-                        assert torch.equal(
-                            moe_state_dict[key], expert_state_dict[dense_key]
-                        ), f"Key {key} is different"  # check if the frozen weights are the same
+                        if not torch.equal(moe_state_dict[key], expert_state_dict[dense_key]):
+                            diff = moe_state_dict[key].float() - expert_state_dict[dense_key].float()
+                            abs_diff = diff.abs()
+                            log.error(
+                                f"Shared param mismatch: {key} (expert {expert})\n"
+                                f"  shape: {moe_state_dict[key].shape}\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  L2 norm diff:  {diff.norm().item():.8e}\n"
+                                f"  expert 0 mean: {moe_state_dict[key].float().mean().item():.8e}\n"
+                                f"  expert {expert} mean: {expert_state_dict[dense_key].float().mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
+                            raise ValueError(f"Key {key} is different (see diagnostics above)")
             else:
                 log.info(f"Key {key} not found in dense model")
                 # raise Exception("Key not found")
