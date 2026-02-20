@@ -233,11 +233,27 @@ if __name__ == "__main__":
                         )
                     else:
                         # get the second half of the dense weights
-                        # check if expert is actually frozen for the first part
-                        assert torch.equal(
-                            moe_state_dict[key][dim * (0) : dim * (0 + 1), :],
-                            expert_state_dict[dense_key][:dim, :],
-                        ), f"First part of the dense weights are not frozen: {key}"
+                        # check if expert is actually frozen for the first part (allclose for bf16 conversion noise)
+                        existing = moe_state_dict[key][dim * (0) : dim * (0 + 1), :]
+                        incoming = expert_state_dict[dense_key][:dim, :]
+                        if not torch.allclose(existing.float(), incoming.float(), atol=1e-3, rtol=1e-3):
+                            diff = existing.float() - incoming.float()
+                            abs_diff = diff.abs()
+                            raise ValueError(
+                                f"Expert 0 portion diverged beyond tolerance for {key} (expert {expert})\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
+                        elif not torch.equal(existing, incoming):
+                            diff = existing.float() - incoming.float()
+                            abs_diff = diff.abs()
+                            log.warning(
+                                f"Expert 0 portion has minor diffs (bf16 conversion noise) for {key} (expert {expert})\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
                         moe_state_dict[key][dim * (expert) : dim * (expert + 1), :] = (
                             expert_state_dict[dense_key][dim:, :]
                         )
@@ -248,11 +264,24 @@ if __name__ == "__main__":
                             expert_state_dict[dense_key][:dim]
                         )
                     else:
-                        # bp()
-                        assert torch.equal(
-                            moe_state_dict[key][dim * (0) : dim * (0 + 1)],
-                            expert_state_dict[dense_key][:dim],
-                        ), f"First part of the dense weights are not frozen: {key}"
+                        # Router was trainable during RL so expert-0 portions may have diverged.
+                        # Average the overlapping portions as a reasonable initialization.
+                        existing = moe_state_dict[key][dim * (0) : dim * (0 + 1)]
+                        incoming = expert_state_dict[dense_key][:dim]
+                        if not torch.equal(existing, incoming):
+                            diff = existing.float() - incoming.float()
+                            abs_diff = diff.abs()
+                            log.warning(
+                                f"Router expert-0 portion diverged for {key} (expert {expert}), averaging.\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
+                            # Running average: after seeing `expert` models (0-indexed), we have
+                            # expert+1 values total. Update the stored expert-0 portion in-place.
+                            moe_state_dict[key][dim * (0) : dim * (0 + 1)] = (
+                                existing * expert + incoming
+                            ) / (expert + 1)
                         moe_state_dict[key][dim * (expert) : dim * (expert + 1)] = (
                             expert_state_dict[dense_key][dim:]
                         )
