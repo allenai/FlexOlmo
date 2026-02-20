@@ -412,7 +412,6 @@ def load_model(model_load_config: dict) -> HFLM_Verbose:
     else:
         raise ValueError(f"Model type {model_type} not recognized")
 
-    import os
     local_has_tokenizer = os.path.exists(os.path.join(pretrained, "tokenizer_config.json"))
     if "olmo" in pretrained.lower() and not local_has_tokenizer:
         tokenizer = "allenai/dolma2-tokenizer"
