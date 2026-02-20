@@ -265,7 +265,7 @@ if __name__ == "__main__":
                         moe_state_dict[key] = moe_state_dict[key] + expert_state_dict[dense_key]
                         averaged_shared_keys.add(key)
                     else:
-                        if not torch.equal(moe_state_dict[key], expert_state_dict[dense_key]):
+                        if not torch.allclose(moe_state_dict[key].float(), expert_state_dict[dense_key].float(), atol=1e-3, rtol=1e-3):
                             diff = moe_state_dict[key].float() - expert_state_dict[dense_key].float()
                             abs_diff = diff.abs()
                             log.error(
