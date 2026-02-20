@@ -107,6 +107,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-t", "--target", type=str, default=None, help="Target path to save the merged model"
     )
+    parser.add_argument(
+        "--average_shared_params",
+        nargs="+",
+        default=[],
+        help="Average these shared param groups across models instead of asserting they are identical. "
+        "Matches if any provided string is contained in the param name. "
+        "Example: --average_shared_params lm_head embeddings",
+    )
 
     parsed_args = parser.parse_args()
     return parsed_args
@@ -185,6 +193,7 @@ if __name__ == "__main__":
     moe_state_dict = model.state_dict()
 
     merged_config_dict = {}
+    averaged_shared_keys = set()
     for expert, path in enumerate(expert_paths):
         log.info(f"Loading model from {path} as expert {expert}")
         with open(path + "/config.json") as f:
@@ -248,13 +257,17 @@ if __name__ == "__main__":
                             expert_state_dict[dense_key][dim:]
                         )
                 else:
-                    # # option 1: check if the frozen weights are the same
-                    if expert > 0:
+                    should_average = any(p in key for p in args.average_shared_params)
+                    if expert == 0:
+                        moe_state_dict[key] = expert_state_dict[dense_key]
+                    elif should_average:
+                        # Accumulate for averaging
+                        moe_state_dict[key] = moe_state_dict[key] + expert_state_dict[dense_key]
+                        averaged_shared_keys.add(key)
+                    else:
                         assert torch.equal(
                             moe_state_dict[key], expert_state_dict[dense_key]
                         ), f"Key {key} is different"  # check if the frozen weights are the same
-                    else:
-                        moe_state_dict[key] = expert_state_dict[dense_key]
             else:
                 log.info(f"Key {key} not found in dense model")
                 # raise Exception("Key not found")
@@ -265,6 +278,12 @@ if __name__ == "__main__":
                 # else:
                 #     log.warning(f"{key} equivalent not found in dense model")
         del expert_state_dict
+
+    # Average the accumulated shared params
+    num_experts = len(expert_paths)
+    for key in averaged_shared_keys:
+        moe_state_dict[key] = moe_state_dict[key] / num_experts
+        log.info(f"Averaged shared key {key} across {num_experts} models")
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
     save_state_dict(target_path, {"model": moe_state_dict})
     log.info(f"Model saved to {target_path}")
