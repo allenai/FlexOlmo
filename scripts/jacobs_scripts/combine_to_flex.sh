@@ -30,6 +30,10 @@ MATH_5B_SFT_FROZEN_ROUTER=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/f
 CODE_5B_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-5B/step620/
 CODE_5B_SFT_FROZEN_ROUTER=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-code-frozen-router-mixed-sft-router/step620
 
+MATH_RL_UNF_LM_EMBED=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flex-2x7b-math_rl_froz-6e-7-unf-lm-head/grpo_math_only_flex-2x7b-math_rl_froz-6e-7-unf-lm-head__1__1771484873_checkpoints/step_500-oc
+
+TOOL_USE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-no_anneal-tool_use_general_mix-unf-lm-head/step888
+
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_50B_WITH_SFT \
     -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test-math_base-math_50b_sft-code_50b_sft 
@@ -50,6 +54,17 @@ uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m $MATH_BASE $MATH_MIX_SFT $OLMO3_CODE_50B_WITH_SFT \
     -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-math_base-math_mixed-code_mixed_olmo3_50b_ann_with_sft
 
+# MERGING LM HEAD AND EMBEDDINGS
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $MATH_BASE $MATH_RL_UNF_LM_EMBED $OLMO3_CODE_50B_WITH_SFT $MATH_BASE \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_rl-olmo3_code-math_base \
+    --average_shared_params lm_head embeddings
+
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $MATH_BASE $MATH_RL_UNF_LM_EMBED $OLMO3_CODE_50B_WITH_SFT $TOOL_USE_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_base-math_rl-olmo3_code-tool_use \
+    --average_shared_params lm_head embeddings
 
 # Define configurations as "expert1,expert2,expert3|output_path"
 CONFIGS=(
