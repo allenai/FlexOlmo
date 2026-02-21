@@ -134,7 +134,7 @@ if __name__ == "__main__":
             overrides,
             root_dir=get_root_dir(),
             sequence_length=SEQUENCE_LENGTH,
-            global_batch_size=64 * SEQUENCE_LENGTH,
+            global_batch_size=128 * SEQUENCE_LENGTH,
             include_default_evals=True,
             freeze_embeddings=False,
             model_config_builder=build_model_config,
