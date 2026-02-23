@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 
 def build_model_config(common: CommonComponents) -> TransformerConfig:
-    return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
+    return TransformerConfig.olmoe_nx7b(  # type: ignore
         vocab_size=common.tokenizer.padded_vocab_size(),
         num_experts=7,
         top_k=7,
