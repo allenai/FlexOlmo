@@ -38,6 +38,7 @@ class CustomDataMix(DataMixBase):
     proxy_pes2o = "proxy_pes2o"
     proxy_reddit = "proxy_reddit"
     proxy_combined_public_math_code_news = "proxy_combined_public_math_code_news"
+    proxy_combined_public_math_code_news_reddit_pes2o_creative = "proxy_combined_public_math_code_news_reddit_pes2o_creative"
 
     # olmo2 setup
     dolmino_minus_math = "dolmino_minus_math"
