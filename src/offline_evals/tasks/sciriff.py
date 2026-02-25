@@ -63,10 +63,12 @@ def create_bio_sciriff_qa_tasks() -> dict:
     for task_type in BIO_SCIRIFF_QA_TASKS:
         if task_type in ["bioasq_yesno_qa", "pubmedqa_qa"]:
             primary_metric = "acc_raw"
+            base_class = GenericSciRiffMC
         else:
             primary_metric = "rougeL_f1"
+            base_class = GenericSciRiff
 
-        class SciRiff(GenericSciRiffMC):
+        class SciRiff(base_class):
             TASK_CONFIG_DEFAULTS = get_dict_with_defaults(
                 {"dataset_name": task_type, "primary_metric": primary_metric},
                 GenericSciRiff.TASK_CONFIG_DEFAULTS,
