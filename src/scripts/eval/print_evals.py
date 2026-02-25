@@ -411,6 +411,24 @@ def main(args):
         if mm_tasks:
             results = avg_tasks(results, "minerva_math", mm_tasks)
 
+    if args.avg_math2:
+        mm_tasks = [task_name for task_name in task_names if task_name.startswith("minerva_math_")]
+        for model_name in results:
+            model = results[model_name]
+            gsm8k_score = model.get("gsm8k")
+            # Use already-aggregated minerva_math if avg_mm ran first, otherwise compute from subtasks
+            if "minerva_math" in model:
+                minerva_avg = model.pop("minerva_math")
+            elif mm_tasks:
+                minerva_scores = [model[t] for t in mm_tasks if t in model]
+                minerva_avg = np.mean(minerva_scores) if minerva_scores else None
+            else:
+                minerva_avg = None
+            if gsm8k_score is not None and minerva_avg is not None:
+                model["math2"] = np.mean([gsm8k_score, minerva_avg])
+            for t in mm_tasks + ["gsm8k"]:
+                model.pop(t, None)
+
     if args.avg_ruler:
         ruler_4k_tasks = [
             task_name for task_name in task_names if task_name.startswith("ruler_4k_")
@@ -689,6 +707,7 @@ Examples:
     parser.add_argument("--avg-agi-eval", action="store_true", help="Average AGI Eval tasks")
     parser.add_argument("--avg-bbh", action="store_true", help="Average BBH tasks")
     parser.add_argument("--avg-mm", action="store_true", help="Average Minerva Math tasks")
+    parser.add_argument("--avg-math2", action="store_true", help="Average gsm8k and Minerva Math equally into math2")
     parser.add_argument("--avg-ruler", action="store_true", help="Average RULER tasks")
     parser.add_argument("--avg-sciriff", action="store_true", help="Average SciRIFF tasks")
     parser.add_argument("--avg-code", action="store_true", help="Average coding tasks")
