@@ -45,7 +45,9 @@ class LanguageModel(object):
 
     def load_model_and_tokenizer(self):
         # TODO: support other models
-        model = AutoModelForCausalLM.from_pretrained(self.model_name, token=self.hf_access_token)
+        model = AutoModelForCausalLM.from_pretrained(
+            self.model_name, token=self.hf_access_token, device_map="auto", torch_dtype="auto"
+        )
         tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, token=self.hf_access_token, padding_side="left"
         )
@@ -66,7 +68,7 @@ class LanguageModel(object):
             elif self.model_type == "hf":
                 tokenizer, model = self.load_model_and_tokenizer()
                 self.llm = pipeline(
-                    "text-generation", model=model, tokenizer=tokenizer, device=self.device
+                    "text-generation", model=model, tokenizer=tokenizer
                 )
             # elif self.model_type == 'easyapi':
             #     self.llm = easyapi.Api('jupiter')
