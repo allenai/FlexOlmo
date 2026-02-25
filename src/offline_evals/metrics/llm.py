@@ -49,7 +49,8 @@ class LanguageModel(object):
         tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, token=self.hf_access_token, padding_side="left"
         )
-        tokenizer.pad_token_id = model.config.eos_token_id
+        eos_token_id = model.config.eos_token_id
+        tokenizer.pad_token_id = eos_token_id[0] if isinstance(eos_token_id, list) else eos_token_id
         return tokenizer, model
 
     def load_model(self, **kwargs):
