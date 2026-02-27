@@ -82,7 +82,7 @@ uv run gantry run \
 
 
 # Make dataset fractions:
-FRACTION=0.05
+FRACTION=0.50
 uv run gantry run \
         --cluster ai2/neptune-cirrascale \
         --allow-dirty --timeout -1 -y --budget ai2/oe-adapt --workspace ai2/flex2 \
@@ -106,7 +106,7 @@ uv run gantry run \
                 ai2-adapt-dev/tulu_v3.9_table_gpt_5k $FRACTION \
                 ai2-adapt-dev/tulu_hard_coded_repeated_10 $FRACTION \
             --tokenizer_name_or_path allenai/Olmo-3-7B-Instruct \
-            --output_dir /weka/oe-training-default/ai2-llm/jacobm/data/flexolmo/sft/general-math-code-${FRACTION} \
+            --output_dir /weka/oe-training-default/ai2-llm/jacobm/data/flexolmo/sft/general-math-code-${FRACTION}-redux \
             --visualize True \
             --chat_template_name olmo \
             --max_seq_length 4096

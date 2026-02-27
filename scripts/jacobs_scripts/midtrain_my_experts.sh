@@ -77,7 +77,7 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal-8k.py flex-2x7B-olmo3_reasoning-real-20b-8k \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal-8k.py flex-2x7B-olmo3_reasoning-fixed-20b-8k \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.mix=olmo3_reasoning \
@@ -88,7 +88,7 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --train_module.rank_microbatch_size=8192 \
    --train_module.scheduler.warmup_steps=2000 \
    --train_module.optim.lr=9e-4 \
-   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7B-olmo3_reasoning-20b-8k
+   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7B-olmo3_reasoning-fixed-20b-8k
 
 
 -----
@@ -114,3 +114,24 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --train_module.optim.lr=9e-4 \
    --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/$MODEL_NAME 
    # --train_module.rank_microbatch_size=32768 \
+
+
+# kevin_med_data
+MATH_EXPERT=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base
+uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
+   --launch.num_nodes=8 \
+   --launch.num_gpus=8 \
+   --launch.budget=ai2/oceo \
+   --launch.workspace=ai2/flex2 \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal-8k.py flex-2x7B-kevin_med_anneal-50b-8k \
+   --trainer.callbacks.profiler.enabled=false \
+   --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
+   --dataset.mix=kevin_med_data \
+   --trainer.max_duration.value=50_000_000_000 \
+   --trainer.max_duration.unit=tokens \
+   --trainer.load_path=${MATH_EXPERT} \
+   --model.block.feed_forward_moe.router.top_k=2 \
+   --train_module.rank_microbatch_size=8192 \
+   --train_module.scheduler.warmup_steps=2000 \
+   --train_module.optim.lr=9e-4 \
+   --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7B-kevin_med_anneal-50b-8k
