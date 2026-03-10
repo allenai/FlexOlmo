@@ -26,7 +26,7 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/flex2 \
-   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal.py flex-2x7B-olmo3_math_anneal-50b-8k \
+   --launch.priority=urgent -- src/scripts/train/OLMoE-2x7B-anneal-8k.py flex-2x7B-olmo3_math_anneal-50b-8k \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.mix=olmo3_math \
