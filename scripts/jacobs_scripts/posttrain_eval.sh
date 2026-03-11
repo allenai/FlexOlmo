@@ -240,11 +240,12 @@
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4/step66-hf"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-kevin_med_anneal-10b-general-olmo3_science-biomed-mix/step694-hf"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-olmo2_code_sft-tool_use_sft-safety_sft-0.05-1e-4/step60-hf"
-MODEL_PATHS=(
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_100"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_150"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_200"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_250"
+MODEL_PATHS=(
+"/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-50B/step95368-hf"
 )
 all_but_safety="mmlu:cot::hamish_zs_reasoning_deepseek,popqa::hamish_zs_reasoning_deepseek,simpleqa::tulu-thinker_deepseek,bbh:cot::hamish_zs_reasoning,gpqa:0shot_cot::qwen3-instruct,zebralogic::hamish_zs_reasoning_deepseek,agi_eval_english:0shot_cot::hamish_zs_reasoning_deepseek,gsm8k::zs_cot_latex_deepseek,omega_500:0-shot-chat_deepseek,codex_humanevalplus:0-shot-chat::tulu-thinker_deepseek,mbppplus:0-shot-chat::tulu-thinker_deepseek,livecodebench_codegeneration::tulu-thinker_deepseek_no_think_tags,alpaca_eval_v3::hamish_zs_reasoning_deepseek,ifeval::hamish_zs_reasoning_deepseek,bfcl_all::std"
 coding_tasks="codex_humanevalplus:0-shot-chat::tulu-thinker_deepseek,mbppplus:0-shot-chat::tulu-thinker_deepseek,livecodebench_codegeneration::tulu-thinker_deepseek_no_think_tags"

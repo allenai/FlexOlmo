@@ -129,7 +129,24 @@ uv run gantry run \
             --chat_template_name olmo \
             --max_seq_length 4096
 
-                jacobmorrison/Dolci-Instruct-SFT-Coding $FRACTION \
+uv run gantry run \
+        --cluster ai2/neptune-cirrascale \
+        --allow-dirty -y --budget ai2/oe-adapt --workspace ai2/flex2 \
+        --install "curl -LsSf https://astral.sh/uv/install.sh | sh && /root/.local/bin/uv sync" \
+        --weka=oe-training-default:/weka/oe-training-default \
+        --env-secret HF_TOKEN=jacobm_HF_TOKEN \
+        -- /root/.local/bin/uv run python scripts/data/convert_sft_data_for_olmocore.py \
+            --dataset_mixer_list \
+                jacobmorrison/Dolci-Instruct-SFT-Math 1.0 \
+                jacobmorrison/Dolci-Instruct-SFT-Tool-Use 1.0 \
+                jacobmorrison/Dolci-Instruct-SFT-Safety 1.0 \
+                jacobmorrison/Dolci-Instruct-SFT-Coding 1.0 \
+            --tokenizer_name_or_path allenai/Olmo-3-7B-Instruct \
+            --output_dir /weka/oe-training-default/ai2-llm/jacobm/data/flexolmo/router-training-ablations/olmo3_math \
+            --visualize True \
+            --chat_template_name olmo \
+            --max_seq_length 4096
+
 
 
 # Make dataset fractions:
