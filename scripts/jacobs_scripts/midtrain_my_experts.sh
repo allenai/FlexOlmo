@@ -138,7 +138,7 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
 
 
 #### 7B anneal
-EXPERT_7B=/weka/oe-training-default/ai2-llm/checkpoints/weijias/OLMo2-7B-anneal-from-stage1-no-math/step11921
+EXPERT_7B=/weka/oe-training-default/ai2-llm/checkpoints/weijias/OLMo2-7B-anneal-from-stage1-no-math/step11921/train
 uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_nodes=8 \
    --launch.num_gpus=8 \

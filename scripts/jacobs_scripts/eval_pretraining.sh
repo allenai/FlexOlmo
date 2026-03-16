@@ -5,19 +5,12 @@
 
 # Configuration
 MODELS=(
-    # need: general model, pretrained model (hf versions)
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-hf"
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-hf"
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-anneal-no-expert-bias/step95368-hf"
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias/step95250-hf"
-    # "/weka/oe-training-default/sanjaya/flexolmo/checkpoints/OLMo2-7B-from-posttrained-math-pretrainednonFFN-frozen/step11921-hf"
-    # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-anneal-frozen-router-mixed-sft/step1062-hf"
-    # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-5b-math-anneal-NO-frozen-router-mixed-sft/step1062-hf"
-    # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-test-hf/"
-    # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-test-router-hf"
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-5B/step9537-hf"
-    # "/weka/oe-training-default/jacobm/flexolmo/checkpoints/code-anneal-no-expert-bias-5B/step9537-hf"
-    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-20B/step38147-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/weijias/OLMo2-7B-anneal-from-stage1-no-math/step11921-hf"
+    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7B-pmc-10b-8k/step9537-hf"
+    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-7b-test-anneal-pmc-10b/step19074-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-pmc-10b-general-olmo3_science-biomed-mix/step694-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-pmc-10b-general-olmo3_science-biomed-mix/step694-hf"
+    "/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-hf/"
 )
 BASE_OUTPUT_DIR="/weka/oe-adapt-default/jacobm/flexolmo/results"
 # BASE_OUTPUT_DIR="s3://ai2-llm/jacobm/flexolmo/results"
@@ -28,49 +21,51 @@ model_type=hf
 
 # Define all available tasks from run_eval.sh (ALL tasks from all groups)
 TASKS=(
-    # MC9 tasks
-    arc_easy:mc::olmes
-    arc_challenge:mc::olmes
-    boolq:mc::olmes
-    csqa:mc::olmes
-    hellaswag:mc::olmes
-    openbookqa:mc::olmes
-    piqa:mc::olmes
-    socialiqa:mc::olmes
-    winogrande:mc::olmes
+    # # MC9 tasks
+    # arc_easy:mc::olmes
+    # arc_challenge:mc::olmes
+    # boolq:mc::olmes
+    # csqa:mc::olmes
+    # hellaswag:mc::olmes
+    # openbookqa:mc::olmes
+    # piqa:mc::olmes
+    # socialiqa:mc::olmes
+    # winogrande:mc::olmes
     
-    # Gen5 tasks
-    coqa::olmes
-    squad::olmes
-    naturalqs::olmes
-    triviaqa::olmes
-    drop::olmes
+    # # Gen5 tasks
+    # coqa::olmes
+    # squad::olmes
+    # naturalqs::olmes
+    # triviaqa::olmes
+    # drop::olmes
 
-    # MMLU tasks
-    mmlu:mc::olmes
-    # mmlu_pro_mc::none
+    # # MMLU tasks
+    # mmlu:mc::olmes
+    # # mmlu_pro_mc::none
 
-    # AGI eval
-    agi_eval_english:1shot::olmes
+    # # AGI eval
+    # agi_eval_english:1shot::olmes
 
-    # BBH
-    bbh:cot-v1::olmes
+    # # BBH
+    # bbh:cot-v1::olmes
 
-    # Math2 tasks
-    gsm8k::olmes
-    minerva_math_algebra::olmes
-    minerva_math_counting_and_probability::olmes
-    minerva_math_geometry::olmes
-    minerva_math_intermediate_algebra::olmes
-    minerva_math_number_theory::olmes
-    minerva_math_prealgebra::olmes
-    minerva_math_precalculus::olmes
+    # # Math2 tasks
+    # gsm8k::olmes
+    # minerva_math_algebra::olmes
+    # minerva_math_counting_and_probability::olmes
+    # minerva_math_geometry::olmes
+    # minerva_math_intermediate_algebra::olmes
+    # minerva_math_number_theory::olmes
+    # minerva_math_prealgebra::olmes
+    # minerva_math_precalculus::olmes
 
-    # Code4 tasks
-    codex_humaneval:temp0.8
-    codex_humanevalplus:temp0.8
-    mbpp::none
-    mbppplus::none
+    # # Code4 tasks
+    # codex_humaneval:temp0.8
+    # codex_humanevalplus:temp0.8
+    # mbpp::none
+    # mbppplus::none
+    medqa
+    medmcqa:mc
 )
 
 # Function to get checkpoint name (matching the original script)
