@@ -38,11 +38,55 @@ TOOL_USE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/f
 BASE=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-unsharded
 MATH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-unsharded
 MATH_RL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flex-2x7b-math_rl_froz-6e-7-unf-lm-head/grpo_math_only_flex-2x7b-math_rl_froz-6e-7-unf-lm-head__1__1771484873_checkpoints/step_500-oc
+OLMO3_MATH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-olmo3_50b_math_anneal-olmo3_math-mix-4k/step500
+OLMO3_MATH_RL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-olmo3_50b_math_anneal-olmo3_math-mix-4k/step500-hf/grpo_math_only_flex-2x7b-50b_ol3_ann-ol3_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-50b_ol3_ann-ol3_sft_math-6e-7-unf__1__1773370912_checkpoints/step_200-oc
 OLMO2_CODE_MIX_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed/step620-unsharded
 CODE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft-mixed-on-olmo3-code-anneal-no-eb-50B/step620
 CODE_RL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-olmo3_50b_code_anneal-general-olmo3_code-mix/step782-hf/grpo_code_only_flex-2x7b-olmo3_code_sft-6e-7/grpo_code_only_flex-2x7b-olmo3_code_sft-6e-7__1__1772261343_checkpoints/step_200-oc
 TOOL_USE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-no_anneal-tool_use_general_mix-unf-lm-head/step888
 SAFETY_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math_base-olmo3_safety-general-mix/step534-hf-oc
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $MATH_SFT $CODE_SFT $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-final-sft-only \
+    --average_all_shared_params
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $MATH_RL $OLMO2_CODE_MIX_SFT $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_3-olmo2_code_math \
+    --average_all_shared_params
+
+---
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $MATH_RL $CODE_RL $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_3-olmo3_code_rl-olmo2_math \
+    --average_all_shared_params &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $OLMO3_MATH_RL $OLMO2_CODE_MIX_SFT $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_3-olmo2_code-olmo3_math \
+    --average_all_shared_params
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $OLMO3_MATH_SFT $CODE_SFT $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_all \
+    --average_all_shared_params &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $OLMO3_MATH_RL $CODE_SFT $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_4-math_rl \
+    --average_all_shared_params &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $OLMO3_MATH_SFT $CODE_RL $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_4-code_rl \
+    --average_all_shared_params &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $OLMO3_MATH_RL $CODE_RL $TOOL_USE_SFT $SAFETY_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-olmo3_sft_3-math_code_rl \
+    --average_all_shared_params
 
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m $BASE $MATH_RL $OLMO2_CODE_MIX_SFT $TOOL_USE_SFT $SAFETY_SFT \
@@ -68,7 +112,6 @@ uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m $MATH_BASE $MATH_5B_SFT_FROZEN_ROUTER $CODE_5B_SFT_FROZEN_ROUTER \
     -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-router_test_frozen_router-math_base-math_5b_sft-code_5b_sft
-
 
 # uv sync --extra all
 # uv pip install -e ../Olmo-core

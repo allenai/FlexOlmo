@@ -228,27 +228,41 @@
     # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7b-fixed-rt-merge-all-0.25-4dom-1e-4/step382-hf"
     # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf/grpo_math_only_flex-2x7b-math_rl_froz-6e-7-unf-lm-head/grpo_math_only_flex-2x7b-math_rl_froz-6e-7-unf-lm-head__1__1771484873_checkpoints/step_500"
     # "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-math_rl_x4-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.05-1e-4/step80-hf"
-"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.25-1e-4/step400-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-50b_math2_anneal-olmo3_math_mix-attm2/step966-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-1.0-1e-4/step1602-hf"
-"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.05-1e-4/step80-hf/grpo_math_only_flex-4x7b-olm3_doms-0.05-RLRT-6e-7-unf-all/grpo_math_only_flex-4x7b-olm3_doms-0.05-RLRT-6e-7-unf-all__1__1772996052_checkpoints/step_100"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-50b_math2_anneal-olmo3_math_mix-unf-lm-emb/step966-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.01-1e-4/step16-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-olmo3_50b_code_anneal-general-olmo3_code-mix/step782-hf/grpo_code_only_flex-2x7b-olmo3_code_sft-6e-7/grpo_code_only_flex-2x7b-olmo3_code_sft-6e-7__1__1772261343_checkpoints/step_200"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-math_rl-code_rl-tool_use_sft-0.05-1e-4/step80-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.05-1e-4/step80-hf"
+# "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.25-1e-4/step400-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-50b_math2_anneal-olmo3_math_mix-attm2/step966-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-1.0-1e-4/step1602-hf"
+# "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.05-1e-4/step80-hf/grpo_math_only_flex-4x7b-olm3_doms-0.05-RLRT-6e-7-unf-all/grpo_math_only_flex-4x7b-olm3_doms-0.05-RLRT-6e-7-unf-all__1__1772996052_checkpoints/step_100"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-50b_math2_anneal-olmo3_math_mix-unf-lm-emb/step966-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-olmo3_3x_domain-0.01-1e-4/step16-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-olmo3_50b_code_anneal-general-olmo3_code-mix/step782-hf/grpo_code_only_flex-2x7b-olmo3_code_sft-6e-7/grpo_code_only_flex-2x7b-olmo3_code_sft-6e-7__1__1772261343_checkpoints/step_200"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-4x7B-merge-all-math_rl-code_rl-tool_use_sft-0.05-1e-4/step80-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4/step66-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-kevin_med_anneal-10b-general-olmo3_science-biomed-mix/step694-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-olmo2_code_sft-tool_use_sft-safety_sft-0.05-1e-4/step60-hf"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_100"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_150"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_200"
+#     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_250"
+# "/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-50B/step95368-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-olmo3_sft_all-0.05-1e-4/step66-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-olmo3_sft_4-math_rl-0.05-1e-4/step66-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-olmo3_sft_4-code_rl-0.05-1e-4/step66-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-olmo3_sft_3-math_code_rl-0.05-1e-4/step66-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-olmo3_sft_3-olmo2_code-olmo3_math-0.05-1e-4/step60-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-olmo3_sft_3-olmo3_code_rl-olmo2_math-0.05-1e-4/step70-hf"
     "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4/step66-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-kevin_med_anneal-10b-general-olmo3_science-biomed-mix/step694-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-olmo2_code_sft-tool_use_sft-safety_sft-0.05-1e-4/step60-hf"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_100"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_150"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_200"
-    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-20b_olmo3_math_anneal-math-mixed-sft/step1062-hf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf/grpo_math_only_flex-2x7b-20b_ol3_ann-ol2_sft_math-6e-7-unf__1__1773120635_checkpoints/step_250"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-test/step594-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-hf"
+"/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-olmo2_code_sft-tool_use_sft-safety_sft-0.05-1e-4/step60-hf"
 MODEL_PATHS=(
-"/weka/oe-training-default/jacobm/flexolmo/checkpoints/olmo3-code-anneal-50B/step95368-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4-1-active/step66-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4-2-active/step66-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4-3-active/step66-hf"
+    "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4-4-active/step66-hf"
 )
 all_but_safety="mmlu:cot::hamish_zs_reasoning_deepseek,popqa::hamish_zs_reasoning_deepseek,simpleqa::tulu-thinker_deepseek,bbh:cot::hamish_zs_reasoning,gpqa:0shot_cot::qwen3-instruct,zebralogic::hamish_zs_reasoning_deepseek,agi_eval_english:0shot_cot::hamish_zs_reasoning_deepseek,gsm8k::zs_cot_latex_deepseek,omega_500:0-shot-chat_deepseek,codex_humanevalplus:0-shot-chat::tulu-thinker_deepseek,mbppplus:0-shot-chat::tulu-thinker_deepseek,livecodebench_codegeneration::tulu-thinker_deepseek_no_think_tags,alpaca_eval_v3::hamish_zs_reasoning_deepseek,ifeval::hamish_zs_reasoning_deepseek,bfcl_all::std"
-coding_tasks="codex_humanevalplus:0-shot-chat::tulu-thinker_deepseek,mbppplus:0-shot-chat::tulu-thinker_deepseek,livecodebench_codegeneration::tulu-thinker_deepseek_no_think_tags"
+# coding_tasks="codex_humanevalplus:0-shot-chat::tulu-thinker_deepseek,mbppplus:0-shot-chat::tulu-thinker_deepseek,livecodebench_codegeneration::tulu-thinker_deepseek_no_think_tags"
 
 for MODEL_PATH in "${MODEL_PATHS[@]}"; do
     BASENAME=$(basename "$MODEL_PATH")
@@ -267,6 +281,8 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
         # Direct model path (no step directory)
         MODEL_NAME=$(echo "$BASENAME" | sed 's/-hf$//')
     fi
+
+    MODEL_NAME=$MODEL_NAME-2
     
     echo "Submitting eval for: $MODEL_NAME"
     uv run python scripts/submit_eval_jobs.py \
@@ -305,6 +321,7 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
         # Direct model path (no step directory)
         MODEL_NAME=$(echo "$BASENAME" | sed 's/-hf$//')
     fi
+    MODEL_NAME=$MODEL_NAME-2
     
     echo "Submitting eval for: $MODEL_NAME"
     uv run python scripts/submit_eval_jobs.py \
@@ -346,6 +363,7 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
         # Direct model path (no step directory)
         MODEL_NAME=$(echo "$BASENAME" | sed 's/-hf$//')
     fi
+    MODEL_NAME=$MODEL_NAME-2
     
     echo "Submitting eval for: $MODEL_NAME"
     uv run python scripts/submit_eval_jobs.py \
@@ -366,4 +384,44 @@ for MODEL_PATH in "${MODEL_PATHS[@]}"; do
         --oe_eval_tasks $safety_tasks \
         --beaker_image maliam/flexolmo-libraries-safety \
         --gpu_multiplier 2
+done
+
+if_ood="ifeval_ood::tulu-thinker"
+for MODEL_PATH in "${MODEL_PATHS[@]}"; do
+    BASENAME=$(basename "$MODEL_PATH")
+    
+    if [[ "$BASENAME" =~ ^step_[0-9]+$ ]]; then
+        # RL checkpoint case: extract experiment name and step
+        STEP_NUM="$BASENAME"
+        CHECKPOINTS_DIR=$(dirname "$MODEL_PATH")
+        EXPERIMENT_DIR=$(dirname "$CHECKPOINTS_DIR")
+        EXPERIMENT_NAME=$(basename "$EXPERIMENT_DIR")
+        MODEL_NAME="${EXPERIMENT_NAME}_${STEP_NUM}"
+    elif [[ "$BASENAME" =~ ^step[0-9]+-hf$ ]]; then
+        # SFT checkpoint with step number
+        MODEL_NAME=$(basename "$(dirname "$MODEL_PATH")")
+    else
+        # Direct model path (no step directory)
+        MODEL_NAME=$(echo "$BASENAME" | sed 's/-hf$//')
+    fi
+    MODEL_NAME=$MODEL_NAME-2
+    
+    echo "Submitting eval for: $MODEL_NAME"
+    uv run python scripts/submit_eval_jobs.py \
+        --model_name "${MODEL_NAME}" \
+        --location "$MODEL_PATH" \
+        --cluster ai2/saturn ai2/ceres \
+        --is_tuned \
+        --workspace ai2/flex2 \
+        --priority urgent \
+        --preemptible \
+        --use_hf_tokenizer_template \
+        --run_oe_eval_experiments \
+        --evaluate_on_weka \
+        --run_id placeholder \
+        --oe_eval_max_length 4096 \
+        --process_output r1_style \
+        --skip_oi_evals \
+        --oe_eval_tasks $if_ood \
+        --beaker_image jacobm/oe-eval-flex-olmo-9-29-5 
 done
