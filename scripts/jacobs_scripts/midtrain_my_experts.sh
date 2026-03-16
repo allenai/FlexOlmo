@@ -144,11 +144,12 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --launch.num_gpus=8 \
    --launch.budget=ai2/oceo \
    --launch.workspace=ai2/olmo-instruct \
-   --launch.priority=urgent -- src/scripts/train/OLMo2-7B-anneal.py flex-7b-test-anneal-pmc-10b $EXPERT_7B \
+   --launch.priority=urgent -- src/scripts/train/OLMo2-7B-fixed-anneal.py flex-7b-test-anneal-pmc-10b \
    --trainer.callbacks.profiler.enabled=false \
    --dataset.mix_base_dir=/weka/oe-training-default/ai2-llm/ \
    --dataset.mix=pmc \
    --trainer.max_duration.value=10_000_000_000 \
+   --trainer.load_path=${EXPERT_7B} \
    --trainer.max_duration.unit=tokens \
    --train_module.scheduler.warmup_steps=2000 \
    --train_module.optim.lr=9e-4 \
