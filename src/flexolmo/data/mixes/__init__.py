@@ -61,7 +61,7 @@ class CustomDataMix(DataMixBase):
     long_context = "long_context"
     olmo3_long_context_debug = "olmo3_long_context_debug"
     olmo3_reasoning = "olmo3_reasoning"
-    kevin_med_data = "kevin_med_data"
+    pmc = "pmc"
     
     # glob-based mixtures
     code_glob = "code_glob"
