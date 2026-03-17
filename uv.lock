@@ -1271,6 +1271,7 @@ embeddings = [
 eval = [
     { name = "ai2-olmes" },
     { name = "beaker-gantry" },
+    { name = "huggingface-hub" },
     { name = "prettytable" },
     { name = "s3fs" },
     { name = "smart-open" },
@@ -1317,6 +1318,7 @@ requires-dist = [
     { name = "google-cloud-compute", marker = "extra == 'dev'" },
     { name = "google-cloud-storage", marker = "extra == 'dev'" },
     { name = "gritlm", marker = "extra == 'embeddings'" },
+    { name = "huggingface-hub", marker = "extra == 'eval'", specifier = ">=0.27.1" },
     { name = "huggingface-hub", marker = "extra == 'train'", specifier = ">=0.27.1" },
     { name = "importlib-resources" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12,<6.1" },

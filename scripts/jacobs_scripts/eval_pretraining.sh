@@ -126,7 +126,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --name $job_name \
         --weka oe-training-default:/weka/oe-training-default \
         --weka oe-adapt-default:/weka/oe-adapt-default \
-        --install "pip install -e \".[eval]\"" \
+        --install "pip install setuptools uv && UV_CACHE_DIR=/tmp/uv-cache uv pip install -e '.[eval]'" \
         --budget ai2/oceo \
         --workspace ai2/flex2 \
         --cluster $CLUSTER \
@@ -137,7 +137,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --env-secret AWS_SECRET_ACCESS_KEY=jacobm_AWS_SECRET_ACCESS_KEY \
         --allow-dirty \
         -- \
-        bash -c "python -u src/scripts/eval/launch_eval.py \
+        bash -c "uv run python -u src/scripts/eval/launch_eval.py \
             --model $MODEL_PATH \
             --model-type hf \
             --task $TASK \
