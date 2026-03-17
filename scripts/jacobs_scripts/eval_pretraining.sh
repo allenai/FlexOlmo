@@ -137,7 +137,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --env-secret AWS_SECRET_ACCESS_KEY=jacobm_AWS_SECRET_ACCESS_KEY \
         --allow-dirty \
         -- \
-        bash -c "uv run python -u src/scripts/eval/launch_eval.py \
+        bash -c "PYTHONPATH=. python -u src/scripts/eval/launch_eval.py \
             --model $MODEL_PATH \
             --model-type hf \
             --task $TASK \
