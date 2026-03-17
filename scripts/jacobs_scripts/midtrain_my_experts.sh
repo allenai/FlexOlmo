@@ -170,6 +170,5 @@ uv run python src/scripts/beaker/launch.py launch ai2/jupiter \
    --trainer.max_duration.value=150_000_000_000 \
    --trainer.load_path=${EXPERT_7B} \
    --trainer.max_duration.unit=tokens \
-   --train_module.scheduler.warmup_steps=2000 \
-   --train_module.optim.lr=9e-4 \
+   --train_module.float8_config.enabled=true --train_module.optim.lr=0.000061499 --train_module.scheduler.warmup_steps=0 \
    --trainer.save_folder=/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-7b-baseline_mix_mixed-150b
