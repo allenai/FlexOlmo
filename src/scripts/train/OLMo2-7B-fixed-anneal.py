@@ -9,6 +9,7 @@ from olmo_core.config import DType
 from olmo_core.data import NumpyDatasetConfig
 from olmo_core.distributed.parallel import DataParallelType
 from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
+from datetime import timedelta
 
 # from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
 from olmo_core.nn.transformer import TransformerConfig
@@ -89,7 +90,7 @@ if __name__ == "__main__":
         _, run_name, *overrides = sys.argv[1:]
     else:
         run_name, *overrides = sys.argv[1:]
-        prepare_training_environment()
+        prepare_training_environment(timeout=timedelta(minutes=120))
 
     try:
         config = build_experiment_config(
