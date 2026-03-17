@@ -69,6 +69,7 @@ train = [
     "protobuf==5.29.4",
 ]
 eval = [
+    "huggingface-hub>=0.27.1",
     "s3fs",
     "smart-open",
     "torchvision",
