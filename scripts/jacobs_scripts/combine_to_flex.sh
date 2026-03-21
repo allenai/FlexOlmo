@@ -47,6 +47,18 @@ TOOL_USE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/f
 SAFETY_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math_base-olmo3_safety-general-mix/step534-hf-oc
 
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $MATH_RL $CODE_RL \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-final-no-safety-tool \
+    --average_all_shared_params &&
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $MATH_RL $CODE_RL $TOOL_USE_SFT \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-4x7B-final-no-safety \
+    --average_all_shared_params
+
+-----
+
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m $BASE $MATH_SFT $CODE_SFT $TOOL_USE_SFT $SAFETY_SFT \
     -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-final-sft-only \
     --average_all_shared_params

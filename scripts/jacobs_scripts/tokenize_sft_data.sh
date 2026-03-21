@@ -120,10 +120,9 @@ uv run gantry run \
                 ai2-adapt-dev/personahub_ifdata_manual_seed_v3_29980 $FRACTION \
                 jacobmorrison/Dolci-Instruct-SFT-Math $FRACTION \
                 jacobmorrison/Dolci-Instruct-SFT-Tool-Use $FRACTION \
-                jacobmorrison/Dolci-Instruct-SFT-Safety $FRACTION \
                 jacobmorrison/Dolci-Instruct-SFT-Coding $FRACTION \
             --tokenizer_name_or_path allenai/Olmo-3-7B-Instruct \
-            --output_dir /weka/oe-training-default/ai2-llm/jacobm/data/flexolmo/router-training-ablations/general-olmo3_math_code_tool_use_safety-$FRACTION \
+            --output_dir /weka/oe-training-default/ai2-llm/jacobm/data/flexolmo/router-training-ablations/general-olmo3_math_code_tool_use-$FRACTION \
             --visualize True \
             --chat_template_name olmo \
             --max_seq_length 4096
