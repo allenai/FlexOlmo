@@ -34,6 +34,17 @@ MATH_RL_UNF_LM_EMBED=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-
 
 TOOL_USE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-no_anneal-tool_use_general_mix-unf-lm-head/step888
 
+uv run python src/scripts/upcycle/dense_to_expert_moe.py \
+    -m  /weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-BASE-general-olmo3_tool_use-mix/step888 \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350 \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flex-base-7b-DPO-olmo2-1e-6/grpo_math_only_flex-base-7b-mixed-all-sft-6e-7/grpo_math_only_flex-base-7b-mixed-all-sft-6e-7__1__1773965057_checkpoints/step_400-oc \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-50b_ol3_code_ann-general-olmo3_code-mix/step782-hf/grpo_code_only_flex-base-7b-ol3_code-6e-7-unf/grpo_code_only_flex-base-7b-ol3_code-6e-7-unf__1__1773949222_checkpoints/step_100-oc \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-BASE-general-olmo3_safety-mix/step534 \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/BTX-5x7B-Test-5-Domains-tool-first
+
+#### NEED TO FIX BTX w/ math expert
+
+
 # Smaller list of experts:
 BASE=/weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-unsharded
 MATH_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft-mixed/step1062-unsharded
