@@ -284,7 +284,7 @@ mj_finemath4plus,preprocessed/owm-filtered-math/codesearchnet/part-22-00000.npy
 # mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-2-00000.npy
 # mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-3-00000.npy
 # mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-4-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-5-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-5-00000.npy
 
 mj_finemath4plus,preprocessed/mathcoder2-synthmath/ajibawa-2023/dolma2-tokenizer/part-00-00000.npy
 mj_finemath4plus,preprocessed/mathcoder2-synthmath/ajibawa-2023/dolma2-tokenizer/part-01-00000.npy
