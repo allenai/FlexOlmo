@@ -107,42 +107,42 @@ mj_finemath4plus,preprocessed/personahub_math_v5_regen_149960/dolma2-tokenizer/p
 mj_finemath4plus,preprocessed/personahub_math_v5_regen_149960/dolma2-tokenizer/part-13-00000.npy
 mj_finemath4plus,preprocessed/personahub_math_v5_regen_149960/dolma2-tokenizer/part-14-00000.npy
 
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-00-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-01-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-02-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-03-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-04-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-05-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-06-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-07-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-08-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-09-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-10-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-11-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-12-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-13-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-14-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-15-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-16-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-17-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-18-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-19-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-20-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-21-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-22-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-23-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-24-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-25-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-26-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-27-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-28-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-29-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-30-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-31-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-32-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-33-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-34-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-35-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-00-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-01-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-02-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-03-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-04-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-05-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-06-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-07-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-08-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-09-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-10-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-11-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-12-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-13-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-14-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-15-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-16-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-17-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-18-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-19-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-20-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-21-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-22-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-23-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-24-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-25-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-26-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-27-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-28-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-29-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-30-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-31-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-32-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-33-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-34-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/dolma2-tokenizer/part-35-00000.npy
 
 mj_finemath4plus,preprocessed/gsm8k-synth/resample_v1_6x/dolma2-tokenizer/part-0-00000.npy
 
@@ -279,11 +279,11 @@ mj_finemath4plus,preprocessed/owm-filtered-math/codesearchnet/part-20-00000.npy
 mj_finemath4plus,preprocessed/owm-filtered-math/codesearchnet/part-21-00000.npy
 mj_finemath4plus,preprocessed/owm-filtered-math/codesearchnet/part-22-00000.npy
 
-mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-0-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-1-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-2-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-3-00000.npy
-mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-4-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-0-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-1-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-2-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-3-00000.npy
+# mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-4-00000.npy
 mj_finemath4plus,preprocessed/basic_math_mj/multiadd2/dolma2-tokenizer/part-5-00000.npy
 
 mj_finemath4plus,preprocessed/mathcoder2-synthmath/ajibawa-2023/dolma2-tokenizer/part-00-00000.npy
@@ -583,4 +583,4 @@ mj_finemath4plus,preprocessed/tulu-3-sft-personas-math-grade/dolma2-tokenizer/pa
 mj_finemath4plus,preprocessed/tulu-3-sft-personas-math-grade/dolma2-tokenizer/part-1-00000.npy
 mj_finemath4plus,preprocessed/tulu-3-sft-personas-math-grade/dolma2-tokenizer/part-2-00000.npy
 mj_finemath4plus,preprocessed/tulu-3-sft-personas-math-grade/dolma2-tokenizer/part-3-00000.npy
-mj_finemath4plus,preprocessed/tulu-3-sft-personas-math-grade/dolma2-tokenizer/part-4-00000.npy
+# mj_finemath4plus,preprocessed/tulu-3-sft-personas-math-grade/dolma2-tokenizer/part-4-00000.npy
