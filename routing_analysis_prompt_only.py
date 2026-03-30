@@ -80,20 +80,26 @@ class RouterAnalyzer:
         self.model_path = model_path
         self.device = device
 
-        logger.info(f"Loading tokenizer from {model_path}")
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        is_local = os.path.isdir(model_path)
+
+        logger.info(f"Loading tokenizer from {model_path} (local={is_local})")
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_path, trust_remote_code=True, local_files_only=is_local
+        )
 
         logger.info("Loading model...")
         try:
             from transformers import OlmoeForCausalLM
             self.model = OlmoeForCausalLM.from_pretrained(
-                model_path, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True
+                model_path, torch_dtype=torch.float16, device_map="auto",
+                trust_remote_code=True, local_files_only=is_local,
             )
             logger.info("Loaded with OlmoeForCausalLM")
         except Exception as e:
             logger.warning(f"OlmoeForCausalLM failed: {e}, trying AutoModelForCausalLM")
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_path, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True
+                model_path, torch_dtype=torch.float16, device_map="auto",
+                trust_remote_code=True, local_files_only=is_local,
             )
             logger.info("Loaded with AutoModelForCausalLM")
         self.model.eval()
