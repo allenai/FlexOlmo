@@ -1,0 +1,24 @@
+# Routing Analysis Configuration (Prompt-Only)
+#
+# Usage:
+#   python routing_analysis_prompt_only.py --config routing_analysis_prompt_only_config.yaml --visualize
+
+model_path: "/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-5x7B-math_rl-code_rl-tool_use_sft-safety_sft-0.05-1e-4/step66-hf"
+device: "cuda"
+
+layers_to_analyze: [1, 15, 31]
+max_sequence_length: 2048
+max_samples: 0  # 0 = use all samples
+
+tasks:
+  gsm8k:
+    local_path: "task-000-gsm8k-requests.jsonl"
+
+  codex_humanevalplus:
+    local_path: "task-000-codex_humanevalplus-requests.jsonl"
+
+  alpaca_eval:
+    local_path: "task-000-alpaca_eval-requests.jsonl"
+
+  ifeval_ood:
+    local_path: "task-000-ifeval_ood-requests.jsonl"

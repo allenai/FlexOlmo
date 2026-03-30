@@ -51,3 +51,7 @@ __pycache__
 
 docs/build
 site/
+
+# Large eval request/prediction files
+task-000-*-requests.jsonl
+task-000-*-predictions.jsonl
