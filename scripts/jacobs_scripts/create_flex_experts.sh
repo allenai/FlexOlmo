@@ -7,7 +7,7 @@ uv run python src/scripts/upcycle/dense_to_expert_moe.py \
        $PRETRAINED_MODEL \
     -e src/data/domain_embeddings/grit/public.npy \
        src/data/domain_embeddings/grit/math.npy \
-    -t /weka/oe-training-default/jacobm/flexolmo/checkpoints/math-base-with-expert-bias
+    -t /weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7b-math-base
 
 # code expert
 uv run python src/scripts/upcycle/dense_to_expert_moe.py \
@@ -15,7 +15,7 @@ uv run python src/scripts/upcycle/dense_to_expert_moe.py \
        $PRETRAINED_MODEL \
     -e src/data/domain_embeddings/grit/public.npy \
        src/data/domain_embeddings/grit/code.npy \
-    -t /weka/oe-training-default/jacobm/flexolmo/checkpoints/code-base-with-expert-bias
+    -t /weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7b-code-base
 
 
 # PUBLIC_EXPERT=/weka/oe-training-default/ai2-llm/checkpoints/sanjaya/olmo2-7B-sft/math_expert_sft_mixed/step1062
