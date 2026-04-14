@@ -57,6 +57,36 @@ CODE_RL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexol
 TOOL_USE_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-no_anneal-tool_use_general_mix-unf-lm-head/step888
 SAFETY_SFT=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math_base-olmo3_safety-general-mix/step534-hf-oc
 
+
+### RETRAIN
+BASE=/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7b-math-base
+MATH=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft/step1062-hf/grpo_math_only_retrain_flex-base-2x7b-math-sft-6e-7/grpo_math_only_retrain_flex-base-2x7b-math-sft-6e-7__1__1775598273_checkpoints/step_300-oc
+CODE=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft/step782-hf/grpo_code_only_flex-2x7b-code-6e-7/grpo_code_only_flex-2x7b-code-6e-7__1__1775600356_checkpoints/step_150-oc
+SAFETY=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-safety-sft/step534
+TOOL=/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-tool-use-sft-unfrozen/step888
+
+# RETRAIN
+uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
+    -m $BASE $MATH $CODE $SAFETY $TOOL \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-5x7B-retrain-final \
+    --average_all_shared_params &&
+
+### BTX RETRAIN
+uv run python src/scripts/upcycle/dense_to_expert_moe.py \
+    -m  /weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-tool-use-sft/step888 \
+        /weka/oe-training-default/ai2-llm/checkpoints/sanjaya/olmo2-7B-sft/math_expert_sft_mixed/step1062-hf/grpo_math_only_flex-base-7b-final-6e-7/grpo_math_only_flex-base-7b-final-6e-7__1__1773891947_checkpoints/step_400/-oc/ \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-code-sft/step782-hf/grpo_code_only_flex-7b-code-6e-7/grpo_code_only_flex-7b-code-6e-7__1__1775600361_checkpoints/step_100-oc \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-safety-sft/step534 \
+        /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex-olmo/olmo2_flex_base-tulu3-no_code-no_math-dpo-rlvr_step_350 \
+    -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/BTX-5x7B-final-retrain
+
+# need to convert to OC
+/weka/oe-training-default/jacobm/flexolmo/checkpoints/flex-2x7b-math-base-hf/grpo_math_only_retrain_flex-base-7b-math-sft-6e-7/grpo_math_only_retrain_flex-base-7b-math-sft-6e-7__1__1775598277_checkpoints/step_150 \
+/weka/oe-training-default/ai2-llm/checkpoints/jacobm/olmo2-7B-sft/olmo2-7b-code-sft/step782-hf/grpo_code_only_flex-7b-code-6e-7/grpo_code_only_flex-7b-code-6e-7__1__1775600361_checkpoints/step_100 \
+/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-math-sft/step1062-hf/grpo_math_only_retrain_flex-base-2x7b-math-sft-6e-7/grpo_math_only_retrain_flex-base-2x7b-math-sft-6e-7__1__1775598273_checkpoints/step_300
+/weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/flexolmo-2x7b-code-sft/step782-hf/grpo_code_only_flex-2x7b-code-6e-7/grpo_code_only_flex-2x7b-code-6e-7__1__1775600356_checkpoints/step_150
+
+
 uv run python src/scripts/upcycle/merge_experts_to_flexolmo.py \
     -m $BASE $MATH_RL $CODE_RL \
     -t /weka/oe-training-default/ai2-llm/checkpoints/jacobm/flex2-7B-sft/FlexOlmo-3x7B-final-no-safety-tool \
