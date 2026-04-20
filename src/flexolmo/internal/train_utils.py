@@ -8,7 +8,6 @@ from olmo_core.distributed.utils import get_local_rank
 from olmo_core.io import resource_path
 from olmo_core.optim import AdamWConfig, CosWithWarmup
 from olmo_core.train.callbacks import (
-    CometCallback,
     ConfigSaverCallback,
     WandBCallback,
 )

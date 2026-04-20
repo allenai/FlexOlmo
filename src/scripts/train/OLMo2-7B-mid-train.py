@@ -5,10 +5,7 @@ Train an Nx7B OLMo2 model. Run this script without any arguments to see usage in
 import logging
 import sys
 
-from olmo_core.config import DType
 from olmo_core.data import NumpyDatasetConfig
-from olmo_core.distributed.parallel import DataParallelType
-from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
 from datetime import timedelta
 
 # from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
@@ -22,15 +19,6 @@ from olmo_core.train import (
 from olmo_core.train.train_module import (
     TransformerTrainModuleConfig,
 )
-from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
-    TransformerDataParallelConfig,
-    TransformerDataParallelWrappingStrategy,
-    TransformerExpertParallelConfig,
-)
-from olmo_core.train.train_module import (
-    TransformerActivationCheckpointingConfig,
-    TransformerActivationCheckpointingMode,
-)
 from rich import print
 
 from flexolmo.internal.common import (
@@ -42,9 +30,6 @@ from flexolmo.internal.common import (
 )
 from flexolmo.internal.model_utils import *  # noqa
 from flexolmo.internal.train_utils import train
-from flexolmo.train.train_module.transformer import (
-    FreezeTransformerTrainModuleConfig,
-)
 
 SEQUENCE_LENGTH = 4096
 
