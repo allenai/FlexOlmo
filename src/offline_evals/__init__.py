@@ -12,8 +12,6 @@ from .tasks import (
     poem_gen,
     ruler,
     sciriff,
-    squad,
-    squad2,
     story_gen,
     xsum,
 )
@@ -33,8 +31,6 @@ new_task_registry: Dict = {
     **agi_eval.create_core_agi_eval_tasks(),
     **ruler.create_ruler_tasks(),
     **sciriff.create_bio_sciriff_qa_tasks(),
-    "squad": squad.SQuAD,
-    "squad2": squad2.SQuAD2,
 }
 
 TASK_REGISTRY.update(new_task_registry)

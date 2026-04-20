@@ -208,7 +208,7 @@ class MoERouterWithExpertBias(MoERouter):
             # shape: (num_experts,)
             # NOTE: if we wanted to keep the batch dimension here like for sequence-level load balancing
             # loss, we could use `opts.batched_histc`.
-            batch_size_per_expert = histc(expert_indices, num_experts=self.num_experts)
+            batch_size_per_expert = histc(expert_indices, num_classes=self.num_experts)
             self._accumulate_batch_size_per_expert(batch_size_per_expert)
 
         return logits, scores, expert_weights, expert_indices, batch_size_per_expert
