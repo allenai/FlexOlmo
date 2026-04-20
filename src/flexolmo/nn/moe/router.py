@@ -30,6 +30,7 @@ def histc(x: torch.Tensor, num_classes: int) -> torch.Tensor:
     else:
         return torch.histc(x, bins=num_classes, min=0, max=num_classes - 1)
 
+
 class ExtendedMoERouterType(StrEnum):
     """
     An enumeration of the different MoE router implementations.

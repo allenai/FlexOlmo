@@ -230,7 +230,7 @@ if __name__ == "__main__":
                     log.warning(f"No dense key mapping for '{key}', skipping")
                     continue
                 if dense_key not in expert_state_dict:
-                    sample_keys = list(expert_state_dict.keys())#[:25]
+                    sample_keys = list(expert_state_dict.keys())  # [:25]
                     raise KeyError(
                         f"Missing '{dense_key}' in expert checkpoint at {path}. Sample keys: {sample_keys}"
                     )
@@ -248,7 +248,9 @@ if __name__ == "__main__":
                         # check if expert is actually frozen for the first part (allclose for bf16 conversion noise)
                         existing = moe_state_dict[key][dim * (0) : dim * (0 + 1), :]
                         incoming = expert_state_dict[dense_key][:dim, :]
-                        if not torch.allclose(existing.float(), incoming.float(), atol=1e-3, rtol=1e-3):
+                        if not torch.allclose(
+                            existing.float(), incoming.float(), atol=1e-3, rtol=1e-3
+                        ):
                             diff = existing.float() - incoming.float()
                             abs_diff = diff.abs()
                             if args.average_all_shared_params:
@@ -313,7 +315,9 @@ if __name__ == "__main__":
                             expert_state_dict[dense_key][dim:]
                         )
                 else:
-                    should_average = args.average_all_shared_params or any(p in key for p in args.average_shared_params)
+                    should_average = args.average_all_shared_params or any(
+                        p in key for p in args.average_shared_params
+                    )
                     if expert == 0:
                         moe_state_dict[key] = expert_state_dict[dense_key]
                     elif should_average:
@@ -321,8 +325,15 @@ if __name__ == "__main__":
                         moe_state_dict[key] = moe_state_dict[key] + expert_state_dict[dense_key]
                         averaged_shared_keys.add(key)
                     else:
-                        if not torch.allclose(moe_state_dict[key].float(), expert_state_dict[dense_key].float(), atol=1e-3, rtol=1e-3):
-                            diff = moe_state_dict[key].float() - expert_state_dict[dense_key].float()
+                        if not torch.allclose(
+                            moe_state_dict[key].float(),
+                            expert_state_dict[dense_key].float(),
+                            atol=1e-3,
+                            rtol=1e-3,
+                        ):
+                            diff = (
+                                moe_state_dict[key].float() - expert_state_dict[dense_key].float()
+                            )
                             abs_diff = diff.abs()
                             log.error(
                                 f"Shared param mismatch: {key} (expert {expert})\n"

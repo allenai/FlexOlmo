@@ -349,7 +349,11 @@ def build_experiment_config(
                 )
                 config.dataset.source_mixture_config = SourceMixtureDatasetConfig(
                     source_configs=source_configs,
-                    max_tokens=config.trainer.max_duration.value if config.trainer.max_duration.unit.name == "tokens" else 50_000_000_000,
+                    max_tokens=(
+                        config.trainer.max_duration.value
+                        if config.trainer.max_duration.unit.name == "tokens"
+                        else 50_000_000_000
+                    ),
                     sequence_length=seq_len,
                     seed=2025,
                     dtype=NumpyDatasetDType(config.dataset.get_dtype().__name__),

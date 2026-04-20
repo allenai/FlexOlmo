@@ -46,11 +46,11 @@ class CustomDataMix(DataMixBase):
     # test mixes
     test_mix = "test_mix"
     anneal_test_mix = "anneal_test_mix"
-    
+
     # router training mix
     router_training_mix = "router_training_mix"
     router_training_mix_midtraining = "router_training_mix_midtraining"
-    
+
     # 2x7B router training mixes
     math_general_rt_mix = "math_general_rt_mix"
     code_general_rt_mix = "code_general_rt_mix"
@@ -63,11 +63,6 @@ class CustomDataMix(DataMixBase):
     olmo3_reasoning = "olmo3_reasoning"
     pmc = "pmc"
     baseline_mix_mixed = "baseline_mix_mixed"
-    
-    # glob-based mixtures
-    code_glob = "code_glob"
-    math_glob = "math_glob"
-    code_math_glob = "code_math_glob"
 
     def build(self, base_dir: str, tokenizer: str) -> Tuple[List[str], List[str]]:
         """

@@ -72,7 +72,9 @@ def build_launch_config(
             BeakerEnvSecret(name="AWS_CONFIG", secret=f"{beaker_user}_AWS_CONFIG"),
             BeakerEnvSecret(name="AWS_CREDENTIALS", secret=f"{beaker_user}_AWS_CREDENTIALS"),
             BeakerEnvSecret(name="GOOGLE_CREDENTIALS", secret="GOOGLE_CREDENTIALS"),
-            BeakerEnvSecret(name="GOOGLE_APPLICATION_CREDENTIALS", secret="GOOGLE_APPLICATION_CREDENTIALS"),
+            BeakerEnvSecret(
+                name="GOOGLE_APPLICATION_CREDENTIALS", secret="GOOGLE_APPLICATION_CREDENTIALS"
+            ),
             # BeakerEnvSecret(name="WEKA_ENDPOINT_URL", secret="WEKA_ENDPOINT_URL"),
             # BeakerEnvSecret(name="SLACK_WEBHOOK_URL", secret="SLACK_WEBHOOK_URL"),
         ],

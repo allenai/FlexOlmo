@@ -38,9 +38,9 @@ def load_model_config(config: dict) -> TransformerConfig:
     # Handle both cases:
     # 1. Config is already a model config (e.g., expert 1/3)
     # 2. Config is a full training config with nested model config (e.g., expert 0)
-    
+
     log.info(f"Config keys: {list(config.keys())}")
-    
+
     if "model" in config:
         # Case 2: Full training config with nested model config
         model_config_dict = config["model"].copy()
@@ -59,19 +59,23 @@ def load_model_config(config: dict) -> TransformerConfig:
     if "dataset" in config and "tokenizer" in config["dataset"]:
         tokenizer_vocab_size = config["dataset"]["tokenizer"].get("vocab_size")
         if tokenizer_vocab_size and model_config_dict.get("vocab_size") != tokenizer_vocab_size:
-            log.warning(f"Fixing vocab_size mismatch: model={model_config_dict.get('vocab_size')}, tokenizer={tokenizer_vocab_size}")
+            log.warning(
+                f"Fixing vocab_size mismatch: model={model_config_dict.get('vocab_size')}, tokenizer={tokenizer_vocab_size}"
+            )
             model_config_dict["vocab_size"] = tokenizer_vocab_size
 
     log.info(f"Model config dict after cleanup: {list(model_config_dict.keys())}")
     log.info(f"Block config: {model_config_dict.get('block', 'NOT FOUND')}")
-    
+
     if "block" not in model_config_dict:
-        raise ValueError(f"No 'block' key found in model config. Available keys: {list(model_config_dict.keys())}")
-    
+        raise ValueError(
+            f"No 'block' key found in model config. Available keys: {list(model_config_dict.keys())}"
+        )
+
     # Ensure the block config has the correct _CLASS_ field
     if "_CLASS_" not in model_config_dict["block"]:
         model_config_dict["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
-    
+
     # Clean up any invalid fields that might cause issues
     invalid_fields = ["init_std"]  # This field might not be supported in current version
     for field in invalid_fields:
@@ -226,7 +230,7 @@ if __name__ == "__main__":
     first_config = None
     for expert, path in enumerate(dense_paths):
         log.info(f"Loading dense model from {path} as expert {expert}")
-        
+
         # Only load config for first expert, reuse for others
         if expert == 0:
             with open(path + "/config.json") as f:
@@ -269,13 +273,15 @@ if __name__ == "__main__":
                             log.info(f"Key {key} is identical across experts")
                         else:
                             # Different frozen weights - this can happen with mixed expert types (SFT vs base models)
-                            log.warning(f"Key {key} is different between experts - this is expected for mixed expert types")
+                            log.warning(
+                                f"Key {key} is different between experts - this is expected for mixed expert types"
+                            )
                             log.warning(f"Expert {expert} has different {key} than expert 0")
                             # For mixed expert types, we need to decide how to handle this
                             # Option 1: Use the first expert's weights (current behavior)
                             # Option 2: Take the mean of all expert weights
                             # Option 3: Use expert-specific weights for each expert
-                            
+
                             # For now, we'll use the first expert's weights and log a warning
                             log.warning(f"Using expert 0's {key} for all experts")
                     else:
@@ -298,9 +304,10 @@ if __name__ == "__main__":
 
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
     save_state_dict(target_path, {"model": moe_state_dict}, save_overwrite=True)
-    
+
     # Create the unsharded directory before saving
     import os
+
     unsharded_path = target_path + "-unsharded"
     os.makedirs(unsharded_path, exist_ok=True)
     torch.save(moe_state_dict, unsharded_path + "/model.pt")
