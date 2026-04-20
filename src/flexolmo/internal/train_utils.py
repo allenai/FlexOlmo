@@ -8,7 +8,6 @@ from olmo_core.distributed.utils import get_local_rank
 from olmo_core.io import resource_path
 from olmo_core.optim import AdamWConfig, CosWithWarmup
 from olmo_core.train.callbacks import (
-    CometCallback,
     ConfigSaverCallback,
     WandBCallback,
 )
@@ -88,18 +87,18 @@ def _train(
 
     # Record the config to W&B/Comet and each checkpoint dir.
     config_dict = config.as_config_dict()
-    cast(CometCallback, trainer.callbacks["comet"]).config = config_dict
+    # cast(CometCallback, trainer.callbacks["comet"]).config = config_dict
     cast(WandBCallback, trainer.callbacks["wandb"]).config = config_dict
     cast(ConfigSaverCallback, trainer.callbacks["config_saver"]).config = config_dict
 
-    if checkpoint is not None:  # anneal or finetune
+    if get_local_rank() == 0 and checkpoint is not None:  # anneal or finetune
         # Try loading a checkpoint from the save folder, otherwise start from the pretraining checkpoint.
         if not trainer.maybe_load_checkpoint(trainer.save_folder):
             trainer.load_checkpoint(checkpoint, load_trainer_state=False)
 
-        if get_local_rank() == 0:
-            print("Updated config:")
-            print(config)
+        # if get_local_rank() == 0:
+        print("Updated config:")
+        print(config)
 
     # Train.
     trainer.fit()

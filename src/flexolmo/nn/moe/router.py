@@ -18,11 +18,17 @@ from olmo_core.nn.moe.router import (
     MoERouterConfig,
     MoERouterType,
     _uniform_expert_assignment,
-    histc,
 )
 from torch.distributed import DeviceMesh
 from torch.distributed.tensor import Replicate, Shard, distribute_tensor
 from torch.distributed.tensor.parallel import PrepareModuleInput, parallelize_module
+
+
+def histc(x: torch.Tensor, num_classes: int) -> torch.Tensor:
+    if x.device.type == "cpu":
+        return torch.histc(x.float(), bins=num_classes, min=0, max=num_classes - 1).int()
+    else:
+        return torch.histc(x, bins=num_classes, min=0, max=num_classes - 1)
 
 
 class ExtendedMoERouterType(StrEnum):
@@ -202,7 +208,7 @@ class MoERouterWithExpertBias(MoERouter):
             # shape: (num_experts,)
             # NOTE: if we wanted to keep the batch dimension here like for sequence-level load balancing
             # loss, we could use `opts.batched_histc`.
-            batch_size_per_expert = histc(expert_indices, num_experts=self.num_experts)
+            batch_size_per_expert = histc(expert_indices, num_classes=self.num_experts)
             self._accumulate_batch_size_per_expert(batch_size_per_expert)
 
         return logits, scores, expert_weights, expert_indices, batch_size_per_expert

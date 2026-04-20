@@ -4,7 +4,11 @@ import logging
 
 import torch
 from olmo_core.data.tokenizer import TokenizerConfig
-from olmo_core.distributed.checkpoint import save_state_dict
+from olmo_core.distributed.checkpoint import (
+    get_checkpoint_metadata,
+    load_keys,
+    save_state_dict,
+)
 from olmo_core.nn.moe import MoEConfig
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.train.config import TrainerConfig
@@ -17,7 +21,8 @@ log = logging.getLogger(__name__)
 
 def build_model_config(num_experts: int = 3) -> TransformerConfig:
     tokenizer = TokenizerConfig.dolma2()
-    return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
+    # return TransformerConfig.olmoe_nx7b_with_expert_bias(  # type: ignore
+    return TransformerConfig.olmoe_nx7b(
         vocab_size=tokenizer.padded_vocab_size(),
         num_experts=num_experts,
         freeze_params=[
@@ -73,6 +78,28 @@ def load_state_dict(path: str):
     return state_dict
 
 
+def load_state_dict_distributed(path: str):
+    """
+    Load a state dictionary from a distributed checkpoint using OLMo-core's distributed checkpoint loading.
+    Returns the same type as the original load_state_dict function.
+    """
+    try:
+        # Try OLMo-core distributed checkpoint path first
+        ckpt_dir = path + "/model_and_optim"
+        metadata = get_checkpoint_metadata(ckpt_dir)
+        model_keys = [
+            key[len("model.") :]
+            for key in metadata.state_dict_metadata.keys()
+            if key.startswith("model.")
+        ]
+        loaded_values = list(load_keys(ckpt_dir, [f"model.{k}" for k in model_keys]))
+        return {k: v for k, v in zip(model_keys, loaded_values)}
+    except Exception:
+        # Fall back to regular torch.load
+        state_dict = torch.load(path + "/model.pt", map_location="cpu")
+        return state_dict
+
+
 def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
@@ -84,19 +111,63 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-t", "--target", type=str, default=None, help="Target path to save the merged model"
     )
+    parser.add_argument(
+        "--average_shared_params",
+        nargs="+",
+        default=[],
+        help="Average these shared param groups across models instead of asserting they are identical. "
+        "Matches if any provided string is contained in the param name. "
+        "Example: --average_shared_params lm_head embeddings",
+    )
+    parser.add_argument(
+        "--average_all_shared_params",
+        action="store_true",
+        default=False,
+        help="Average ALL shared parameters across models (including expert-0 MLP portions and all "
+        "non-expert params) instead of asserting they are identical. Use this when the general "
+        "expert was not fully frozen during training.",
+    )
 
     parsed_args = parser.parse_args()
     return parsed_args
 
 
 if __name__ == "__main__":
+    print("starting main")
+
     prepare_cli_environment()
 
+    print("prapred env")
+
     args = parse_args()
+
+    print("got args")
 
     expert_paths = args.models
     target_path = args.target
 
+    print(f"expert paths: {expert_paths}")
+    print(f"target path: {target_path}")
+
+    # moe_to_expert_mapping = {
+    #     "feed_forward_moe.experts.mlp.w1": "feed_forward.w1.weight",
+    #     "feed_forward_moe.experts.mlp.w2": "feed_forward.w2.weight",
+    #     "feed_forward_moe.experts.mlp.w3": "feed_forward.w3.weight",
+    #     # "feed_forward_moe.router.weight": "feed_forward.w1",
+    #     "attention.q_norm.weight": "attention.q_norm.weight",
+    #     "attention.k_norm.weight": "attention.k_norm.weight",
+    #     "attention_norm.weight": "attention_norm.weight",
+    #     "attention.w_q.weight": "attention.w_q.weight",
+    #     "attention.w_k.weight": "attention.w_k.weight",
+    #     "attention.w_v.weight": "attention.w_v.weight",
+    #     "attention.w_out.weight": "attention.w_out.weight",
+    #     "feed_forward_norm.weight": "feed_forward_norm.weight",
+    #     "lm_head.norm.weight": "lm_head.norm.weight",
+    #     "lm_head.w_out.weight": "lm_head.w_out.weight",
+    #     "embeddings.weight": "embeddings.weight",
+    # }
+
+    # trying from claude
     moe_to_expert_mapping = {
         "feed_forward_moe.experts.mlp.w1": "feed_forward_moe.experts.mlp.w1",
         "feed_forward_moe.experts.mlp.w2": "feed_forward_moe.experts.mlp.w2",
@@ -115,9 +186,13 @@ if __name__ == "__main__":
         "embeddings.weight": "embeddings.weight",
     }
 
+    print("made mapping")
+
     # load the MoE model config
     model_config = build_model_config(len(expert_paths))
     log.info(model_config)
+
+    print(model_config)
 
     assert isinstance(model_config.block.feed_forward_moe, MoEConfig)
     assert model_config.block.feed_forward_moe.num_experts == len(
@@ -130,6 +205,7 @@ if __name__ == "__main__":
     moe_state_dict = model.state_dict()
 
     merged_config_dict = {}
+    averaged_shared_keys = set()
     for expert, path in enumerate(expert_paths):
         log.info(f"Loading model from {path} as expert {expert}")
         with open(path + "/config.json") as f:
@@ -137,10 +213,10 @@ if __name__ == "__main__":
         if expert == 0:
             merged_config_dict = config
 
-        expert_state_dict = load_state_dict(path)
+        expert_state_dict = load_state_dict_distributed(path)
         # bp()
         log.info(f"Expert model config {load_model_config(config)}")
-        log.info("Expert {expert} model loaded")
+        log.info(f"Expert {expert} model loaded")
 
         # copy over the keys in the dense state_dict to final_state_dict
         for key in list(moe_state_dict.keys()):
@@ -150,6 +226,14 @@ if __name__ == "__main__":
                     if pattern in key:
                         dense_key = key.replace(pattern, moe_to_expert_mapping[pattern])
                         break
+                if dense_key is None:
+                    log.warning(f"No dense key mapping for '{key}', skipping")
+                    continue
+                if dense_key not in expert_state_dict:
+                    sample_keys = list(expert_state_dict.keys())  # [:25]
+                    raise KeyError(
+                        f"Missing '{dense_key}' in expert checkpoint at {path}. Sample keys: {sample_keys}"
+                    )
                 log.info(f"Copying key {dense_key} to {key} in MoE model")
                 if "expert" in key:
                     # bp()
@@ -161,11 +245,44 @@ if __name__ == "__main__":
                         )
                     else:
                         # get the second half of the dense weights
-                        # check if expert is actually frozen for the first part
-                        assert torch.equal(
-                            moe_state_dict[key][dim * (0) : dim * (0 + 1), :],
-                            expert_state_dict[dense_key][:dim, :],
-                        ), f"First part of the dense weights are not frozen: {key}"
+                        # check if expert is actually frozen for the first part (allclose for bf16 conversion noise)
+                        existing = moe_state_dict[key][dim * (0) : dim * (0 + 1), :]
+                        incoming = expert_state_dict[dense_key][:dim, :]
+                        if not torch.allclose(
+                            existing.float(), incoming.float(), atol=1e-3, rtol=1e-3
+                        ):
+                            diff = existing.float() - incoming.float()
+                            abs_diff = diff.abs()
+                            if args.average_all_shared_params:
+                                log.warning(
+                                    f"Expert 0 portion diverged for {key} (expert {expert}), averaging.\n"
+                                    f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                    f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                    f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                                )
+                                moe_state_dict[key][dim * (0) : dim * (0 + 1), :] = (
+                                    existing * expert + incoming
+                                ) / (expert + 1)
+                            else:
+                                raise ValueError(
+                                    f"Expert 0 portion diverged beyond tolerance for {key} (expert {expert})\n"
+                                    f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                    f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                    f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                                )
+                        elif not torch.equal(existing, incoming):
+                            diff = existing.float() - incoming.float()
+                            abs_diff = diff.abs()
+                            log.warning(
+                                f"Expert 0 portion has minor diffs (bf16 conversion noise) for {key} (expert {expert})\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
+                            if args.average_all_shared_params:
+                                moe_state_dict[key][dim * (0) : dim * (0 + 1), :] = (
+                                    existing * expert + incoming
+                                ) / (expert + 1)
                         moe_state_dict[key][dim * (expert) : dim * (expert + 1), :] = (
                             expert_state_dict[dense_key][dim:, :]
                         )
@@ -176,22 +293,59 @@ if __name__ == "__main__":
                             expert_state_dict[dense_key][:dim]
                         )
                     else:
-                        # bp()
-                        assert torch.equal(
-                            moe_state_dict[key][dim * (0) : dim * (0 + 1)],
-                            expert_state_dict[dense_key][:dim],
-                        ), f"First part of the dense weights are not frozen: {key}"
+                        # Router was trainable during RL so expert-0 portions may have diverged.
+                        # Average the overlapping portions as a reasonable initialization.
+                        existing = moe_state_dict[key][dim * (0) : dim * (0 + 1)]
+                        incoming = expert_state_dict[dense_key][:dim]
+                        if not torch.equal(existing, incoming):
+                            diff = existing.float() - incoming.float()
+                            abs_diff = diff.abs()
+                            log.warning(
+                                f"Router expert-0 portion diverged for {key} (expert {expert}), averaging.\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
+                            # Running average: after seeing `expert` models (0-indexed), we have
+                            # expert+1 values total. Update the stored expert-0 portion in-place.
+                            moe_state_dict[key][dim * (0) : dim * (0 + 1)] = (
+                                existing * expert + incoming
+                            ) / (expert + 1)
                         moe_state_dict[key][dim * (expert) : dim * (expert + 1)] = (
                             expert_state_dict[dense_key][dim:]
                         )
                 else:
-                    # # option 1: check if the frozen weights are the same
-                    if expert > 0:
-                        assert torch.equal(
-                            moe_state_dict[key], expert_state_dict[dense_key]
-                        ), f"Key {key} is different"  # check if the frozen weights are the same
-                    else:
+                    should_average = args.average_all_shared_params or any(
+                        p in key for p in args.average_shared_params
+                    )
+                    if expert == 0:
                         moe_state_dict[key] = expert_state_dict[dense_key]
+                    elif should_average:
+                        # Accumulate for averaging
+                        moe_state_dict[key] = moe_state_dict[key] + expert_state_dict[dense_key]
+                        averaged_shared_keys.add(key)
+                    else:
+                        if not torch.allclose(
+                            moe_state_dict[key].float(),
+                            expert_state_dict[dense_key].float(),
+                            atol=1e-3,
+                            rtol=1e-3,
+                        ):
+                            diff = (
+                                moe_state_dict[key].float() - expert_state_dict[dense_key].float()
+                            )
+                            abs_diff = diff.abs()
+                            log.error(
+                                f"Shared param mismatch: {key} (expert {expert})\n"
+                                f"  shape: {moe_state_dict[key].shape}\n"
+                                f"  max abs diff:  {abs_diff.max().item():.8e}\n"
+                                f"  mean abs diff: {abs_diff.mean().item():.8e}\n"
+                                f"  L2 norm diff:  {diff.norm().item():.8e}\n"
+                                f"  expert 0 mean: {moe_state_dict[key].float().mean().item():.8e}\n"
+                                f"  expert {expert} mean: {expert_state_dict[dense_key].float().mean().item():.8e}\n"
+                                f"  num nonzero diffs: {(abs_diff > 0).sum().item()} / {abs_diff.numel()}"
+                            )
+                            raise ValueError(f"Key {key} is different (see diagnostics above)")
             else:
                 log.info(f"Key {key} not found in dense model")
                 # raise Exception("Key not found")
@@ -202,6 +356,12 @@ if __name__ == "__main__":
                 # else:
                 #     log.warning(f"{key} equivalent not found in dense model")
         del expert_state_dict
+
+    # Average the accumulated shared params
+    num_experts = len(expert_paths)
+    for key in averaged_shared_keys:
+        moe_state_dict[key] = moe_state_dict[key] / num_experts
+        log.info(f"Averaged shared key {key} across {num_experts} models")
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
     save_state_dict(target_path, {"model": moe_state_dict})
     log.info(f"Model saved to {target_path}")

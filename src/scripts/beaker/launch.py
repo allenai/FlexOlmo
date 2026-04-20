@@ -40,12 +40,13 @@ def build_launch_config(
     weka_buckets: List[BeakerWekaBucket] = []
     if root_dir.startswith("/weka/"):
         weka_buckets.append(BeakerWekaBucket("oe-training-default", "/weka/oe-training-default"))
+        weka_buckets.append(BeakerWekaBucket("oe-adapt-default", "/weka/oe-adapt-default"))
 
     beaker_user = get_beaker_username()
 
     return BeakerLaunchConfig(
         name=f"{name}-{generate_uuid()[:8]}",
-        budget="ai2/oe-training",
+        budget="ai2/oe-base",
         cmd=command,
         task_name="train",
         workspace="ai2/OLMo-modular",
@@ -59,17 +60,23 @@ def build_launch_config(
         env_vars=[
             BeakerEnvVar(name="NCCL_DEBUG", value="INFO" if nccl_debug else "WARN"),
             BeakerEnvVar(name="CUDA_LAUNCH_BLOCKING", value="1" if cuda_debug else "0"),
+            BeakerEnvVar(name="GLOO_TIMEOUT_MS", value="1800000"),
+            BeakerEnvVar(name="TORCH_DIST_INIT_BARRIER_TIMEOUT", value="7200"),
+            BeakerEnvVar(name="NCCL_TIMEOUT", value="7200"),
         ],
         env_secrets=[
             BeakerEnvSecret(name="GITHUB_TOKEN", secret=f"{beaker_user}_GITHUB_TOKEN"),
             BeakerEnvSecret(name="BEAKER_TOKEN", secret=f"{beaker_user}_BEAKER_TOKEN"),
             BeakerEnvSecret(name="WANDB_API_KEY", secret=f"{beaker_user}_WANDB_API_KEY"),
-            BeakerEnvSecret(name="COMET_API_KEY", secret=f"{beaker_user}_COMET_API_KEY"),
+            # BeakerEnvSecret(name="COMET_API_KEY", secret=f"{beaker_user}_COMET_API_KEY"),
             BeakerEnvSecret(name="AWS_CONFIG", secret=f"{beaker_user}_AWS_CONFIG"),
             BeakerEnvSecret(name="AWS_CREDENTIALS", secret=f"{beaker_user}_AWS_CREDENTIALS"),
-            BeakerEnvSecret(name="R2_ENDPOINT_URL", secret="R2_ENDPOINT_URL"),
-            BeakerEnvSecret(name="WEKA_ENDPOINT_URL", secret="WEKA_ENDPOINT_URL"),
-            BeakerEnvSecret(name="SLACK_WEBHOOK_URL", secret="SLACK_WEBHOOK_URL"),
+            BeakerEnvSecret(name="GOOGLE_CREDENTIALS", secret="GOOGLE_CREDENTIALS"),
+            BeakerEnvSecret(
+                name="GOOGLE_APPLICATION_CREDENTIALS", secret="GOOGLE_APPLICATION_CREDENTIALS"
+            ),
+            # BeakerEnvSecret(name="WEKA_ENDPOINT_URL", secret="WEKA_ENDPOINT_URL"),
+            # BeakerEnvSecret(name="SLACK_WEBHOOK_URL", secret="SLACK_WEBHOOK_URL"),
         ],
         setup_steps=[
             # Clone private repo.
@@ -81,6 +88,7 @@ def build_launch_config(
             # Setup python environment.
             "conda shell.bash activate base",
             "pip install -e '.[dev,beaker,wandb,train]'",  # we don't need eval, and it causes dependency conflicts
+            "pip install 'https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiFALSE-cp311-cp311-linux_x86_64.whl'",
             "pip freeze",
             # Move AWS credentials from env to relevant files
             "mkdir -p ~/.aws",

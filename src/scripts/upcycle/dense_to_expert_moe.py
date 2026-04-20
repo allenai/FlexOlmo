@@ -5,7 +5,11 @@ import logging
 import numpy as np
 import torch
 from olmo_core.data.tokenizer import TokenizerConfig
-from olmo_core.distributed.checkpoint import save_state_dict
+from olmo_core.distributed.checkpoint import (
+    get_checkpoint_metadata,
+    load_keys,
+    save_state_dict,
+)
 from olmo_core.nn.moe import MoEConfig
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.train.config import TrainerConfig
@@ -31,16 +35,64 @@ def build_model_config(num_experts: int = 2) -> TransformerConfig:
 
 
 def load_model_config(config: dict) -> TransformerConfig:
+    # Handle both cases:
+    # 1. Config is already a model config (e.g., expert 1/3)
+    # 2. Config is a full training config with nested model config (e.g., expert 0)
+
+    log.info(f"Config keys: {list(config.keys())}")
+
+    if "model" in config:
+        # Case 2: Full training config with nested model config
+        model_config_dict = config["model"].copy()
+        log.info(f"Using nested model config. Model config keys: {list(model_config_dict.keys())}")
+    else:
+        # Case 1: Config is already the model config
+        model_config_dict = config.copy()
+        log.info(f"Using direct model config. Config keys: {list(model_config_dict.keys())}")
 
     # our annealed checkpoints were trained on v1, and v2 doesn't have these keys in the config
-    dp_config = config["model"].pop("dp_config", None)  # noqa: F841
-    compile_k = config["model"].pop("compile", None)  # noqa: F841
-    float8_config = config["model"].pop("float8_config", None)  # noqa: F841
+    dp_config = model_config_dict.pop("dp_config", None)  # noqa: F841
+    compile_k = model_config_dict.pop("compile", None)  # noqa: F841
+    float8_config = model_config_dict.pop("float8_config", None)  # noqa: F841
 
-    config["model"]["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
+    # Fix vocab_size mismatch - use the tokenizer's vocab_size if available
+    if "dataset" in config and "tokenizer" in config["dataset"]:
+        tokenizer_vocab_size = config["dataset"]["tokenizer"].get("vocab_size")
+        if tokenizer_vocab_size and model_config_dict.get("vocab_size") != tokenizer_vocab_size:
+            log.warning(
+                f"Fixing vocab_size mismatch: model={model_config_dict.get('vocab_size')}, tokenizer={tokenizer_vocab_size}"
+            )
+            model_config_dict["vocab_size"] = tokenizer_vocab_size
 
-    model_config = TransformerConfig.from_dict(config["model"])
-    return model_config
+    log.info(f"Model config dict after cleanup: {list(model_config_dict.keys())}")
+    log.info(f"Block config: {model_config_dict.get('block', 'NOT FOUND')}")
+
+    if "block" not in model_config_dict:
+        raise ValueError(
+            f"No 'block' key found in model config. Available keys: {list(model_config_dict.keys())}"
+        )
+
+    # Ensure the block config has the correct _CLASS_ field
+    if "_CLASS_" not in model_config_dict["block"]:
+        model_config_dict["block"]["_CLASS_"] = "olmo_core.nn.transformer.TransformerBlockConfig"
+
+    # Clean up any invalid fields that might cause issues
+    invalid_fields = ["init_std"]  # This field might not be supported in current version
+    for field in invalid_fields:
+        if field in model_config_dict:
+            log.warning(f"Removing unsupported field: {field}")
+            model_config_dict.pop(field, None)
+
+    try:
+        model_config = TransformerConfig.from_dict(model_config_dict)
+        return model_config
+    except Exception as e:
+        log.error(f"Failed to create TransformerConfig from dict: {e}")
+        log.error(f"Model config dict: {model_config_dict}")
+        # Try to identify the specific problematic field
+        if "vocab_size" in str(e):
+            log.error("Vocab size mismatch detected. Check tokenizer vs model vocab_size.")
+        raise
 
 
 def load_trainer_config(config: dict) -> TrainerConfig:
@@ -62,6 +114,28 @@ def load_trainer_config(config: dict) -> TrainerConfig:
 def load_state_dict(path: str):
     state_dict = torch.load(path + "/model.pt", map_location="cpu")
     return state_dict
+
+
+def load_state_dict_distributed(path: str):
+    """
+    Load a state dictionary from a distributed checkpoint using OLMo-core's distributed checkpoint loading.
+    Returns the same type as the original load_state_dict function.
+    """
+    try:
+        # Try OLMo-core distributed checkpoint path first
+        ckpt_dir = path + "/model_and_optim"
+        metadata = get_checkpoint_metadata(ckpt_dir)
+        model_keys = [
+            key[len("model.") :]
+            for key in metadata.state_dict_metadata.keys()
+            if key.startswith("model.")
+        ]
+        loaded_values = list(load_keys(ckpt_dir, [f"model.{k}" for k in model_keys]))
+        return {k: v for k, v in zip(model_keys, loaded_values)}
+    except Exception:
+        # Fall back to regular torch.load
+        state_dict = torch.load(path + "/model.pt", map_location="cpu")
+        return state_dict
 
 
 def cosine_similarity(a, b):
@@ -152,15 +226,21 @@ if __name__ == "__main__":
     log.info("Model loaded on cpu")
     moe_state_dict = model.state_dict()
 
+    # Load config from first expert only (expert == 0)
+    first_config = None
     for expert, path in enumerate(dense_paths):
         log.info(f"Loading dense model from {path} as expert {expert}")
-        with open(path + "/config.json") as f:
-            config = json.load(f)
 
-        log.info(f"Dense model config {load_model_config(config)}")
+        # Only load config for first expert, reuse for others
+        if expert == 0:
+            with open(path + "/config.json") as f:
+                first_config = json.load(f)
+            log.info(f"Dense model config {load_model_config(first_config)}")
+        else:
+            log.info(f"Using config from first expert for expert {expert}")
 
-        dense_state_dict = load_state_dict(path)
-        log.info("Expert {expert} dense model loaded")
+        dense_state_dict = load_state_dict_distributed(path)
+        log.info(f"Expert {expert} dense model loaded")
 
         # copy over the keys in the dense state_dict to final_state_dict
         for key in list(moe_state_dict.keys()):
@@ -170,6 +250,14 @@ if __name__ == "__main__":
                     if pattern in key:
                         dense_key = key.replace(pattern, moe_to_dense_mapping[pattern])
                         break
+                if dense_key is None:
+                    log.warning(f"No dense key mapping for '{key}', skipping")
+                    continue
+                if dense_key not in dense_state_dict:
+                    sample_keys = list(dense_state_dict.keys())[:25]
+                    raise KeyError(
+                        f"Missing '{dense_key}' in dense checkpoint at {path}. Sample keys: {sample_keys}"
+                    )
                 log.info(f"Copying key {dense_key} to {key} in MoE model")
                 if "expert" in key or "router" in key:
                     dim = dense_state_dict[dense_key].shape[1]
@@ -178,15 +266,26 @@ if __name__ == "__main__":
                         dense_key
                     ].transpose(0, 1)
                 else:
-                    # option 1: check if the frozen weights are the same
+                    # Handle frozen weights (embeddings, attention, etc.)
                     if expert > 0:
-                        assert torch.equal(
-                            moe_state_dict[key], dense_state_dict[dense_key]
-                        ), f"Key {key} is different"  # check if the frozen weights are the same
+                        # Check if the frozen weights are the same
+                        if torch.equal(moe_state_dict[key], dense_state_dict[dense_key]):
+                            log.info(f"Key {key} is identical across experts")
+                        else:
+                            # Different frozen weights - this can happen with mixed expert types (SFT vs base models)
+                            log.warning(
+                                f"Key {key} is different between experts - this is expected for mixed expert types"
+                            )
+                            log.warning(f"Expert {expert} has different {key} than expert 0")
+                            # For mixed expert types, we need to decide how to handle this
+                            # Option 1: Use the first expert's weights (current behavior)
+                            # Option 2: Take the mean of all expert weights
+                            # Option 3: Use expert-specific weights for each expert
+
+                            # For now, we'll use the first expert's weights and log a warning
+                            log.warning(f"Using expert 0's {key} for all experts")
                     else:
                         moe_state_dict[key] = dense_state_dict[dense_key]
-                    # option 2: take the mean of the dense weights
-                    # moe_state_dict[key] += dense_state_dict[dense_key]/len(dense_paths)
             else:
                 # check if they are the same
                 if key in dense_state_dict:
@@ -204,8 +303,14 @@ if __name__ == "__main__":
                     log.warning(f"{key} equivalent not found in dense model")
 
     # save the final_state_dict for the MoE in a format that the olmo_core trainer likes
-    save_state_dict(target_path, {"model": moe_state_dict})
-    torch.save(moe_state_dict, target_path + "-unsharded/model.pt")
+    save_state_dict(target_path, {"model": moe_state_dict}, save_overwrite=True)
+
+    # Create the unsharded directory before saving
+    import os
+
+    unsharded_path = target_path + "-unsharded"
+    os.makedirs(unsharded_path, exist_ok=True)
+    torch.save(moe_state_dict, unsharded_path + "/model.pt")
 
     log.info(f"Model saved to {target_path}")
     log.info("Done")

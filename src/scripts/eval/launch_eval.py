@@ -378,11 +378,6 @@ def launch_eval(args_dict: dict):
     if HAS_AI2_INTERNAL:
         run_eval_args.update(internal_args.get("internal_run_eval_args", {}))
 
-        internal_args["gantry_args"][
-            "install"
-            # ] += "; pip uninstall -y transformers; pip install 'transformers@git+https://github.com/2015aroras/transformers@shanea/olmoe2'; pip install torch==2.4.0 torchvision==0.19.0"
-        ] += "; pip uninstall -y transformers; pip install 'transformers@git+https://github.com/swj0419/transformers'; pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124; pip install ipdb"
-
         return launch_internal(args_dict, run_eval_command, internal_args, len(all_tasks))
 
     if args_dict["dry_run"]:

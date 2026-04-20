@@ -19,6 +19,8 @@ from olmo_core.train import (
     teardown_training_environment,
 )
 from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
+    TransformerActivationCheckpointingConfig,
+    TransformerActivationCheckpointingMode,
     TransformerDataParallelConfig,
     TransformerDataParallelWrappingStrategy,
     TransformerExpertParallelConfig,
@@ -38,7 +40,7 @@ from flexolmo.train.train_module.transformer import (
     FreezeTransformerTrainModuleConfig,
 )
 
-SEQUENCE_LENGTH = 4096
+SEQUENCE_LENGTH = 8192
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +67,7 @@ def build_model_config(common: CommonComponents) -> TransformerConfig:
 
 def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrainModuleConfig:
     return FreezeTransformerTrainModuleConfig(
-        rank_microbatch_size=2 * 4096,
+        rank_microbatch_size=SEQUENCE_LENGTH,
         max_sequence_length=common.dataset.max_sequence_length,
         freeze_experts="first_half",
         optim=AdamWConfig(
@@ -87,6 +89,13 @@ def build_train_module_config(common: CommonComponents) -> FreezeTransformerTrai
         ),
         # NOTE: expert parallelism requires either HSDP or tensor parallelism.
         ep_config=TransformerExpertParallelConfig(degree=2),
+        ac_config=TransformerActivationCheckpointingConfig(
+            mode=TransformerActivationCheckpointingMode.selected_modules,
+            modules=[
+                "blocks.*.attention.*",
+                "blocks.*.feed_forward_moe.experts.*",
+            ],
+        ),
         # tp_config=TransformerTensorParallelConfig(degree=-1),
         float8_config=Float8Config(
             ao=AOFloat8LinearConfig(

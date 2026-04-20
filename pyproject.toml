@@ -10,11 +10,11 @@ description = "FlexOLMo"
 authors = [
     { name = "Allen Institute for Artificial Intelligence", email = "olmo@allenai.org" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 dependencies = [
     "numpy",
-    "torch>=2.6.0",
+    "torch>=2.7.0,<2.9",
     "cached-path",
     "requests",
     "packaging",
@@ -22,6 +22,7 @@ dependencies = [
     "omegaconf",
     "safetensors",
     "importlib_resources",
+    "ring-flash-attn",
 ]
 
 [project.urls]
@@ -44,6 +45,7 @@ dev = [
     "build",
     "boto3",
     "google-cloud-storage",
+    "google-cloud-compute",
     "Sphinx>=6.0,<7.0.2",
     "furo==2023.5.20",
     "myst-parser>=1.0,<4.1",
@@ -52,7 +54,7 @@ dev = [
     "sphinx-autodoc-typehints==1.23.3",
 ]
 beaker = [
-    "beaker-py>=1.32.3,<2.0",
+    "beaker-py>=1.32.3",
     "beaker-gantry",
     "GitPython>=3.0,<4.0",
 ]
@@ -60,18 +62,21 @@ wandb = [
     "wandb",
 ]
 train = [
-    "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@ecb14e03f9e5f7374b81cc9f924fd13a4b2482f2",
+    "ai2-olmo-core@git+https://github.com/allenai/OLMo-core@d66967380fc19abed9dfa38944f4e85500a6ee2d",
     "huggingface-hub>=0.27.1",
-    "torchao==0.9.0",
-    "torchvision==0.21.0",
-    "protobuf==5.29.4"
+    "torchao>=0.9.0",
+    "torchvision>=0.21.0",
+    "protobuf==5.29.4",
 ]
 eval = [
-    "ai2-olmes@git+https://github.com/allenai/olmes@4f04122642bcee6d74393ec2ecfb0e572a64da53",
+    "huggingface-hub==1.5.0",
     "s3fs",
     "smart-open",
     "torchvision",
-    "prettytable"
+    "prettytable",
+    # "ai2-olmes@git+https://github.com/allenai/olmes", # "oe-eval@https://github.com/allenai/oe-eval-internal.git", # 
+    "ai2-olmes@git+https://github.com/allenai/olmes@8e2743734066b073c5d8498d1b8220f67a21a2d6",
+    "beaker-gantry"
 ]
 embeddings =[
     "gritlm",
@@ -80,7 +85,7 @@ embeddings =[
     "smart-open",
 ]
 extraction = [
-    "transformers@git+https://github.com/swj0419/transformers",
+    "transformers >= 4.57.1",
     "accelerate",
     "rank_bm25",
     "s3fs",

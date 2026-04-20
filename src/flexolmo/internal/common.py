@@ -4,11 +4,11 @@ from typing import Callable, Dict, List, Optional
 
 import torch
 from olmo_core.config import Config, DType
-from olmo_core.data import (
+from olmo_core.data import (  # NumpyDatasetType,
     DataMix,
     NumpyDataLoaderConfig,
     NumpyDatasetConfig,
-    NumpyDatasetType,
+    NumpyVSLDatasetConfig,
     TokenizerConfig,
     VSLCurriculumConfig,
     VSLCurriculumType,
@@ -36,7 +36,6 @@ from olmo_core.train.callbacks import (
     ConfigSaverCallback,
     GarbageCollectorCallback,
     GPUMemoryMonitorCallback,
-    LMEvaluatorCallbackConfig,
     ProfilerCallback,
     SlackNotifierCallback,
     WandBCallback,
@@ -46,8 +45,10 @@ from olmo_core.train.train_module import (
     TransformerTrainModuleConfig,
 )
 
+from flexolmo.data.glob_mixtures import get_glob_mixture
 from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config
-from flexolmo.eval.evaluator_callback import DownstreamEvaluatorUpdatedCallbackConfig
+
+# from flexolmo.eval.evaluator_callback import DownstreamEvaluatorUpdatedCallbackConfig
 
 log = logging.getLogger(__name__)
 
@@ -103,12 +104,10 @@ def build_common_components(
 
     tokenizer_config = TokenizerConfig.dolma2()
 
-    dataset_config = NumpyDatasetConfig.from_data_mix(
+    dataset_config = NumpyVSLDatasetConfig.from_data_mix(
         DataMix.OLMoE_mix_0824,
         tokenizer=tokenizer_config,
         mix_base_dir=root_dir,
-        sequence_length=sequence_length,
-        max_target_sequence_length=max(8192, sequence_length),
         min_sequence_length=min(256, sequence_length),
         max_sequence_length=max(8192, sequence_length),
         vsl_curriculum=VSLCurriculumConfig(
@@ -123,7 +122,7 @@ def build_common_components(
 
     train_module_config = TransformerTrainModuleConfig(
         rank_microbatch_size=2 * sequence_length,
-        max_sequence_length=dataset_config.effective_sequence_length,
+        max_sequence_length=dataset_config.max_sequence_length,
         optim=AdamWConfig(
             lr=9e-4,
             weight_decay=0.1,
@@ -187,42 +186,42 @@ def build_common_components(
     if torch.cuda.is_available():
         callbacks["gpu_monitor"] = GPUMemoryMonitorCallback()
 
-    if include_default_evals:
-        callbacks["lm_evaluator"] = LMEvaluatorCallbackConfig(
-            eval_dataset=NumpyDatasetConfig.from_data_mix(
-                DataMix.v3_small_ppl_validation,
-                name=NumpyDatasetType.padded_fsl,
-                mix_base_dir=root_dir,
-                sequence_length=dataset_config.effective_sequence_length,
-                tokenizer=tokenizer_config,
-                work_dir=get_work_dir(root_dir),
-            ),
-            eval_interval=1000,
-        )
+    # if include_default_evals:
+    #     callbacks["lm_evaluator"] = LMEvaluatorCallbackConfig(
+    #         eval_dataset=NumpyDatasetConfig.from_data_mix(
+    #             DataMix.v3_small_ppl_validation,
+    #             name=NumpyDatasetType.padded_fsl,
+    #             mix_base_dir=root_dir,
+    #             sequence_length=dataset_config.effective_sequence_length,
+    #             tokenizer=tokenizer_config,
+    #             work_dir=get_work_dir(root_dir),
+    #         ),
+    #         eval_interval=1000,
+    #     )
 
-        tasks = [
-            "piqa",
-            "hellaswag",
-            "winogrande",
-            "openbook_qa",
-            "boolq",
-            "sciq",
-            "xsum",
-            "wildbench_math",
-            "wildbench_reasoning",
-            "wildbench_coding_debugging",
-            "wildbench_creative_writing",
-            "mmlu_stem_val_rc_5shot",
-            "mmlu_humanities_val_rc_5shot",
-            "mmlu_social_sciences_val_rc_5shot",
-            "mmlu_other_val_rc_5shot",
-        ]
+    #     tasks = [
+    #         "piqa",
+    #         "hellaswag",
+    #         "winogrande",
+    #         "openbook_qa",
+    #         "boolq",
+    #         "sciq",
+    #         "xsum",
+    #         "wildbench_math",
+    #         "wildbench_reasoning",
+    #         "wildbench_coding_debugging",
+    #         "wildbench_creative_writing",
+    #         "mmlu_stem_val_rc_5shot",
+    #         "mmlu_humanities_val_rc_5shot",
+    #         "mmlu_social_sciences_val_rc_5shot",
+    #         "mmlu_other_val_rc_5shot",
+    #     ]
 
-        callbacks["downstream_evaluator"] = DownstreamEvaluatorUpdatedCallbackConfig(
-            tasks=[task for task in tasks[:2] if "_mc" not in task and "_var" not in task],
-            tokenizer=tokenizer_config,
-            eval_interval=1_000,
-        )
+    #     callbacks["downstream_evaluator"] = DownstreamEvaluatorUpdatedCallbackConfig(
+    #         tasks=[task for task in tasks[:2] if "_mc" not in task and "_var" not in task],
+    #         tokenizer=tokenizer_config,
+    #         eval_interval=1_000,
+    #     )
 
     trainer_config = TrainerConfig(
         save_folder=get_save_dir(root_dir, run_name),
@@ -332,10 +331,38 @@ def build_experiment_config(
     if override_datamix is not None:
         config.dataset.mix = override_datamix
         if "," in override_datamix:
-            config.dataset.source_mixture_config = get_mixture_dataset_config(config.dataset)
+            # Comma-separated mixes
+            if hasattr(config.dataset, "source_mixture_config"):
+                config.dataset.source_mixture_config = get_mixture_dataset_config(config.dataset)
+            config.dataset.mix = None
+        elif override_datamix.endswith("_glob"):
+            # Glob-based mixtures - set up source_mixture_config directly
+            if hasattr(config.dataset, "source_mixture_config"):
+                from olmo_core.data.source_mixture import SourceMixtureDatasetConfig
+                from olmo_core.data.types import NumpyDatasetDType
+
+                source_configs = get_glob_mixture(override_datamix)
+                seq_len = (
+                    config.dataset.max_sequence_length
+                    if hasattr(config.dataset, "max_sequence_length")
+                    else config.dataset.sequence_length
+                )
+                config.dataset.source_mixture_config = SourceMixtureDatasetConfig(
+                    source_configs=source_configs,
+                    max_tokens=(
+                        config.trainer.max_duration.value
+                        if config.trainer.max_duration.unit.name == "tokens"
+                        else 50_000_000_000
+                    ),
+                    sequence_length=seq_len,
+                    seed=2025,
+                    dtype=NumpyDatasetDType(config.dataset.get_dtype().__name__),
+                    processes=8,
+                )
             config.dataset.mix = None
         else:
-            config.dataset.source_mixture_config = None
+            if hasattr(config.dataset, "source_mixture_config"):
+                config.dataset.source_mixture_config = None
 
         assert override_datamix_idx is not None
         overrides.pop(override_datamix_idx)
