@@ -19,13 +19,11 @@ from olmo_core.train import (
     teardown_training_environment,
 )
 from olmo_core.train.train_module import (  # TransformerTensorParallelConfig,
+    TransformerActivationCheckpointingConfig,
+    TransformerActivationCheckpointingMode,
     TransformerDataParallelConfig,
     TransformerDataParallelWrappingStrategy,
     TransformerExpertParallelConfig,
-)
-from olmo_core.train.train_module import (
-    TransformerActivationCheckpointingConfig,
-    TransformerActivationCheckpointingMode,
 )
 from rich import print
 

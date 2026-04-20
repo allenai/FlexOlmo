@@ -4,9 +4,9 @@ Train an Nx7B OLMo2 model. Run this script without any arguments to see usage in
 
 import logging
 import sys
+from datetime import timedelta
 
 from olmo_core.data import NumpyDatasetConfig
-from datetime import timedelta
 
 # from olmo_core.float8 import AOFloat8LinearConfig, Float8Config
 from olmo_core.nn.transformer import TransformerConfig

@@ -19,7 +19,6 @@ from olmo_core.nn.moe.router import (
     MoERouterType,
     _uniform_expert_assignment,
 )
-
 from torch.distributed import DeviceMesh
 from torch.distributed.tensor import Replicate, Shard, distribute_tensor
 from torch.distributed.tensor.parallel import PrepareModuleInput, parallelize_module

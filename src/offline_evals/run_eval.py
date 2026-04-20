@@ -50,7 +50,11 @@ from oe_eval.utils import (
 try:
     import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts', 'eval'))
-    from routing_patch_standalone import is_routing_tracking_enabled, setup_routing_for_task, save_routing_results_for_task
+    from routing_patch_standalone import (
+        is_routing_tracking_enabled,
+        save_routing_results_for_task,
+        setup_routing_for_task,
+    )
     ROUTING_AVAILABLE = True
 except ImportError:
     ROUTING_AVAILABLE = False
@@ -459,7 +463,10 @@ def load_model_mp(model_load_config, gpu_ids, request_queue, response_queue, is_
         # Apply routing patches in worker process if routing tracking is enabled
         if ROUTING_AVAILABLE and os.environ.get("FLEXOLMO_ROUTING_TRACKING", "false").lower() == "true":
             logger.info("WORKER PROCESS: Applying routing patches...")
-            from routing_patch_standalone import patch_hflm_verbose, setup_routing_tracking
+            from routing_patch_standalone import (
+                patch_hflm_verbose,
+                setup_routing_tracking,
+            )
             patch_hflm_verbose()
             
             # Initialize routing tracking for this worker process

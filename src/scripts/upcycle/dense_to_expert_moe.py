@@ -5,7 +5,11 @@ import logging
 import numpy as np
 import torch
 from olmo_core.data.tokenizer import TokenizerConfig
-from olmo_core.distributed.checkpoint import save_state_dict, load_keys, get_checkpoint_metadata
+from olmo_core.distributed.checkpoint import (
+    get_checkpoint_metadata,
+    load_keys,
+    save_state_dict,
+)
 from olmo_core.nn.moe import MoEConfig
 from olmo_core.nn.transformer import TransformerConfig
 from olmo_core.train.config import TrainerConfig

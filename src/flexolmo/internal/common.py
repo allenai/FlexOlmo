@@ -4,12 +4,11 @@ from typing import Callable, Dict, List, Optional
 
 import torch
 from olmo_core.config import Config, DType
-from olmo_core.data import (
+from olmo_core.data import (  # NumpyDatasetType,
     DataMix,
     NumpyDataLoaderConfig,
     NumpyDatasetConfig,
     NumpyVSLDatasetConfig,
-    # NumpyDatasetType,
     TokenizerConfig,
     VSLCurriculumConfig,
     VSLCurriculumType,
@@ -46,8 +45,9 @@ from olmo_core.train.train_module import (
     TransformerTrainModuleConfig,
 )
 
-from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config
 from flexolmo.data.glob_mixtures import get_glob_mixture
+from flexolmo.data.mixes import CustomDataMix, get_mixture_dataset_config
+
 # from flexolmo.eval.evaluator_callback import DownstreamEvaluatorUpdatedCallbackConfig
 
 log = logging.getLogger(__name__)
