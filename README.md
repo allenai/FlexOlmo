@@ -52,6 +52,14 @@ FlexOlmo is built using [OLMo-core](https://github.com/allenai/OLMo-core.git). O
 
 All python training scripts can be found in [src/scripts/train](src/scripts/train/). These scripts are meant to be launched with `torchrun`. 
 
+## Convert to HF format
+git clone https://github.com/allenai/OLMo-core.git
+cd OLMo-core
+git checkout shanea/olmoe2-test
+pip install -e .
+pip install "transformers@git+https://github.com/2015aroras/transformers@shanea/olmoe2"
+MODEL_DIR=
+python src/examples/huggingface/convert_checkpoint_to_hf.py -i $MODEL_DIR -o $MODEL_DIR-hf -s 4096 --device cpu --skip-validation
 
 ## Evaluation
 
